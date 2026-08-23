@@ -1,12 +1,12 @@
 {
   "SchemaVersion": 1,
-  "Columns": 6,
-  "Rows": 6,
-  "ControlledColumns": 3,
+  "Columns": 9,
+  "Rows": 9,
+  "ControlledColumns": 6,
   "InitialResources": 10,
   "FixedProductionIntervalSeconds": 5.0,
   "TransmitterProductionIntervalSeconds": 3.0,
-  "TransmitterColumn": 2,
+  "TransmitterColumn": 3,
   "TransmitterRow": 2,
   "TransmitterAmount": 1,
   "TestUnitId": "U01"

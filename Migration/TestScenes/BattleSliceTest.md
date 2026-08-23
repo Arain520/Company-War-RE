@@ -16,7 +16,7 @@ Unity input and runtime visuals
 
 The scene intentionally contains only `BattleSliceBootstrap` plus direct references
 to two compatibility JSON TextAssets. At runtime the Presentation layer creates the
-camera, light, 6 x 6 grid, and placeholder unit markers. These placeholders are test
+camera, light, 9 x 9 grid, and placeholder unit markers. These placeholders are test
 visualization, not migrated production art.
 
 ## Run
@@ -30,7 +30,7 @@ visualization, not migrated production art.
 
 ## Expected behavior
 
-- The left 18 green cells are owned; the right 18 gray cells reject deployment.
+- The left 54 green cells are owned; the right 27 gray cells reject deployment.
 - U01 costs 1 resource and has a three-second per-unit cooldown, matching Cow's
   `Units.json`.
 - Resources start at 10, gain one every five seconds, and receive one transmitter

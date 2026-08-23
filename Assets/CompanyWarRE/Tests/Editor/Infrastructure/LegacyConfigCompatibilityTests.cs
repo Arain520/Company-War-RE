@@ -23,7 +23,9 @@ namespace CompanyWarRE.Infrastructure.Tests
             var result = CreateProvider(units, settings).Load("units", "settings");
 
             Assert.That(result.Succeeded, Is.True, JoinIssues(result));
-            Assert.That(result.Configuration.Columns, Is.EqualTo(6));
+            Assert.That(result.Configuration.Columns, Is.EqualTo(9));
+            Assert.That(result.Configuration.Rows, Is.EqualTo(9));
+            Assert.That(result.Configuration.ControlledColumns, Is.EqualTo(6));
             Assert.That(result.Configuration.InitialResources, Is.EqualTo(10));
             Assert.That(result.Configuration.FixedProductionIntervalSeconds, Is.EqualTo(5d));
             Assert.That(result.Configuration.TransmitterProductionIntervalSeconds, Is.EqualTo(3d));
