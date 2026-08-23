@@ -1,0 +1,135 @@
+# branch.oid 483a06cb2aa568a004dab0c880530bb2519b11c4
+# branch.head main
+# branch.upstream origin/main
+# branch.ab +0 -0
+1 .M N... 100644 100644 100644 da25a4a51720f2df80a363131eef0e076c3a2e9e da25a4a51720f2df80a363131eef0e076c3a2e9e Assets/StreamingAssets/CompanyWar/Configs/SpawnSchedules.json
+1 .M N... 100644 100644 100644 63621396a88ece2f2160495b76b43b636966c1a6 63621396a88ece2f2160495b76b43b636966c1a6 Assets/StreamingAssets/CompanyWar/Configs/Units.json
+1 .M N... 100644 100644 100644 1fc794957b13151aaf2fe557d55edd11471022a7 1fc794957b13151aaf2fe557d55edd11471022a7 Assets/_Game/Art/Prefabs/Buildings/PF_E06.prefab
+1 .M N... 100644 100644 100644 cb9c48ab2a3937744494f47c860540dcc7bf7811 cb9c48ab2a3937744494f47c860540dcc7bf7811 Assets/_Game/Art/Prefabs/Buildings/PF_E07.prefab
+1 .M N... 100644 100644 100644 9bf4d162f72741d4e92d3a9a9e404deae98e5422 9bf4d162f72741d4e92d3a9a9e404deae98e5422 Assets/_Game/Art/Prefabs/Buildings/PF_U08.prefab
+1 .M N... 100644 100644 100644 8302e045e5444e15ab499b6f3a2644ba3d594c0f 8302e045e5444e15ab499b6f3a2644ba3d594c0f Assets/_Game/Art/Prefabs/Buildings/PF_U09.prefab
+1 .M N... 100644 100644 100644 1c43672ff14516fd0715a8a339f7257d6903c372 1c43672ff14516fd0715a8a339f7257d6903c372 Assets/_Game/Art/Prefabs/Buildings/PF_U10.prefab
+1 .M N... 100644 100644 100644 f219f10691efcf57cadbe398e85ddc8d11b7c414 f219f10691efcf57cadbe398e85ddc8d11b7c414 Assets/_Game/Art/Prefabs/Buildings/PF_U11.prefab
+1 .M N... 100644 100644 100644 50b794004b047ccbaefb9bb06f03a42aa485b4fe 50b794004b047ccbaefb9bb06f03a42aa485b4fe Assets/_Game/Docs/EditorTools_Usage.md
+1 .M N... 100644 100644 100644 f8bcf94596258c068d7134b7db2d4d85a3d2837f f8bcf94596258c068d7134b7db2d4d85a3d2837f Assets/_Game/Editor/CompanyWarPrototype2DWindow.cs
+1 .M N... 100644 100644 100644 75bfc06fa4f92d9aa0370eddcb4c907b700100ee 75bfc06fa4f92d9aa0370eddcb4c907b700100ee Assets/_Game/Editor/JsonValidatorWindow.cs
+1 .M N... 100644 100644 100644 93005682b4017e8002724ad60ec27ee624b589e6 93005682b4017e8002724ad60ec27ee624b589e6 Assets/_Game/Editor/LevelGridEditorWindow.cs
+1 .M N... 100644 100644 100644 16e86f094c5f62b45e7080935fa585ae53b7e753 16e86f094c5f62b45e7080935fa585ae53b7e753 Assets/_Game/Editor/PrefabMaterialGeneratorWindow.cs
+1 .M N... 100644 100644 100644 c035b21a45b9a2d96d6b5cfce40f1ffec5fdaeba c035b21a45b9a2d96d6b5cfce40f1ffec5fdaeba Assets/_Game/Editor/RuntimeConfigBuildSync.cs
+1 .M N... 100644 100644 100644 e99942bb0a65b4384750f2b6c7fe1ffc2e3ffcdf e99942bb0a65b4384750f2b6c7fe1ffc2e3ffcdf Assets/_Game/Editor/SpawnScheduleEditorWindow.cs
+1 .M N... 100644 100644 100644 175aa008447bb09cfe38d6ca0def136da8deade0 175aa008447bb09cfe38d6ca0def136da8deade0 Assets/_Game/Editor/UnitEnemyCatalogEditorWindow.cs
+1 .M N... 100644 100644 100644 406240b679b4ff3b0bfbecc669dfeff81b937631 406240b679b4ff3b0bfbecc669dfeff81b937631 Assets/_Game/Editor/VisualMappingAutoAssigner.cs
+1 .M N... 100644 100644 100644 6dc2fc05e3d1bea5fd2dda545a70214397e4158a 6dc2fc05e3d1bea5fd2dda545a70214397e4158a Assets/_Game/Editor/VisualMappingEditorWindow.cs
+1 .M N... 100644 100644 100644 6716d689f13b1c94e5dfbea28b827bbac2e3d28d 6716d689f13b1c94e5dfbea28b827bbac2e3d28d Assets/_Game/Resources/VisualMapping.asset
+1 .M N... 100644 100644 100644 5561602b971886b129cb337e3e26114782d1570f 5561602b971886b129cb337e3e26114782d1570f Assets/_Game/Scripts/Logic/Adapters/LogicToViewBridge.cs
+1 .M N... 100644 100644 100644 ffb0197d9480c839c879d84dd8af0ae4f4698b3f ffb0197d9480c839c879d84dd8af0ae4f4698b3f Assets/_Game/Scripts/Logic/Adapters/ViewEventTypes.cs
+1 .M N... 100644 100644 100644 6550c98c736b8cb9ede05346f6e074e293a73974 6550c98c736b8cb9ede05346f6e074e293a73974 Assets/_Game/Scripts/Logic/Core/Domain/BattleEngine.cs
+1 .M N... 100644 100644 100644 d7a877213470f304f2a3980baed7d9b08a6b0441 d7a877213470f304f2a3980baed7d9b08a6b0441 Assets/_Game/Tests/Cases/CW_UNIT_0109_ControlBlockEncounter.cs
+1 .D N... 100644 100644 000000 1bfd31835ca13503e3973ffe3a9b7cbd2c1340f5 1bfd31835ca13503e3973ffe3a9b7cbd2c1340f5 Cow.zip
+1 .M N... 100644 100644 100644 e6738dc223b5d01e359343daba9cf5b890dfc3a3 e6738dc223b5d01e359343daba9cf5b890dfc3a3 ProjectSettings/ScriptableBuildPipeline.json
+? Assets/AddressableAssetsData/link.xml
+? Assets/AddressableAssetsData/link.xml.meta
+? Assets/_Game/Art/Materials/Mat_E08.mat
+? Assets/_Game/Art/Materials/Mat_E08.mat.meta
+? Assets/_Game/Art/Materials/Mat_E09.mat
+? Assets/_Game/Art/Materials/Mat_E09.mat.meta
+? Assets/_Game/Art/Materials/Mat_E10.mat
+? Assets/_Game/Art/Materials/Mat_E10.mat.meta
+? Assets/_Game/Art/Materials/Mat_E11.mat
+? Assets/_Game/Art/Materials/Mat_E11.mat.meta
+? Assets/_Game/Art/Materials/Mat_E12.mat
+? Assets/_Game/Art/Materials/Mat_E12.mat.meta
+? Assets/_Game/Art/Materials/Mat_E13.mat
+? Assets/_Game/Art/Materials/Mat_E13.mat.meta
+? Assets/_Game/Art/Materials/Mat_E14.mat
+? Assets/_Game/Art/Materials/Mat_E14.mat.meta
+? Assets/_Game/Art/Materials/Mat_E15.mat
+? Assets/_Game/Art/Materials/Mat_E15.mat.meta
+? Assets/_Game/Art/Materials/Mat_U13.mat
+? Assets/_Game/Art/Materials/Mat_U13.mat.meta
+? Assets/_Game/Art/Materials/Mat_U15.mat
+? Assets/_Game/Art/Materials/Mat_U15.mat.meta
+? Assets/_Game/Art/Materials/Mat_U16.mat
+? Assets/_Game/Art/Materials/Mat_U16.mat.meta
+? Assets/_Game/Art/Materials/Mat_U17.mat
+? Assets/_Game/Art/Materials/Mat_U17.mat.meta
+? Assets/_Game/Art/Materials/Mat_U18.mat
+? Assets/_Game/Art/Materials/Mat_U18.mat.meta
+? Assets/_Game/Art/Materials/Mat_U19.mat
+? Assets/_Game/Art/Materials/Mat_U19.mat.meta
+? Assets/_Game/Art/Materials/Mat_U20.mat
+? Assets/_Game/Art/Materials/Mat_U20.mat.meta
+? Assets/_Game/Art/Materials/Mat_U21.mat
+? Assets/_Game/Art/Materials/Mat_U21.mat.meta
+? Assets/_Game/Art/Materials/Mat_U22.mat
+? Assets/_Game/Art/Materials/Mat_U22.mat.meta
+? Assets/_Game/Art/Materials/Mat_U23.mat
+? Assets/_Game/Art/Materials/Mat_U23.mat.meta
+? Assets/_Game/Art/Materials/Mat_U24.mat
+? Assets/_Game/Art/Materials/Mat_U24.mat.meta
+? Assets/_Game/Art/Prefabs/Buildings/PF_E12.prefab
+? Assets/_Game/Art/Prefabs/Buildings/PF_E12.prefab.meta
+? Assets/_Game/Art/Prefabs/Buildings/PF_E13.prefab
+? Assets/_Game/Art/Prefabs/Buildings/PF_E13.prefab.meta
+? Assets/_Game/Art/Prefabs/Buildings/PF_E14.prefab
+? Assets/_Game/Art/Prefabs/Buildings/PF_E14.prefab.meta
+? Assets/_Game/Art/Prefabs/Buildings/PF_E15.prefab
+? Assets/_Game/Art/Prefabs/Buildings/PF_E15.prefab.meta
+? Assets/_Game/Art/Prefabs/Buildings/PF_U21.prefab
+? Assets/_Game/Art/Prefabs/Buildings/PF_U21.prefab.meta
+? Assets/_Game/Art/Prefabs/Enemies/PF_E01.prefab
+? Assets/_Game/Art/Prefabs/Enemies/PF_E01.prefab.meta
+? Assets/_Game/Art/Prefabs/Enemies/PF_E02.prefab
+? Assets/_Game/Art/Prefabs/Enemies/PF_E02.prefab.meta
+? Assets/_Game/Art/Prefabs/Enemies/PF_E03.prefab
+? Assets/_Game/Art/Prefabs/Enemies/PF_E03.prefab.meta
+? Assets/_Game/Art/Prefabs/Enemies/PF_E04.prefab
+? Assets/_Game/Art/Prefabs/Enemies/PF_E04.prefab.meta
+? Assets/_Game/Art/Prefabs/Enemies/PF_E05.prefab
+? Assets/_Game/Art/Prefabs/Enemies/PF_E05.prefab.meta
+? Assets/_Game/Art/Prefabs/Enemies/PF_E08.prefab
+? Assets/_Game/Art/Prefabs/Enemies/PF_E08.prefab.meta
+? Assets/_Game/Art/Prefabs/Enemies/PF_E09.prefab
+? Assets/_Game/Art/Prefabs/Enemies/PF_E09.prefab.meta
+? Assets/_Game/Art/Prefabs/Enemies/PF_E10.prefab
+? Assets/_Game/Art/Prefabs/Enemies/PF_E10.prefab.meta
+? Assets/_Game/Art/Prefabs/Enemies/PF_E11.prefab
+? Assets/_Game/Art/Prefabs/Enemies/PF_E11.prefab.meta
+? Assets/_Game/Art/Prefabs/Units/PF_U01.prefab
+? Assets/_Game/Art/Prefabs/Units/PF_U01.prefab.meta
+? Assets/_Game/Art/Prefabs/Units/PF_U02.prefab
+? Assets/_Game/Art/Prefabs/Units/PF_U02.prefab.meta
+? Assets/_Game/Art/Prefabs/Units/PF_U03.prefab
+? Assets/_Game/Art/Prefabs/Units/PF_U03.prefab.meta
+? Assets/_Game/Art/Prefabs/Units/PF_U04.prefab
+? Assets/_Game/Art/Prefabs/Units/PF_U04.prefab.meta
+? Assets/_Game/Art/Prefabs/Units/PF_U05.prefab
+? Assets/_Game/Art/Prefabs/Units/PF_U05.prefab.meta
+? Assets/_Game/Art/Prefabs/Units/PF_U06.prefab
+? Assets/_Game/Art/Prefabs/Units/PF_U06.prefab.meta
+? Assets/_Game/Art/Prefabs/Units/PF_U07.prefab
+? Assets/_Game/Art/Prefabs/Units/PF_U07.prefab.meta
+? Assets/_Game/Art/Prefabs/Units/PF_U12.prefab
+? Assets/_Game/Art/Prefabs/Units/PF_U12.prefab.meta
+? Assets/_Game/Art/Prefabs/Units/PF_U13.prefab
+? Assets/_Game/Art/Prefabs/Units/PF_U13.prefab.meta
+? Assets/_Game/Art/Prefabs/Units/PF_U14.prefab
+? Assets/_Game/Art/Prefabs/Units/PF_U14.prefab.meta
+? Assets/_Game/Art/Prefabs/Units/PF_U15.prefab
+? Assets/_Game/Art/Prefabs/Units/PF_U15.prefab.meta
+? Assets/_Game/Art/Prefabs/Units/PF_U16.prefab
+? Assets/_Game/Art/Prefabs/Units/PF_U16.prefab.meta
+? Assets/_Game/Art/Prefabs/Units/PF_U17.prefab
+? Assets/_Game/Art/Prefabs/Units/PF_U17.prefab.meta
+? Assets/_Game/Art/Prefabs/Units/PF_U18.prefab
+? Assets/_Game/Art/Prefabs/Units/PF_U18.prefab.meta
+? Assets/_Game/Art/Prefabs/Units/PF_U19.prefab
+? Assets/_Game/Art/Prefabs/Units/PF_U19.prefab.meta
+? Assets/_Game/Art/Prefabs/Units/PF_U20.prefab
+? Assets/_Game/Art/Prefabs/Units/PF_U20.prefab.meta
+? Assets/_Game/Art/Prefabs/Units/PF_U22.prefab
+? Assets/_Game/Art/Prefabs/Units/PF_U22.prefab.meta
+? Assets/_Game/Art/Prefabs/Units/PF_U23.prefab
+? Assets/_Game/Art/Prefabs/Units/PF_U23.prefab.meta
+? Assets/_Game/Art/Prefabs/Units/PF_U24.prefab
+? Assets/_Game/Art/Prefabs/Units/PF_U24.prefab.meta

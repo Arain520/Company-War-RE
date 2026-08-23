@@ -136,6 +136,7 @@ Packages/packages-lock.json linguist-generated
 *.webp                  lfs
 
 # Compressed Archive
+*.bundle                 lfs
 *.7z                    lfs
 *.bz2                   lfs
 *.gz                    lfs

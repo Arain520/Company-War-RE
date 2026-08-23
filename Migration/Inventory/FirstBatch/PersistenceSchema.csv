@@ -1,0 +1,5 @@
+"Store","Key","ValueType","Status","Compatibility"
+"PlayerPrefs","CompanyWar.LastLevel","String","Active","Preserve key and semantics"
+"PlayerPrefs","CompanyWar.LevelStars.{LevelId}","Int","Active","Preserve dynamic key format and star range"
+"PlayerPrefs","Audio settings keys (exact names in evidence report)","Float/Int","Active","Preserve keys/defaults before AudioKit adaptation"
+"Encrypted file / SaveUtil","Callers not found in current source audit","AES encrypted payload","Dormant","Do not remove until compatibility and historical-save decision"

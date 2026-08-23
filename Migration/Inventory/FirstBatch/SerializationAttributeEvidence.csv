@@ -1,0 +1,5 @@
+"Script","Line","Attribute"
+"Assets/_Game/Scripts/Audio/AudioManager.cs","22","[FormerlySerializedAs(""menuMusic"")]"
+"Assets/_Game/Scripts/Audio/AudioManager.cs","24","[FormerlySerializedAs(""levelSelectMusic"")]"
+"Assets/_Game/Scripts/Audio/AudioManager.cs","26","[FormerlySerializedAs(""battleMusic"")]"
+"Assets/_Game/Scripts/Audio/AudioManager.cs","30","[FormerlySerializedAs(""finalBattleMusic"")]"

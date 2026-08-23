@@ -1,0 +1,10 @@
+Cow recoverable snapshot verification: PASS
+SnapshotId: 20260823-first-batch-v2
+SourceRoot: D:\UNITY2\Cow
+SourceWasReadOnlyByPolicy: true
+GitBundleVerified: true
+WorkingTreeRestoreVerified: true
+FileCount: 1803
+WorkingTreeArchiveSHA256: 6c5598b0e9c784a543961abae2dab9e51021c9ac7b16b6b8afdde435224bdf84
+GitBundleSHA256: 1cbd73dcf23c7153406fd6b8596a4ccd6f95f7ed8f7e78976cad91a2fcdb3c1a
+ExcludedGeneratedRoots: Library, Logs, UserSettings, Temp, obj, standalone build directory Cow

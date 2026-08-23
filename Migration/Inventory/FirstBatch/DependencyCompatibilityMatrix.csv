@@ -1,0 +1,6 @@
+"Dependency","SourceEvidence","TargetEvidence","Policy","RemovalCommitted"
+"Addressables","Packages/manifest.json: com.unity.addressables 1.21.20","Not currently requested","Compatibility-first; retain/install compatible version when required","False"
+"UniTask","Assets plugin and script references","Not currently present","Compatibility-first; inventory API usage before any replacement","False"
+"DOTween","DOTween DLL/plugin assets","Not currently present","Compatibility-first; preserve animation behavior before any replacement","False"
+"QFramework","Legacy single-file/framework scripts","QFramework 1.0.257 toolkits","Use only at Application/Infrastructure/Presentation boundaries","False"
+"HDRP","GraphicsSettings and serialized AdditionalCameraData/AdditionalLightData","URP 14.0.12","Resolve serialized HDRP types before renderer conversion; never strip blindly","False"
