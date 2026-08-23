@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Globalization;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Text;
@@ -128,6 +129,44 @@ namespace CompanyWarRE.Infrastructure.Configuration
         public int EnemySpawnColumn;
         [DataMember(Name = "EnemySpawnRow")]
         public int EnemySpawnRow;
+        [DataMember(Name = "EnemySpawnColumns")]
+        public List<int> EnemySpawnColumns;
+        [DataMember(Name = "EnemyWaveRandomSeed")]
+        public int EnemyWaveRandomSeed;
+    }
+
+    [Serializable]
+    [DataContract]
+    public sealed class LegacySpawnSchedulesDto
+    {
+        [DataMember(Name = "Stages")]
+        public List<LegacySpawnStageDto> Stages;
+    }
+
+    [Serializable]
+    [DataContract]
+    public sealed class LegacySpawnStageDto
+    {
+        [DataMember(Name = "Name")]
+        public string Name;
+        [DataMember(Name = "Period")]
+        public string Period;
+        [DataMember(Name = "Rate")]
+        public string Rate;
+        [DataMember(Name = "PerWave")]
+        public int PerWave;
+        [DataMember(Name = "Types")]
+        public List<LegacySpawnTypeWeightDto> Types;
+    }
+
+    [Serializable]
+    [DataContract]
+    public sealed class LegacySpawnTypeWeightDto
+    {
+        [DataMember(Name = "Id")]
+        public string Id;
+        [DataMember(Name = "Weight")]
+        public int Weight;
     }
 
     public interface IConfigurationTextSource
@@ -209,7 +248,11 @@ namespace CompanyWarRE.Infrastructure.Configuration
             _source = source ?? throw new ArgumentNullException(nameof(source));
         }
 
-        public BattleSliceConfigurationLoadResult Load(string unitsKey, string enemiesKey, string settingsKey)
+        public BattleSliceConfigurationLoadResult Load(
+            string unitsKey,
+            string enemiesKey,
+            string settingsKey,
+            string spawnSchedulesKey = null)
         {
             var issues = new List<ConfigurationIssue>();
             if (!_source.TryRead(unitsKey, out var unitsJson, out var unitsReadError))
@@ -227,6 +270,13 @@ namespace CompanyWarRE.Infrastructure.Configuration
                 issues.Add(new ConfigurationIssue("CFG_SOURCE", settingsKey, settingsReadError));
             }
 
+            string spawnSchedulesJson = null;
+            if (!string.IsNullOrWhiteSpace(spawnSchedulesKey) &&
+                !_source.TryRead(spawnSchedulesKey, out spawnSchedulesJson, out var spawnSchedulesReadError))
+            {
+                issues.Add(new ConfigurationIssue("CFG_SOURCE", spawnSchedulesKey, spawnSchedulesReadError));
+            }
+
             if (issues.Count > 0)
             {
                 return new BattleSliceConfigurationLoadResult(null, issues);
@@ -235,7 +285,11 @@ namespace CompanyWarRE.Infrastructure.Configuration
             var units = Parse<LegacyUnitsDocumentDto>(unitsJson, unitsKey, issues);
             var enemies = Parse<LegacyEnemiesDocumentDto>(enemiesJson, enemiesKey, issues);
             var settings = Parse<BattleSliceSettingsDto>(settingsJson, settingsKey, issues);
-            if (units == null || enemies == null || settings == null)
+            var spawnSchedules = string.IsNullOrWhiteSpace(spawnSchedulesKey)
+                ? null
+                : Parse<LegacySpawnSchedulesDto>(spawnSchedulesJson, spawnSchedulesKey, issues);
+            if (units == null || enemies == null || settings == null ||
+                (!string.IsNullOrWhiteSpace(spawnSchedulesKey) && spawnSchedules == null))
             {
                 return new BattleSliceConfigurationLoadResult(null, issues);
             }
@@ -243,6 +297,15 @@ namespace CompanyWarRE.Infrastructure.Configuration
             ValidateSettings(settings, settingsKey, issues);
             var selectedUnit = ValidateAndFindUnit(units, settings.TestUnitId, unitsKey, issues);
             var selectedEnemy = ValidateAndFindEnemy(enemies, settings.TestEnemyId, enemiesKey, issues);
+            var enemyDefinitions = enemies.Enemies == null
+                ? new List<CombatantDefinition>()
+                : enemies.Enemies
+                    .Where(item => item != null && !string.IsNullOrWhiteSpace(item.Id))
+                    .Select(MapEnemyCombatant)
+                    .ToList();
+            var enemyWaveStages = spawnSchedules == null
+                ? null
+                : MapSpawnStages(spawnSchedules, spawnSchedulesKey, enemyDefinitions, issues);
             if (issues.Count > 0 || selectedUnit == null || selectedEnemy == null)
             {
                 return new BattleSliceConfigurationLoadResult(null, issues);
@@ -270,15 +333,7 @@ namespace CompanyWarRE.Infrastructure.Configuration
                 selectedUnit.Speed,
                 selectedUnit.AttackInterval,
                 selectedUnit.Range);
-            var enemyCombatant = new CombatantDefinition(
-                selectedEnemy.Id,
-                selectedEnemy.Type,
-                selectedEnemy.Durability,
-                selectedEnemy.Attack,
-                selectedEnemy.Speed,
-                selectedEnemy.AttackInterval,
-                selectedEnemy.Range,
-                selectedEnemy.AssaultScoreReward);
+            var enemyCombatant = MapEnemyCombatant(selectedEnemy);
             var configuration = new BattleSliceConfiguration(
                 settings.Columns,
                 settings.Rows,
@@ -291,8 +346,157 @@ namespace CompanyWarRE.Infrastructure.Configuration
                 unit,
                 allyCombatant,
                 enemyCombatant,
-                new GridPosition(settings.EnemySpawnColumn, settings.EnemySpawnRow));
+                new GridPosition(settings.EnemySpawnColumn, settings.EnemySpawnRow),
+                enemyWaveStages,
+                enemyDefinitions,
+                settings.EnemySpawnColumns,
+                settings.EnemyWaveRandomSeed == 0 ? 17 : settings.EnemyWaveRandomSeed);
             return new BattleSliceConfigurationLoadResult(configuration, issues);
+        }
+
+        private static CombatantDefinition MapEnemyCombatant(LegacyEnemyDto enemy)
+        {
+            return new CombatantDefinition(
+                enemy.Id,
+                enemy.Type,
+                enemy.Durability,
+                enemy.Attack,
+                enemy.Speed,
+                enemy.AttackInterval,
+                enemy.Range,
+                enemy.AssaultScoreReward);
+        }
+
+        private static IReadOnlyList<EnemyWaveStage> MapSpawnStages(
+            LegacySpawnSchedulesDto document,
+            string path,
+            IReadOnlyCollection<CombatantDefinition> enemies,
+            ICollection<ConfigurationIssue> issues)
+        {
+            var result = new List<EnemyWaveStage>();
+            if (document.Stages == null || document.Stages.Count == 0)
+            {
+                issues.Add(new ConfigurationIssue("CFG_REQUIRED", path + ".Stages", "Spawn stages cannot be empty."));
+                return result;
+            }
+
+            var enemyIds = new HashSet<string>(enemies.Select(item => item.Id), StringComparer.OrdinalIgnoreCase);
+            for (var index = 0; index < document.Stages.Count; index++)
+            {
+                var stage = document.Stages[index];
+                var stagePath = $"{path}.Stages[{index}]";
+                if (stage == null || string.IsNullOrWhiteSpace(stage.Name))
+                {
+                    issues.Add(new ConfigurationIssue("CFG_REQUIRED", stagePath + ".Name", "Stage name is required."));
+                    continue;
+                }
+
+                if (!TryParsePeriodSeconds(stage.Period, out var duration))
+                {
+                    issues.Add(new ConfigurationIssue("CFG_FORMAT", stagePath + ".Period", "Expected mm:ss-mm:ss."));
+                }
+
+                if (!TryParseRate(stage.Rate, out var rateNumerator, out var interval))
+                {
+                    issues.Add(new ConfigurationIssue("CFG_FORMAT", stagePath + ".Rate", "Expected count/seconds sec."));
+                }
+
+                var weights = new List<EnemySpawnWeight>();
+                if (stage.Types == null || stage.Types.Count == 0)
+                {
+                    issues.Add(new ConfigurationIssue("CFG_REQUIRED", stagePath + ".Types", "Enemy weights cannot be empty."));
+                }
+                else
+                {
+                    for (var typeIndex = 0; typeIndex < stage.Types.Count; typeIndex++)
+                    {
+                        var type = stage.Types[typeIndex];
+                        var typePath = $"{stagePath}.Types[{typeIndex}]";
+                        if (type == null || string.IsNullOrWhiteSpace(type.Id))
+                        {
+                            issues.Add(new ConfigurationIssue("CFG_REQUIRED", typePath + ".Id", "Enemy ID is required."));
+                            continue;
+                        }
+
+                        if (!enemyIds.Contains(type.Id))
+                        {
+                            issues.Add(new ConfigurationIssue("CFG_REFERENCE", typePath + ".Id", "Enemy definition was not found: " + type.Id + "."));
+                        }
+
+                        if (type.Weight < 0)
+                        {
+                            issues.Add(new ConfigurationIssue("CFG_RANGE", typePath + ".Weight", "Weight cannot be negative."));
+                        }
+
+                        weights.Add(new EnemySpawnWeight(type.Id, type.Weight));
+                    }
+                }
+
+                if (duration > 0d && interval > 0d && weights.Count > 0)
+                {
+                    result.Add(new EnemyWaveStage(
+                        stage.Name,
+                        duration,
+                        interval,
+                        stage.PerWave > 0 ? stage.PerWave : Math.Max(1, rateNumerator),
+                        weights));
+                }
+            }
+
+            return result;
+        }
+
+        private static bool TryParseRate(string value, out int numerator, out double intervalSeconds)
+        {
+            numerator = 0;
+            intervalSeconds = 0d;
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return false;
+            }
+
+            var slash = value.IndexOf('/');
+            if (slash <= 0 || !int.TryParse(value.Substring(0, slash).Trim(), out numerator))
+            {
+                return false;
+            }
+
+            var denominator = value.Substring(slash + 1).Trim().Split(' ')[0];
+            return numerator > 0 &&
+                   double.TryParse(denominator, NumberStyles.Float, CultureInfo.InvariantCulture, out intervalSeconds) &&
+                   intervalSeconds > 0d;
+        }
+
+        private static bool TryParsePeriodSeconds(string value, out double durationSeconds)
+        {
+            durationSeconds = 0d;
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return false;
+            }
+
+            var parts = value.Split('-');
+            if (parts.Length != 2 || !TryParseClock(parts[0], out var start) || !TryParseClock(parts[1], out var end) || end < start)
+            {
+                return false;
+            }
+
+            durationSeconds = (end - start) + 1d;
+            return true;
+        }
+
+        private static bool TryParseClock(string value, out int seconds)
+        {
+            seconds = 0;
+            var parts = value.Trim().Split(':');
+            if (parts.Length != 2 || !int.TryParse(parts[0], out var minutes) || !int.TryParse(parts[1], out var remainder) ||
+                minutes < 0 || remainder < 0 || remainder > 59)
+            {
+                return false;
+            }
+
+            seconds = (minutes * 60) + remainder;
+            return true;
         }
 
         private static T Parse<T>(string json, string path, ICollection<ConfigurationIssue> issues)
@@ -407,6 +611,15 @@ namespace CompanyWarRE.Infrastructure.Configuration
                     "CFG_RANGE",
                     path + ".EnemySpawnPosition",
                     "Enemy spawn position must be outside ally-controlled rows."));
+            }
+
+            if (settings.EnemySpawnColumns != null &&
+                settings.EnemySpawnColumns.Any(column => column < 1 || column > settings.Columns))
+            {
+                issues.Add(new ConfigurationIssue(
+                    "CFG_RANGE",
+                    path + ".EnemySpawnColumns",
+                    "Every enemy spawn column must be inside the grid."));
             }
         }
 

@@ -46,4 +46,5 @@ All evidence is read from Cow and pinned in `SourceEvidenceHashes.csv`.
 - buildings, blocked control blocks, support effects, healing, conversion,
   execution, knockback, buffs, and unit-specific mechanics;
 - final VFX/animation/audio for battlefield start, attack, death, and pollution;
-- spawn waves, assault score, victory/defeat integration, and save data.
+- assault score, victory/defeat integration, and save data. Enemy waves are now
+  covered by `EnemyWaves-v0.1.md`.

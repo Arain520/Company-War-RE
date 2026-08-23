@@ -15,6 +15,8 @@ namespace CompanyWarRE.Infrastructure.Tests
             "Assets/CompanyWarRE/ConfigSamples/Compatibility/LegacyEnemies.E01.json";
         private const string SettingsPath =
             "Assets/CompanyWarRE/ConfigSamples/Compatibility/BattleSliceRuntime.json";
+        private const string SpawnSchedulesPath =
+            "Assets/CompanyWarRE/ConfigSamples/Compatibility/LegacySpawnSchedules.json";
 
         [Test]
         public void CompatibilitySamples_MapLegacyU01AndObservedRuntimeDefaults()
@@ -22,8 +24,10 @@ namespace CompanyWarRE.Infrastructure.Tests
             var units = File.ReadAllText(UnitsPath);
             var enemies = File.ReadAllText(EnemiesPath);
             var settings = File.ReadAllText(SettingsPath);
+            var schedules = File.ReadAllText(SpawnSchedulesPath);
 
-            var result = CreateProvider(units, settings, enemies).Load("units", "enemies", "settings");
+            var result = CreateProvider(units, settings, enemies, schedules)
+                .Load("units", "enemies", "settings", "schedules");
 
             Assert.That(result.Succeeded, Is.True, JoinIssues(result));
             Assert.That(result.Configuration.Columns, Is.EqualTo(9));
@@ -44,6 +48,11 @@ namespace CompanyWarRE.Infrastructure.Tests
             Assert.That(result.Configuration.EnemyCombatant.Durability, Is.EqualTo(1));
             Assert.That(result.Configuration.EnemyCombatant.AssaultScoreReward, Is.EqualTo(1));
             Assert.That(result.Configuration.EnemySpawnPosition, Is.EqualTo(new GridPosition(3, 9)));
+            Assert.That(result.Configuration.EnemyWaveStages.Count, Is.EqualTo(5));
+            Assert.That(result.Configuration.EnemyWaveStages[0].WaveIntervalSeconds, Is.EqualTo(10d));
+            Assert.That(result.Configuration.EnemyWaveStages[1].EnemiesPerWave, Is.EqualTo(2));
+            Assert.That(result.Configuration.EnemyCombatants.Keys, Does.Contain("E05"));
+            Assert.That(result.Configuration.EnemySpawnColumns.Count, Is.EqualTo(9));
         }
 
         [Test]
@@ -162,18 +171,45 @@ namespace CompanyWarRE.Infrastructure.Tests
                 issue.Code == "CFG_RANGE" && issue.Path.EndsWith(".EnemySpawnPosition")), Is.True);
         }
 
+        [Test]
+        public void SpawnSchedule_RejectsUnknownEnemyReference()
+        {
+            const string schedules =
+                "{\"Stages\":[{\"Name\":\"Stage1\",\"Period\":\"0:00-0:59\"," +
+                "\"Rate\":\"1/10 sec\",\"PerWave\":1," +
+                "\"Types\":[{\"Id\":\"E99\",\"Weight\":1}]}]}";
+            var provider = CreateProvider(
+                "{\"Units\":[{\"Id\":\"U01\",\"Type\":\"Staff\",\"Durability\":1," +
+                "\"Attack\":1,\"Speed\":1,\"AttackInterval\":1,\"Range\":1," +
+                "\"ResourceCost\":1,\"DeployCooldown\":3}]}",
+                ValidSettingsJson(),
+                null,
+                schedules);
+
+            var result = provider.Load("units", "enemies", "settings", "schedules");
+
+            Assert.That(result.Succeeded, Is.False);
+            Assert.That(result.Issues.Any(issue => issue.Code == "CFG_REFERENCE"), Is.True);
+        }
+
         private static LegacyBattleSliceConfigurationProvider CreateProvider(
             string units,
             string settings,
-            string enemies = null)
+            string enemies = null,
+            string schedules = null)
         {
-            return new LegacyBattleSliceConfigurationProvider(
-                new DictionaryConfigurationTextSource(new Dictionary<string, string>
-                {
-                    ["units"] = units,
-                    ["enemies"] = enemies ?? ValidEnemiesJson(),
-                    ["settings"] = settings
-                }));
+            var documents = new Dictionary<string, string>
+            {
+                ["units"] = units,
+                ["enemies"] = enemies ?? ValidEnemiesJson(),
+                ["settings"] = settings
+            };
+            if (schedules != null)
+            {
+                documents["schedules"] = schedules;
+            }
+
+            return new LegacyBattleSliceConfigurationProvider(new DictionaryConfigurationTextSource(documents));
         }
 
         private static string ValidSettingsJson(string unitId = "U01")

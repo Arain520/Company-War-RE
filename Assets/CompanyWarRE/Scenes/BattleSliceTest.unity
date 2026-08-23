@@ -171,3 +171,4 @@ MonoBehaviour:
   legacyUnitsJson: {fileID: 4900000, guid: 7d463bb5a0ac4467bcd7bee28645f034, type: 3}
   legacyEnemiesJson: {fileID: 4900000, guid: 3eaf652321264781a75011c0c5a7cbfd, type: 3}
   sliceSettingsJson: {fileID: 4900000, guid: 51dd41498183492fae2292c404b6d0a4, type: 3}
+  legacySpawnSchedulesJson: {fileID: 4900000, guid: aa75e2d457814eeb9a7cf84ad49ed41c, type: 3}

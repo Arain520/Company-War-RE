@@ -10,6 +10,50 @@
       "AttackInterval": 1.0,
       "Range": 1,
       "AssaultScoreReward": 1
+    },
+    {
+      "Id": "E02",
+      "Name": "叠甲",
+      "Type": "Staff",
+      "Durability": 3,
+      "Attack": 2,
+      "Speed": 1.0,
+      "AttackInterval": 1.0,
+      "Range": 1,
+      "AssaultScoreReward": 1
+    },
+    {
+      "Id": "E03",
+      "Name": "铁盾",
+      "Type": "Staff",
+      "Durability": 8,
+      "Attack": 1,
+      "Speed": 2.0,
+      "AttackInterval": 1.0,
+      "Range": 1,
+      "AssaultScoreReward": 2
+    },
+    {
+      "Id": "E04",
+      "Name": "E04",
+      "Type": "Staff",
+      "Durability": 3,
+      "Attack": 3,
+      "Speed": 2.0,
+      "AttackInterval": 1.0,
+      "Range": 1,
+      "AssaultScoreReward": 2
+    },
+    {
+      "Id": "E05",
+      "Name": "豺狼",
+      "Type": "Staff",
+      "Durability": 2,
+      "Attack": 1,
+      "Speed": 4.0,
+      "AttackInterval": 1.0,
+      "Range": 1,
+      "AssaultScoreReward": 1
     }
   ]
 }

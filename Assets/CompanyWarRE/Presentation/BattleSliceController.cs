@@ -12,6 +12,7 @@ namespace CompanyWarRE.Presentation
         [SerializeField] private TextAsset legacyUnitsJson;
         [SerializeField] private TextAsset legacyEnemiesJson;
         [SerializeField] private TextAsset sliceSettingsJson;
+        [SerializeField] private TextAsset legacySpawnSchedulesJson;
 
         private readonly Dictionary<GridPosition, BattleSliceCellView> _cellViews =
             new Dictionary<GridPosition, BattleSliceCellView>();
@@ -86,9 +87,18 @@ namespace CompanyWarRE.Presentation
                 documents["legacy-enemies"] = legacyEnemiesJson.text;
             }
 
+            if (legacySpawnSchedulesJson != null)
+            {
+                documents["legacy-spawn-schedules"] = legacySpawnSchedulesJson.text;
+            }
+
             var provider = new LegacyBattleSliceConfigurationProvider(
                 new DictionaryConfigurationTextSource(documents));
-            var result = provider.Load("legacy-units", "legacy-enemies", "slice-settings");
+            var result = provider.Load(
+                "legacy-units",
+                "legacy-enemies",
+                "slice-settings",
+                "legacy-spawn-schedules");
             if (!result.Succeeded)
             {
                 _configurationError = string.Join("\n", result.Issues);
@@ -304,7 +314,8 @@ namespace CompanyWarRE.Presentation
             }
 
             GUILayout.Label(
-                $"Alive: ally {aliveAllies} / enemy {aliveEnemies}    Combat events: {_snapshot.CombatEvents.Count}");
+                $"Wave: {_snapshot.WaveIndex} / {_snapshot.CurrentWaveStage}    " +
+                $"Alive: ally {aliveAllies} / enemy {aliveEnemies}    Spawned: {_snapshot.EnemySpawns.Count}");
             if (_snapshot.CombatEvents.Count > 0)
             {
                 GUILayout.Label(Describe(_snapshot.CombatEvents[_snapshot.CombatEvents.Count - 1]));

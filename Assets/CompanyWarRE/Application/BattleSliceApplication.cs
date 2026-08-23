@@ -71,7 +71,10 @@ namespace CompanyWarRE.Application
             int unitResourceCost,
             IReadOnlyList<BattleSliceCellSnapshot> cells,
             IReadOnlyList<BattleSliceCombatantSnapshot> combatants,
-            IReadOnlyList<CombatEvent> combatEvents)
+            IReadOnlyList<CombatEvent> combatEvents,
+            string currentWaveStage,
+            int waveIndex,
+            IReadOnlyList<EnemyWaveSpawn> enemySpawns)
         {
             Columns = columns;
             Rows = rows;
@@ -83,6 +86,9 @@ namespace CompanyWarRE.Application
             Cells = cells ?? throw new ArgumentNullException(nameof(cells));
             Combatants = combatants ?? throw new ArgumentNullException(nameof(combatants));
             CombatEvents = combatEvents ?? throw new ArgumentNullException(nameof(combatEvents));
+            CurrentWaveStage = currentWaveStage ?? string.Empty;
+            WaveIndex = waveIndex;
+            EnemySpawns = enemySpawns ?? throw new ArgumentNullException(nameof(enemySpawns));
         }
 
         public int Columns { get; }
@@ -95,6 +101,9 @@ namespace CompanyWarRE.Application
         public IReadOnlyList<BattleSliceCellSnapshot> Cells { get; }
         public IReadOnlyList<BattleSliceCombatantSnapshot> Combatants { get; }
         public IReadOnlyList<CombatEvent> CombatEvents { get; }
+        public string CurrentWaveStage { get; }
+        public int WaveIndex { get; }
+        public IReadOnlyList<EnemyWaveSpawn> EnemySpawns { get; }
     }
 
     public sealed class BattleSliceDeploymentResponse
@@ -123,7 +132,11 @@ namespace CompanyWarRE.Application
             UnitDefinition testUnit,
             CombatantDefinition allyCombatant,
             CombatantDefinition enemyCombatant,
-            GridPosition enemySpawnPosition)
+            GridPosition enemySpawnPosition,
+            IReadOnlyList<EnemyWaveStage> enemyWaveStages = null,
+            IReadOnlyList<CombatantDefinition> enemyCombatants = null,
+            IReadOnlyList<int> enemySpawnColumns = null,
+            int enemyWaveRandomSeed = 17)
         {
             if (columns <= 0)
             {
@@ -170,6 +183,46 @@ namespace CompanyWarRE.Application
             }
 
             EnemySpawnPosition = enemySpawnPosition;
+            EnemyWaveStages = enemyWaveStages == null || enemyWaveStages.Count == 0
+                ? new[]
+                {
+                    new EnemyWaveStage(
+                        "CompatibilityStage",
+                        3600d,
+                        1d,
+                        1,
+                        new[] { new EnemySpawnWeight(EnemyCombatant.Id, 1) })
+                }
+                : enemyWaveStages.ToArray();
+            var definitions = new List<CombatantDefinition> { EnemyCombatant };
+            if (enemyCombatants != null)
+            {
+                definitions.AddRange(enemyCombatants.Where(item => item != null));
+            }
+
+            EnemyCombatants = definitions
+                .GroupBy(item => item.Id, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .ToDictionary(item => item.Id, item => item, StringComparer.OrdinalIgnoreCase);
+            var missingEnemy = EnemyWaveStages
+                .SelectMany(stage => stage.EnemyWeights)
+                .FirstOrDefault(weight => !EnemyCombatants.ContainsKey(weight.EnemyId));
+            if (missingEnemy != null)
+            {
+                throw new ArgumentException(
+                    "Enemy wave references a missing combat definition: " + missingEnemy.EnemyId,
+                    nameof(enemyCombatants));
+            }
+
+            EnemySpawnColumns = enemySpawnColumns == null || enemySpawnColumns.Count == 0
+                ? new[] { enemySpawnPosition.Column }
+                : enemySpawnColumns.Distinct().ToArray();
+            if (EnemySpawnColumns.Any(column => column < 1 || column > columns))
+            {
+                throw new ArgumentOutOfRangeException(nameof(enemySpawnColumns));
+            }
+
+            EnemyWaveRandomSeed = enemyWaveRandomSeed;
         }
 
         public int Columns { get; }
@@ -184,6 +237,10 @@ namespace CompanyWarRE.Application
         public CombatantDefinition AllyCombatant { get; }
         public CombatantDefinition EnemyCombatant { get; }
         public GridPosition EnemySpawnPosition { get; }
+        public IReadOnlyList<EnemyWaveStage> EnemyWaveStages { get; }
+        public IReadOnlyDictionary<string, CombatantDefinition> EnemyCombatants { get; }
+        public IReadOnlyList<int> EnemySpawnColumns { get; }
+        public int EnemyWaveRandomSeed { get; }
     }
 
     public sealed class ConfigureBattleSliceCommand : AbstractCommand
@@ -273,6 +330,9 @@ namespace CompanyWarRE.Application
         private DeploymentService _deployment;
         private UnitDefinition _testUnit;
         private CombatSimulation _combat;
+        private EnemyWaveScheduler _enemyWaves;
+        private readonly List<EnemyWaveSpawn> _enemySpawnHistory = new List<EnemyWaveSpawn>();
+        private int _enemyActorSequence;
         private readonly Dictionary<string, GridPosition> _deploymentPositions =
             new Dictionary<string, GridPosition>(StringComparer.Ordinal);
 
@@ -314,17 +374,40 @@ namespace CompanyWarRE.Application
             _deployment = new DeploymentService(_grid, _economy);
             _deploymentPositions.Clear();
             _combat = new CombatSimulation(_configuration.Columns, _configuration.Rows);
-            _combat.TryAddActor(
-                "enemy-" + _configuration.EnemyCombatant.Id + "-01",
-                Team.Enemy,
-                _configuration.EnemyCombatant,
-                _configuration.EnemySpawnPosition.Column,
+            _enemyWaves = new EnemyWaveScheduler(
+                _configuration.Columns,
+                _configuration.Rows,
+                _configuration.EnemyWaveStages,
+                _configuration.EnemyWaveRandomSeed,
+                _configuration.EnemySpawnColumns,
                 _configuration.EnemySpawnPosition.Row);
+            _enemySpawnHistory.Clear();
+            _enemyActorSequence = 0;
         }
 
         public void Advance(double deltaSeconds)
         {
             _economy.Advance(deltaSeconds);
+            foreach (var spawn in _enemyWaves.Advance(deltaSeconds, _grid))
+            {
+                if (!_configuration.EnemyCombatants.TryGetValue(spawn.EnemyId, out var definition))
+                {
+                    continue;
+                }
+
+                _enemyActorSequence++;
+                var actorId = $"enemy-{spawn.EnemyId}-wave{spawn.WaveIndex:0000}-{_enemyActorSequence:0000}";
+                if (_combat.TryAddActor(
+                        actorId,
+                        Team.Enemy,
+                        definition,
+                        spawn.Position.Column,
+                        spawn.Position.Row))
+                {
+                    _enemySpawnHistory.Add(spawn);
+                }
+            }
+
             _combat.Advance(deltaSeconds, _grid);
             foreach (var actor in _combat.CreateSnapshot())
             {
@@ -398,7 +481,10 @@ namespace CompanyWarRE.Application
                 _testUnit.ResourceCost,
                 cells,
                 _combat.CreateSnapshot().Select(actor => new BattleSliceCombatantSnapshot(actor)).ToArray(),
-                _combat.Events.ToArray());
+                _combat.Events.ToArray(),
+                _enemyWaves.CurrentStageName,
+                _enemyWaves.WaveIndex,
+                _enemySpawnHistory.ToArray());
         }
 
         private void EnsureConfigured()

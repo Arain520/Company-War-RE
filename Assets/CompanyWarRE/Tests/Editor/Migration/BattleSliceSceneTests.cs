@@ -78,12 +78,15 @@ namespace CompanyWarRE.Migration.Tests
                 "Assets/CompanyWarRE/ConfigSamples/Compatibility/BattleSliceRuntime.json");
             var enemiesGuid = AssetDatabase.AssetPathToGUID(
                 "Assets/CompanyWarRE/ConfigSamples/Compatibility/LegacyEnemies.E01.json");
+            var spawnSchedulesGuid = AssetDatabase.AssetPathToGUID(
+                "Assets/CompanyWarRE/ConfigSamples/Compatibility/LegacySpawnSchedules.json");
             var yaml = File.ReadAllText(ScenePath);
 
             StringAssert.Contains("guid: " + controllerGuid, yaml);
             StringAssert.Contains("guid: " + unitsGuid, yaml);
             StringAssert.Contains("guid: " + enemiesGuid, yaml);
             StringAssert.Contains("guid: " + settingsGuid, yaml);
+            StringAssert.Contains("guid: " + spawnSchedulesGuid, yaml);
         }
     }
 }

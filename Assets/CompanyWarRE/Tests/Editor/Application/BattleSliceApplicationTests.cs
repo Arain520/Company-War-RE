@@ -34,9 +34,9 @@ namespace CompanyWarRE.Application.Tests
             Assert.That(snapshot.UnitId, Is.EqualTo("U01"));
             Assert.That(snapshot.UnitResourceCost, Is.EqualTo(1));
             Assert.That(snapshot.RemainingCooldown, Is.Zero);
-            Assert.That(snapshot.Combatants.Count, Is.EqualTo(1));
-            Assert.That(snapshot.Combatants.Single().TemplateId, Is.EqualTo("E01"));
-            Assert.That(snapshot.Combatants.Single().Team, Is.EqualTo(Team.Enemy));
+            Assert.That(snapshot.Combatants, Is.Empty);
+            Assert.That(snapshot.WaveIndex, Is.Zero);
+            Assert.That(snapshot.EnemySpawns, Is.Empty);
         }
 
         [Test]
@@ -117,6 +117,21 @@ namespace CompanyWarRE.Application.Tests
             Assert.That(pollution.ControlBlockRow, Is.EqualTo(1));
         }
 
+        [Test]
+        public void WaveSchedule_AddsEnemiesThroughTheApplicationBoundary()
+        {
+            _architecture.SendCommand(new ConfigureBattleSliceCommand(CreateWaveConfiguration()));
+
+            _architecture.SendCommand(new AdvanceBattleSliceTimeCommand(2d));
+            var snapshot = _architecture.SendQuery(new GetBattleSliceSnapshotQuery());
+
+            Assert.That(snapshot.WaveIndex, Is.EqualTo(1));
+            Assert.That(snapshot.CurrentWaveStage, Is.EqualTo("WaveTest"));
+            Assert.That(snapshot.EnemySpawns.Count, Is.EqualTo(2));
+            Assert.That(snapshot.EnemySpawns.Select(item => item.Position.Column).Distinct().Count(), Is.EqualTo(2));
+            Assert.That(snapshot.Combatants.Count, Is.EqualTo(2));
+        }
+
         private static BattleSliceConfiguration CreateConfiguration()
         {
             return new BattleSliceConfiguration(
@@ -132,6 +147,35 @@ namespace CompanyWarRE.Application.Tests
                 new CombatantDefinition("U01", "Staff", 1, 1d, 1d, 1d, 1),
                 new CombatantDefinition("E01", "Staff", 1, 1d, 1d, 1d, 1, 1),
                 new GridPosition(3, 4));
+        }
+
+        private static BattleSliceConfiguration CreateWaveConfiguration()
+        {
+            return new BattleSliceConfiguration(
+                6,
+                6,
+                3,
+                10,
+                5d,
+                3d,
+                new GridPosition(2, 2),
+                1,
+                new UnitDefinition("U01", 1, 3d),
+                new CombatantDefinition("U01", "Staff", 1, 1d, 1d, 1d, 1),
+                new CombatantDefinition("E01", "Staff", 1, 1d, 1d, 1d, 1, 1),
+                new GridPosition(3, 6),
+                new[]
+                {
+                    new EnemyWaveStage(
+                        "WaveTest",
+                        30d,
+                        2d,
+                        2,
+                        new[] { new EnemySpawnWeight("E01", 1) })
+                },
+                null,
+                new[] { 1, 4 },
+                17);
         }
     }
 }
