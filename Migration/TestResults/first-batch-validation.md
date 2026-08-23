@@ -24,3 +24,12 @@ Unity raised a native exception while initializing `CurlFileCache`. No test case
 - No Cow scene, prefab, ScriptableObject, production script, or gameplay resource was copied into target `Assets`.
 - No dependency or render-pipeline change was made.
 - No file under `D:\UNITY2\Cow` was modified.
+
+## Interactive Test Runner follow-up
+
+An interactive EditMode run completed eight tests and exposed two test-definition false positives:
+
+- The Missing Script scan included a third-party ResKit example scene outside Build Settings and project-owned asset roots.
+- The serialization manifest check did not support escaped double quotes in valid CSV fields.
+
+Both tests were corrected. The updated four-file test assembly compiles against Unity 2022.3.62f3, all 409 serialization rows pass the corrected CSV contract, and the ResKit example scene is excluded while `Assets/Scenes/SampleScene.unity` remains covered. An interactive rerun is still required to record the final Unity Test Runner result.

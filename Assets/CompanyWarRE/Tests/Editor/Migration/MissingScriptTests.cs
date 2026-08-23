@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -9,13 +10,18 @@ namespace CompanyWarRE.Migration.Tests
 {
     public sealed class MissingScriptTests
     {
+        private static readonly string[] ProjectOwnedAssetRoots =
+        {
+            "Assets/CompanyWarRE",
+            "Assets/Scenes"
+        };
+
         [Test]
         public void TargetPrefabs_HaveNoMissingScripts()
         {
             var failures = new List<string>();
-            foreach (var guid in AssetDatabase.FindAssets("t:Prefab", new[] { "Assets" }))
+            foreach (var path in FindProjectOwnedAssets("t:Prefab"))
             {
-                var path = AssetDatabase.GUIDToAssetPath(guid);
                 var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
                 if (prefab != null && CountMissingScripts(prefab) > 0)
                 {
@@ -33,9 +39,8 @@ namespace CompanyWarRE.Migration.Tests
             var failures = new List<string>();
             try
             {
-                foreach (var guid in AssetDatabase.FindAssets("t:Scene", new[] { "Assets" }))
+                foreach (var path in FindProjectOwnedScenes())
                 {
-                    var path = AssetDatabase.GUIDToAssetPath(guid);
                     var scene = EditorSceneManager.OpenScene(path, OpenSceneMode.Single);
                     var missingCount = 0;
                     foreach (var root in scene.GetRootGameObjects())
@@ -55,6 +60,35 @@ namespace CompanyWarRE.Migration.Tests
             }
 
             Assert.That(failures, Is.Empty, "Missing scripts in scenes:\n" + string.Join("\n", failures));
+        }
+
+        private static IEnumerable<string> FindProjectOwnedAssets(string filter)
+        {
+            var validRoots = ProjectOwnedAssetRoots.Where(AssetDatabase.IsValidFolder).ToArray();
+            if (validRoots.Length == 0)
+            {
+                return Enumerable.Empty<string>();
+            }
+
+            return AssetDatabase.FindAssets(filter, validRoots)
+                .Select(AssetDatabase.GUIDToAssetPath)
+                .Where(path => !string.IsNullOrEmpty(path))
+                .Distinct()
+                .OrderBy(path => path);
+        }
+
+        private static IEnumerable<string> FindProjectOwnedScenes()
+        {
+            var scenePaths = new HashSet<string>(FindProjectOwnedAssets("t:Scene"));
+            foreach (var buildScene in EditorBuildSettings.scenes)
+            {
+                if (!string.IsNullOrEmpty(buildScene.path))
+                {
+                    scenePaths.Add(buildScene.path);
+                }
+            }
+
+            return scenePaths.OrderBy(path => path);
         }
 
         private static int CountMissingScripts(GameObject root)
