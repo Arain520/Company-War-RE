@@ -7,6 +7,7 @@ namespace CompanyWarRE.Domain
         None,
         MissingUnit,
         MissingActorId,
+        DuplicateActorId,
         UnsupportedMode,
         OutsideGrid,
         TerritoryNotOwned,
@@ -14,7 +15,8 @@ namespace CompanyWarRE.Domain
         Occupied,
         InsufficientResources,
         CooldownActive,
-        OccupancyRejected
+        OccupancyRejected,
+        CombatRegistrationRejected
     }
 
     public sealed class DeploymentResult

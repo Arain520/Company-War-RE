@@ -1,0 +1,15 @@
+{
+  "Enemies": [
+    {
+      "Id": "E01",
+      "Name": "炮灰",
+      "Type": "Staff",
+      "Durability": 1,
+      "Attack": 1,
+      "Speed": 1.0,
+      "AttackInterval": 1.0,
+      "Range": 1,
+      "AssaultScoreReward": 1
+    }
+  ]
+}

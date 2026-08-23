@@ -10,10 +10,13 @@ namespace CompanyWarRE.Presentation
     public sealed class BattleSliceController : MonoBehaviour, IController
     {
         [SerializeField] private TextAsset legacyUnitsJson;
+        [SerializeField] private TextAsset legacyEnemiesJson;
         [SerializeField] private TextAsset sliceSettingsJson;
 
         private readonly Dictionary<GridPosition, BattleSliceCellView> _cellViews =
             new Dictionary<GridPosition, BattleSliceCellView>();
+        private readonly Dictionary<string, BattleSliceCombatantView> _combatantViews =
+            new Dictionary<string, BattleSliceCombatantView>(System.StringComparer.Ordinal);
 
         private IArchitecture _architecture;
         private BattleSliceSnapshot _snapshot;
@@ -22,6 +25,7 @@ namespace CompanyWarRE.Presentation
         private string _lastAction = "Ready";
         private string _configurationError;
         private bool _isReady;
+        private Transform _combatantRoot;
 
         public IArchitecture GetArchitecture()
         {
@@ -36,7 +40,7 @@ namespace CompanyWarRE.Presentation
                 return;
             }
 
-            EnsureSceneInfrastructure();
+            EnsureSceneInfrastructure(_snapshot.Columns, _snapshot.Rows);
             BuildGrid();
             _isReady = true;
             RefreshView();
@@ -77,9 +81,14 @@ namespace CompanyWarRE.Presentation
                 documents["slice-settings"] = sliceSettingsJson.text;
             }
 
+            if (legacyEnemiesJson != null)
+            {
+                documents["legacy-enemies"] = legacyEnemiesJson.text;
+            }
+
             var provider = new LegacyBattleSliceConfigurationProvider(
                 new DictionaryConfigurationTextSource(documents));
-            var result = provider.Load("legacy-units", "slice-settings");
+            var result = provider.Load("legacy-units", "legacy-enemies", "slice-settings");
             if (!result.Succeeded)
             {
                 _configurationError = string.Join("\n", result.Issues);
@@ -91,7 +100,8 @@ namespace CompanyWarRE.Presentation
             _architecture.SendCommand(new ConfigureBattleSliceCommand(result.Configuration));
             _snapshot = _architecture.SendQuery(new GetBattleSliceSnapshotQuery());
             _configurationError = null;
-            _lastAction = $"Loaded legacy {result.Configuration.TestUnit.Id}";
+            _lastAction =
+                $"Loaded legacy {result.Configuration.TestUnit.Id} vs {result.Configuration.EnemyCombatant.Id}";
             return true;
         }
 
@@ -168,6 +178,8 @@ namespace CompanyWarRE.Presentation
         {
             var root = new GameObject("RuntimeGrid").transform;
             root.SetParent(transform, false);
+            _combatantRoot = new GameObject("RuntimeCombatants").transform;
+            _combatantRoot.SetParent(transform, false);
 
             for (var column = 1; column <= _snapshot.Columns; column++)
             {
@@ -196,9 +208,33 @@ namespace CompanyWarRE.Presentation
                     view.Render(cell, cell.Position.Equals(_selected));
                 }
             }
+
+            var activeActorIds = new HashSet<string>(System.StringComparer.Ordinal);
+            foreach (var combatant in _snapshot.Combatants)
+            {
+                activeActorIds.Add(combatant.ActorId);
+                if (!_combatantViews.TryGetValue(combatant.ActorId, out var view))
+                {
+                    var actorObject = new GameObject("Combatant_" + combatant.ActorId);
+                    actorObject.transform.SetParent(_combatantRoot, false);
+                    view = actorObject.AddComponent<BattleSliceCombatantView>();
+                    view.Initialize(combatant.ActorId);
+                    _combatantViews.Add(combatant.ActorId, view);
+                }
+
+                view.Render(combatant);
+            }
+
+            foreach (var pair in _combatantViews)
+            {
+                if (!activeActorIds.Contains(pair.Key))
+                {
+                    pair.Value.gameObject.SetActive(false);
+                }
+            }
         }
 
-        private static void EnsureSceneInfrastructure()
+        private static void EnsureSceneInfrastructure(int columns, int rows)
         {
             if (Camera.main == null)
             {
@@ -206,8 +242,10 @@ namespace CompanyWarRE.Presentation
                 cameraObject.tag = "MainCamera";
                 var camera = cameraObject.AddComponent<Camera>();
                 cameraObject.AddComponent<AudioListener>();
-                camera.transform.position = new Vector3(2.5f, 8.5f, -5.5f);
-                camera.transform.LookAt(new Vector3(2.5f, 0f, 2.5f));
+                var center = new Vector3((columns - 1) * 0.5f, 0f, (rows - 1) * 0.5f);
+                var extent = Mathf.Max(columns, rows);
+                camera.transform.position = new Vector3(center.x, extent * 1.3f, center.z - extent * 1.05f);
+                camera.transform.LookAt(center);
                 camera.clearFlags = CameraClearFlags.SolidColor;
                 camera.backgroundColor = new Color(0.07f, 0.09f, 0.13f);
             }
@@ -236,8 +274,8 @@ namespace CompanyWarRE.Presentation
                 return;
             }
 
-            GUILayout.BeginArea(new Rect(16f, 16f, 420f, 190f), GUI.skin.box);
-            GUILayout.Label("Company War-RE | Domain vertical slice");
+            GUILayout.BeginArea(new Rect(16f, 16f, 470f, 225f), GUI.skin.box);
+            GUILayout.Label("Company War-RE | U01 vs E01 combat slice");
             GUILayout.Label($"Resources: {_snapshot.Resources}    Time: {_snapshot.ElapsedSeconds:0.0}s");
             GUILayout.Label(
                 $"{_snapshot.UnitId} cost: {_snapshot.UnitResourceCost}    " +
@@ -245,7 +283,28 @@ namespace CompanyWarRE.Presentation
             GUILayout.Space(6f);
             GUILayout.Label($"Left click: select | Right click / D / Space: deploy {_snapshot.UnitId}");
             GUILayout.Label("P: toggle 3x3 pollution block | R: reset");
-            GUILayout.Label("Green owned | Gray unowned | Purple polluted | Cyan unit");
+            GUILayout.Label("Green owned | Gray unowned | Purple polluted | Cyan ally | Red enemy");
+            var aliveAllies = 0;
+            var aliveEnemies = 0;
+            foreach (var combatant in _snapshot.Combatants)
+            {
+                if (!combatant.IsAlive)
+                {
+                    continue;
+                }
+
+                if (combatant.Team == Team.Ally)
+                {
+                    aliveAllies++;
+                }
+                else
+                {
+                    aliveEnemies++;
+                }
+            }
+
+            GUILayout.Label(
+                $"Alive: ally {aliveAllies} / enemy {aliveEnemies}    Combat events: {_snapshot.CombatEvents.Count}");
             GUILayout.Space(6f);
             GUILayout.Label(_lastAction);
             GUILayout.EndArea();
@@ -267,6 +326,10 @@ namespace CompanyWarRE.Presentation
                     return "insufficient resources";
                 case DeploymentFailure.CooldownActive:
                     return "cooldown active";
+                case DeploymentFailure.DuplicateActorId:
+                    return "duplicate actor id";
+                case DeploymentFailure.CombatRegistrationRejected:
+                    return "combat registration rejected";
                 default:
                     return failure.ToString();
             }

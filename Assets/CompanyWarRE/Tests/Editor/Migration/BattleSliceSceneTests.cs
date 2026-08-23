@@ -68,7 +68,7 @@ namespace CompanyWarRE.Migration.Tests
         }
 
         [Test]
-        public void BattleSliceScene_ReferencesBothCompatibilityDocuments()
+        public void BattleSliceScene_ReferencesAllCompatibilityDocuments()
         {
             var controllerGuid = AssetDatabase.AssetPathToGUID(
                 "Assets/CompanyWarRE/Presentation/BattleSliceController.cs");
@@ -76,10 +76,13 @@ namespace CompanyWarRE.Migration.Tests
                 "Assets/CompanyWarRE/ConfigSamples/Compatibility/LegacyUnits.U01.json");
             var settingsGuid = AssetDatabase.AssetPathToGUID(
                 "Assets/CompanyWarRE/ConfigSamples/Compatibility/BattleSliceRuntime.json");
+            var enemiesGuid = AssetDatabase.AssetPathToGUID(
+                "Assets/CompanyWarRE/ConfigSamples/Compatibility/LegacyEnemies.E01.json");
             var yaml = File.ReadAllText(ScenePath);
 
             StringAssert.Contains("guid: " + controllerGuid, yaml);
             StringAssert.Contains("guid: " + unitsGuid, yaml);
+            StringAssert.Contains("guid: " + enemiesGuid, yaml);
             StringAssert.Contains("guid: " + settingsGuid, yaml);
         }
     }

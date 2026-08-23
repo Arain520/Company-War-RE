@@ -64,6 +64,38 @@ namespace CompanyWarRE.Infrastructure.Configuration
 
     [Serializable]
     [DataContract]
+    public sealed class LegacyEnemiesDocumentDto
+    {
+        [DataMember(Name = "Enemies")]
+        public List<LegacyEnemyDto> Enemies;
+    }
+
+    [Serializable]
+    [DataContract]
+    public sealed class LegacyEnemyDto
+    {
+        [DataMember(Name = "Id")]
+        public string Id;
+        [DataMember(Name = "Name")]
+        public string Name;
+        [DataMember(Name = "Type")]
+        public string Type;
+        [DataMember(Name = "Durability")]
+        public int Durability;
+        [DataMember(Name = "Attack")]
+        public float Attack;
+        [DataMember(Name = "Speed")]
+        public float Speed;
+        [DataMember(Name = "AttackInterval")]
+        public float AttackInterval;
+        [DataMember(Name = "Range")]
+        public int Range;
+        [DataMember(Name = "AssaultScoreReward")]
+        public int AssaultScoreReward;
+    }
+
+    [Serializable]
+    [DataContract]
     public sealed class BattleSliceSettingsDto
     {
         [DataMember(Name = "SchemaVersion")]
@@ -88,6 +120,12 @@ namespace CompanyWarRE.Infrastructure.Configuration
         public int TransmitterAmount;
         [DataMember(Name = "TestUnitId")]
         public string TestUnitId;
+        [DataMember(Name = "TestEnemyId")]
+        public string TestEnemyId;
+        [DataMember(Name = "EnemySpawnColumn")]
+        public int EnemySpawnColumn;
+        [DataMember(Name = "EnemySpawnRow")]
+        public int EnemySpawnRow;
     }
 
     public interface IConfigurationTextSource
@@ -169,12 +207,17 @@ namespace CompanyWarRE.Infrastructure.Configuration
             _source = source ?? throw new ArgumentNullException(nameof(source));
         }
 
-        public BattleSliceConfigurationLoadResult Load(string unitsKey, string settingsKey)
+        public BattleSliceConfigurationLoadResult Load(string unitsKey, string enemiesKey, string settingsKey)
         {
             var issues = new List<ConfigurationIssue>();
             if (!_source.TryRead(unitsKey, out var unitsJson, out var unitsReadError))
             {
                 issues.Add(new ConfigurationIssue("CFG_SOURCE", unitsKey, unitsReadError));
+            }
+
+            if (!_source.TryRead(enemiesKey, out var enemiesJson, out var enemiesReadError))
+            {
+                issues.Add(new ConfigurationIssue("CFG_SOURCE", enemiesKey, enemiesReadError));
             }
 
             if (!_source.TryRead(settingsKey, out var settingsJson, out var settingsReadError))
@@ -188,15 +231,17 @@ namespace CompanyWarRE.Infrastructure.Configuration
             }
 
             var units = Parse<LegacyUnitsDocumentDto>(unitsJson, unitsKey, issues);
+            var enemies = Parse<LegacyEnemiesDocumentDto>(enemiesJson, enemiesKey, issues);
             var settings = Parse<BattleSliceSettingsDto>(settingsJson, settingsKey, issues);
-            if (units == null || settings == null)
+            if (units == null || enemies == null || settings == null)
             {
                 return new BattleSliceConfigurationLoadResult(null, issues);
             }
 
             ValidateSettings(settings, settingsKey, issues);
             var selectedUnit = ValidateAndFindUnit(units, settings.TestUnitId, unitsKey, issues);
-            if (issues.Count > 0 || selectedUnit == null)
+            var selectedEnemy = ValidateAndFindEnemy(enemies, settings.TestEnemyId, enemiesKey, issues);
+            if (issues.Count > 0 || selectedUnit == null || selectedEnemy == null)
             {
                 return new BattleSliceConfigurationLoadResult(null, issues);
             }
@@ -214,6 +259,23 @@ namespace CompanyWarRE.Infrastructure.Configuration
                 selectedUnit.DeployCooldown,
                 deploymentMode,
                 footprint);
+            var allyCombatant = new CombatantDefinition(
+                selectedUnit.Id,
+                selectedUnit.Type,
+                selectedUnit.Durability,
+                selectedUnit.Attack,
+                selectedUnit.Speed,
+                selectedUnit.AttackInterval,
+                selectedUnit.Range);
+            var enemyCombatant = new CombatantDefinition(
+                selectedEnemy.Id,
+                selectedEnemy.Type,
+                selectedEnemy.Durability,
+                selectedEnemy.Attack,
+                selectedEnemy.Speed,
+                selectedEnemy.AttackInterval,
+                selectedEnemy.Range,
+                selectedEnemy.AssaultScoreReward);
             var configuration = new BattleSliceConfiguration(
                 settings.Columns,
                 settings.Rows,
@@ -223,7 +285,10 @@ namespace CompanyWarRE.Infrastructure.Configuration
                 settings.TransmitterProductionIntervalSeconds,
                 new GridPosition(settings.TransmitterColumn, settings.TransmitterRow),
                 settings.TransmitterAmount,
-                unit);
+                unit,
+                allyCombatant,
+                enemyCombatant,
+                new GridPosition(settings.EnemySpawnColumn, settings.EnemySpawnRow));
             return new BattleSliceConfigurationLoadResult(configuration, issues);
         }
 
@@ -318,6 +383,20 @@ namespace CompanyWarRE.Infrastructure.Configuration
             {
                 issues.Add(new ConfigurationIssue("CFG_REQUIRED", path + ".TestUnitId", "TestUnitId is required."));
             }
+
+            if (string.IsNullOrWhiteSpace(settings.TestEnemyId))
+            {
+                issues.Add(new ConfigurationIssue("CFG_REQUIRED", path + ".TestEnemyId", "TestEnemyId is required."));
+            }
+
+            if (settings.EnemySpawnColumn < 1 || settings.EnemySpawnColumn > settings.Columns ||
+                settings.EnemySpawnRow < 1 || settings.EnemySpawnRow > settings.Rows)
+            {
+                issues.Add(new ConfigurationIssue(
+                    "CFG_RANGE",
+                    path + ".EnemySpawnPosition",
+                    "Enemy spawn position must be inside the grid."));
+            }
         }
 
         private static LegacyUnitDto ValidateAndFindUnit(
@@ -371,6 +450,61 @@ namespace CompanyWarRE.Infrastructure.Configuration
                     "CFG_REFERENCE",
                     path + ".Units",
                     $"Configured test unit was not found: {selectedUnitId}."));
+            }
+
+            return selected;
+        }
+
+        private static LegacyEnemyDto ValidateAndFindEnemy(
+            LegacyEnemiesDocumentDto document,
+            string selectedEnemyId,
+            string path,
+            ICollection<ConfigurationIssue> issues)
+        {
+            if (document.Enemies == null || document.Enemies.Count == 0)
+            {
+                issues.Add(new ConfigurationIssue("CFG_REQUIRED", path + ".Enemies", "Enemies cannot be empty."));
+                return null;
+            }
+
+            var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            LegacyEnemyDto selected = null;
+            for (var index = 0; index < document.Enemies.Count; index++)
+            {
+                var enemy = document.Enemies[index];
+                var enemyPath = $"{path}.Enemies[{index}]";
+                if (enemy == null || string.IsNullOrWhiteSpace(enemy.Id))
+                {
+                    issues.Add(new ConfigurationIssue("CFG_REQUIRED", enemyPath + ".Id", "Enemy ID is required."));
+                    continue;
+                }
+
+                if (!ids.Add(enemy.Id))
+                {
+                    issues.Add(new ConfigurationIssue("CFG_DUPLICATE", enemyPath + ".Id", $"Duplicate enemy ID: {enemy.Id}."));
+                }
+
+                if (enemy.Durability <= 0 || enemy.Attack < 0f || enemy.Speed < 0f ||
+                    enemy.AttackInterval <= 0f || enemy.Range <= 0 || enemy.AssaultScoreReward < 0)
+                {
+                    issues.Add(new ConfigurationIssue(
+                        "CFG_RANGE",
+                        enemyPath,
+                        "Combat values must satisfy legacy runtime bounds."));
+                }
+
+                if (string.Equals(enemy.Id, selectedEnemyId, StringComparison.OrdinalIgnoreCase))
+                {
+                    selected = enemy;
+                }
+            }
+
+            if (selected == null && !string.IsNullOrWhiteSpace(selectedEnemyId))
+            {
+                issues.Add(new ConfigurationIssue(
+                    "CFG_REFERENCE",
+                    path + ".Enemies",
+                    $"Configured test enemy was not found: {selectedEnemyId}."));
             }
 
             return selected;

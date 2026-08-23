@@ -5,6 +5,7 @@ It does not authorize scene, prefab, ScriptableObject, texture, audio, or other
 game-resource migration.
 
 - `DomainBehavior-v0.1.md` records locked, provisional, conflicting, and deferred behavior.
+- `CombatBehavior-v0.1.md` records the executable U01-versus-E01 combat boundary.
 - `LegacyBehaviorTraceability.csv` maps each behavior to Cow evidence and target tests.
 - `SourceEvidenceHashes.csv` pins the audited Cow source files without modifying Cow.
 

@@ -15,9 +15,9 @@ Unity input and runtime visuals
 ```
 
 The scene intentionally contains only `BattleSliceBootstrap` plus direct references
-to two compatibility JSON TextAssets. At runtime the Presentation layer creates the
-camera, light, 9 x 9 grid, and placeholder unit markers. These placeholders are test
-visualization, not migrated production art.
+to three compatibility JSON TextAssets. At runtime the Presentation layer creates
+the camera, light, 9 x 9 grid, and placeholder combatants with health bars. These
+placeholders are test visualization, not migrated production art.
 
 ## Run
 
@@ -35,7 +35,9 @@ visualization, not migrated production art.
   `Units.json`.
 - Resources start at 10, gain one every five seconds, and receive one transmitter
   resource every three seconds.
-- A successful deployment displays a cyan unit marker.
+- E01 starts as a red combatant at column 3, row 9.
+- A successful deployment displays a cyan U01. Same-column U01/E01 actors advance,
+  meet, exchange damage, and disappear on death; the HUD counts combat events.
 - Pollution colors the whole selected 3 x 3 control block purple and blocks
   deployment there.
 - The on-screen panel displays resources, elapsed time, cooldown, selection, and
@@ -43,6 +45,7 @@ visualization, not migrated production art.
 
 ## Non-goals
 
-This scene does not validate Cow art, final UI, combat, spawning, save files,
-Addressables, ResKit, StreamingAssets, or build configuration. It is not added to
-EditorBuildSettings and does not alter ProjectSettings.
+This scene does not validate Cow art, final UI, full control-block combat, ranged or
+special units, production spawning, save files, Addressables, ResKit,
+StreamingAssets, or build configuration. It is not added to EditorBuildSettings and
+does not alter ProjectSettings.

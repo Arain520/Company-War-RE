@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using CompanyWarRE.Domain;
 using QFramework;
 
@@ -29,6 +30,35 @@ namespace CompanyWarRE.Application
         public int OccupantCount { get; }
     }
 
+    public sealed class BattleSliceCombatantSnapshot
+    {
+        public BattleSliceCombatantSnapshot(CombatActorSnapshot actor)
+        {
+            if (actor == null)
+            {
+                throw new ArgumentNullException(nameof(actor));
+            }
+
+            ActorId = actor.ActorId;
+            TemplateId = actor.TemplateId;
+            Team = actor.Team;
+            Column = actor.Column;
+            LanePosition = actor.LanePosition;
+            HitPoints = actor.HitPoints;
+            MaximumHitPoints = actor.MaximumHitPoints;
+            IsAlive = actor.IsAlive;
+        }
+
+        public string ActorId { get; }
+        public string TemplateId { get; }
+        public Team Team { get; }
+        public int Column { get; }
+        public double LanePosition { get; }
+        public double HitPoints { get; }
+        public double MaximumHitPoints { get; }
+        public bool IsAlive { get; }
+    }
+
     public sealed class BattleSliceSnapshot
     {
         public BattleSliceSnapshot(
@@ -39,7 +69,9 @@ namespace CompanyWarRE.Application
             double remainingCooldown,
             string unitId,
             int unitResourceCost,
-            IReadOnlyList<BattleSliceCellSnapshot> cells)
+            IReadOnlyList<BattleSliceCellSnapshot> cells,
+            IReadOnlyList<BattleSliceCombatantSnapshot> combatants,
+            IReadOnlyList<CombatEvent> combatEvents)
         {
             Columns = columns;
             Rows = rows;
@@ -49,6 +81,8 @@ namespace CompanyWarRE.Application
             UnitId = unitId;
             UnitResourceCost = unitResourceCost;
             Cells = cells ?? throw new ArgumentNullException(nameof(cells));
+            Combatants = combatants ?? throw new ArgumentNullException(nameof(combatants));
+            CombatEvents = combatEvents ?? throw new ArgumentNullException(nameof(combatEvents));
         }
 
         public int Columns { get; }
@@ -59,6 +93,8 @@ namespace CompanyWarRE.Application
         public string UnitId { get; }
         public int UnitResourceCost { get; }
         public IReadOnlyList<BattleSliceCellSnapshot> Cells { get; }
+        public IReadOnlyList<BattleSliceCombatantSnapshot> Combatants { get; }
+        public IReadOnlyList<CombatEvent> CombatEvents { get; }
     }
 
     public sealed class BattleSliceDeploymentResponse
@@ -84,7 +120,10 @@ namespace CompanyWarRE.Application
             double transmitterProductionIntervalSeconds,
             GridPosition transmitterPosition,
             int transmitterAmount,
-            UnitDefinition testUnit)
+            UnitDefinition testUnit,
+            CombatantDefinition allyCombatant,
+            CombatantDefinition enemyCombatant,
+            GridPosition enemySpawnPosition)
         {
             if (columns <= 0)
             {
@@ -110,6 +149,20 @@ namespace CompanyWarRE.Application
             TransmitterPosition = transmitterPosition;
             TransmitterAmount = Math.Max(0, transmitterAmount);
             TestUnit = testUnit ?? throw new ArgumentNullException(nameof(testUnit));
+            AllyCombatant = allyCombatant ?? throw new ArgumentNullException(nameof(allyCombatant));
+            EnemyCombatant = enemyCombatant ?? throw new ArgumentNullException(nameof(enemyCombatant));
+            if (!string.Equals(TestUnit.Id, AllyCombatant.Id, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException("Deployment and ally combat definitions must use the same ID.");
+            }
+
+            if (enemySpawnPosition.Column < 1 || enemySpawnPosition.Column > columns ||
+                enemySpawnPosition.Row < 1 || enemySpawnPosition.Row > rows)
+            {
+                throw new ArgumentOutOfRangeException(nameof(enemySpawnPosition));
+            }
+
+            EnemySpawnPosition = enemySpawnPosition;
         }
 
         public int Columns { get; }
@@ -121,6 +174,9 @@ namespace CompanyWarRE.Application
         public GridPosition TransmitterPosition { get; }
         public int TransmitterAmount { get; }
         public UnitDefinition TestUnit { get; }
+        public CombatantDefinition AllyCombatant { get; }
+        public CombatantDefinition EnemyCombatant { get; }
+        public GridPosition EnemySpawnPosition { get; }
     }
 
     public sealed class ConfigureBattleSliceCommand : AbstractCommand
@@ -209,6 +265,9 @@ namespace CompanyWarRE.Application
         private ResourceEconomy _economy;
         private DeploymentService _deployment;
         private UnitDefinition _testUnit;
+        private CombatSimulation _combat;
+        private readonly Dictionary<string, GridPosition> _deploymentPositions =
+            new Dictionary<string, GridPosition>(StringComparer.Ordinal);
 
         protected override void OnInit()
         {
@@ -246,16 +305,57 @@ namespace CompanyWarRE.Application
 
             _testUnit = _configuration.TestUnit;
             _deployment = new DeploymentService(_grid, _economy);
+            _deploymentPositions.Clear();
+            _combat = new CombatSimulation(_configuration.Columns, _configuration.Rows);
+            _combat.TryAddActor(
+                "enemy-" + _configuration.EnemyCombatant.Id + "-01",
+                Team.Enemy,
+                _configuration.EnemyCombatant,
+                _configuration.EnemySpawnPosition.Column,
+                _configuration.EnemySpawnPosition.Row);
         }
 
         public void Advance(double deltaSeconds)
         {
             _economy.Advance(deltaSeconds);
+            _combat.Advance(deltaSeconds);
+            foreach (var actor in _combat.CreateSnapshot())
+            {
+                if (!actor.IsAlive && _deploymentPositions.TryGetValue(actor.ActorId, out var position))
+                {
+                    _grid.RemoveOccupant(position, actor.ActorId);
+                    _deploymentPositions.Remove(actor.ActorId);
+                }
+            }
         }
 
         public DeploymentResult Deploy(GridPosition position, string actorId)
         {
-            return _deployment.TryDeploy(_testUnit, actorId, position);
+            if (_combat.ContainsActor(actorId))
+            {
+                return DeploymentResult.Reject(DeploymentFailure.DuplicateActorId);
+            }
+
+            var result = _deployment.TryDeploy(_testUnit, actorId, position);
+            if (!result.Succeeded)
+            {
+                return result;
+            }
+
+            if (!_combat.TryAddActor(
+                    actorId,
+                    Team.Ally,
+                    _configuration.AllyCombatant,
+                    position.Column,
+                    position.Row))
+            {
+                _grid.RemoveOccupant(position, actorId);
+                _economy.RefundDeployment(_testUnit);
+                return DeploymentResult.Reject(DeploymentFailure.CombatRegistrationRejected);
+            }
+
+            _deploymentPositions[actorId] = position;
+            return result;
         }
 
         public int TogglePollution(GridPosition position)
@@ -289,7 +389,9 @@ namespace CompanyWarRE.Application
                 _economy.GetRemainingCooldown(_testUnit),
                 _testUnit.Id,
                 _testUnit.ResourceCost,
-                cells);
+                cells,
+                _combat.CreateSnapshot().Select(actor => new BattleSliceCombatantSnapshot(actor)).ToArray(),
+                _combat.Events.ToArray());
         }
 
         private void EnsureConfigured()
