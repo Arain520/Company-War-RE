@@ -28,3 +28,10 @@ Test vertical slice:
 - `TestScenes/BattleSliceTest.md` records controls, expected behavior, and non-goals.
 - The scene is intentionally excluded from build settings until the target platform
   and production scene flow are approved.
+
+Configuration compatibility slice:
+
+- `Specifications/ConfigCompatibility-v0.1.md` documents the DTO/validation/mapping boundary.
+- `Specifications/LegacyConfigCompatibilityMatrix.csv` maps legacy fields to target values.
+- The test scene receives JSON through serialized TextAsset references; this is a
+  test composition choice, not a final commitment to StreamingAssets, ResKit, or Addressables.

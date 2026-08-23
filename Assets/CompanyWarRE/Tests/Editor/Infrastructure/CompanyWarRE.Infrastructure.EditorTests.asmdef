@@ -1,13 +1,15 @@
 {
-  "name": "CompanyWarRE.Presentation",
-  "rootNamespace": "CompanyWarRE.Presentation",
+  "name": "CompanyWarRE.Infrastructure.EditorTests",
+  "rootNamespace": "CompanyWarRE.Infrastructure.Tests",
   "references": [
+    "CompanyWarRE.Infrastructure",
     "CompanyWarRE.Application",
     "CompanyWarRE.Domain",
-    "CompanyWarRE.Infrastructure",
     "QFramework"
   ],
-  "includePlatforms": [],
+  "includePlatforms": [
+    "Editor"
+  ],
   "excludePlatforms": [],
   "allowUnsafeCode": false,
   "overrideReferences": false,
@@ -15,5 +17,8 @@
   "autoReferenced": true,
   "defineConstraints": [],
   "versionDefines": [],
-  "noEngineReferences": false
+  "noEngineReferences": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
 }

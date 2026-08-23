@@ -168,3 +168,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1adc14e422b842268db2bbf99802cc46, type: 3}
   m_Name:
   m_EditorClassIdentifier:
+  legacyUnitsJson: {fileID: 4900000, guid: 7d463bb5a0ac4467bcd7bee28645f034, type: 3}
+  sliceSettingsJson: {fileID: 4900000, guid: 51dd41498183492fae2292c404b6d0a4, type: 3}

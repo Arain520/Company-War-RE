@@ -9,3 +9,4 @@
 "Assets/_Game/Tests/Cases/CW_UNIT_0106_ResourceEngine.cs","5129c864b7908010d37bf662cbc9c12185c8389cf84321d57c5a970f85ad8321","1811","Resource characterization"
 "Assets/_Game/Tests/Cases/CW_Core_02_AuthorizationUnlockTests.cs","8ca52cc9e4846bcf352f6ae295ee517a074fe870684b577db81159b9194e70df","4605","Authorization characterization"
 "Assets/_Game/Tests/Cases/CW0403_BoundaryAndErrorHandling.cs","3248cc1ee28f59e41afe349021ca2a609aa1d3ceeff42f2f9c005cbee9dac050","13494","Boundary behavior"
+"Assets/StreamingAssets/CompanyWar/Configs/Units.json","8c156a406d6e54e551745ebd6bd2451efd38bfc575120d7c9d641b0cd3a696db","6516","Legacy unit configuration schema and U01 values"

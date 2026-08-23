@@ -14,9 +14,10 @@ Unity input and runtime visuals
     -> presentation snapshot
 ```
 
-The scene intentionally contains only `BattleSliceBootstrap`. At runtime the
-Presentation layer creates the camera, light, 6 x 6 grid, and placeholder unit
-markers. These placeholders are test visualization, not migrated production art.
+The scene intentionally contains only `BattleSliceBootstrap` plus direct references
+to two compatibility JSON TextAssets. At runtime the Presentation layer creates the
+camera, light, 6 x 6 grid, and placeholder unit markers. These placeholders are test
+visualization, not migrated production art.
 
 ## Run
 
@@ -30,8 +31,9 @@ markers. These placeholders are test visualization, not migrated production art.
 ## Expected behavior
 
 - The left 18 green cells are owned; the right 18 gray cells reject deployment.
-- U01 costs 3 resources and has a two-second per-unit cooldown.
-- Resources start at 8, gain one every two seconds, and receive one transmitter
+- U01 costs 1 resource and has a three-second per-unit cooldown, matching Cow's
+  `Units.json`.
+- Resources start at 10, gain one every five seconds, and receive one transmitter
   resource every three seconds.
 - A successful deployment displays a cyan unit marker.
 - Pollution colors the whole selected 3 x 3 control block purple and blocks

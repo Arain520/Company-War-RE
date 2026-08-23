@@ -13,7 +13,7 @@ namespace CompanyWarRE.Application.Tests
         public void SetUp()
         {
             _architecture = BattleSliceArchitecture.Interface;
-            _architecture.SendCommand(new ResetBattleSliceCommand());
+            _architecture.SendCommand(new ConfigureBattleSliceCommand(CreateConfiguration()));
         }
 
         [TearDown]
@@ -29,7 +29,9 @@ namespace CompanyWarRE.Application.Tests
 
             Assert.That(snapshot.Cells.Count, Is.EqualTo(36));
             Assert.That(snapshot.Cells.Count(cell => cell.IsOwned), Is.EqualTo(18));
-            Assert.That(snapshot.Resources, Is.EqualTo(8));
+            Assert.That(snapshot.Resources, Is.EqualTo(10));
+            Assert.That(snapshot.UnitId, Is.EqualTo("U01"));
+            Assert.That(snapshot.UnitResourceCost, Is.EqualTo(1));
             Assert.That(snapshot.RemainingCooldown, Is.Zero);
         }
 
@@ -45,9 +47,9 @@ namespace CompanyWarRE.Application.Tests
 
             Assert.That(first.Succeeded, Is.True);
             Assert.That(cooldownRejection.Failure, Is.EqualTo(DeploymentFailure.CooldownActive));
-            Assert.That(_architecture.SendQuery(new GetBattleSliceSnapshotQuery()).Resources, Is.EqualTo(5));
+            Assert.That(_architecture.SendQuery(new GetBattleSliceSnapshotQuery()).Resources, Is.EqualTo(9));
 
-            _architecture.SendCommand(new AdvanceBattleSliceTimeCommand(2d));
+            _architecture.SendCommand(new AdvanceBattleSliceTimeCommand(3d));
             var second = _architecture.SendCommand(new DeployBattleSliceUnitCommand(
                 new GridPosition(1, 2),
                 "test-unit-02"));
@@ -75,6 +77,20 @@ namespace CompanyWarRE.Application.Tests
 
             Assert.That(response.Succeeded, Is.False);
             Assert.That(response.Failure, Is.EqualTo(DeploymentFailure.TerritoryNotOwned));
+        }
+
+        private static BattleSliceConfiguration CreateConfiguration()
+        {
+            return new BattleSliceConfiguration(
+                6,
+                6,
+                3,
+                10,
+                5d,
+                3d,
+                new GridPosition(2, 2),
+                1,
+                new UnitDefinition("U01", 1, 3d));
         }
     }
 }

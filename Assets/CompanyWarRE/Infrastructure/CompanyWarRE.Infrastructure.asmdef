@@ -1,11 +1,9 @@
 {
-  "name": "CompanyWarRE.Presentation",
-  "rootNamespace": "CompanyWarRE.Presentation",
+  "name": "CompanyWarRE.Infrastructure",
+  "rootNamespace": "CompanyWarRE.Infrastructure",
   "references": [
     "CompanyWarRE.Application",
-    "CompanyWarRE.Domain",
-    "CompanyWarRE.Infrastructure",
-    "QFramework"
+    "CompanyWarRE.Domain"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],
@@ -15,5 +13,5 @@
   "autoReferenced": true,
   "defineConstraints": [],
   "versionDefines": [],
-  "noEngineReferences": false
+  "noEngineReferences": true
 }

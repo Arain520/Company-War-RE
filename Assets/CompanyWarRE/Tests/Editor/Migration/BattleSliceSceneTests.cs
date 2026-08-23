@@ -52,13 +52,35 @@ namespace CompanyWarRE.Migration.Tests
             var presentation = File.ReadAllText(Path.Combine(
                 projectRoot,
                 "Assets/CompanyWarRE/Presentation/CompanyWarRE.Presentation.asmdef"));
+            var infrastructure = File.ReadAllText(Path.Combine(
+                projectRoot,
+                "Assets/CompanyWarRE/Infrastructure/CompanyWarRE.Infrastructure.asmdef"));
 
             StringAssert.DoesNotContain("QFramework", domain);
             StringAssert.Contains("\"noEngineReferences\": true", domain);
             StringAssert.Contains("CompanyWarRE.Domain", application);
             StringAssert.Contains("QFramework", application);
             StringAssert.Contains("CompanyWarRE.Application", presentation);
+            StringAssert.Contains("CompanyWarRE.Infrastructure", presentation);
             StringAssert.Contains("QFramework", presentation);
+            StringAssert.Contains("CompanyWarRE.Application", infrastructure);
+            StringAssert.Contains("CompanyWarRE.Domain", infrastructure);
+        }
+
+        [Test]
+        public void BattleSliceScene_ReferencesBothCompatibilityDocuments()
+        {
+            var controllerGuid = AssetDatabase.AssetPathToGUID(
+                "Assets/CompanyWarRE/Presentation/BattleSliceController.cs");
+            var unitsGuid = AssetDatabase.AssetPathToGUID(
+                "Assets/CompanyWarRE/ConfigSamples/Compatibility/LegacyUnits.U01.json");
+            var settingsGuid = AssetDatabase.AssetPathToGUID(
+                "Assets/CompanyWarRE/ConfigSamples/Compatibility/BattleSliceRuntime.json");
+            var yaml = File.ReadAllText(ScenePath);
+
+            StringAssert.Contains("guid: " + controllerGuid, yaml);
+            StringAssert.Contains("guid: " + unitsGuid, yaml);
+            StringAssert.Contains("guid: " + settingsGuid, yaml);
         }
     }
 }

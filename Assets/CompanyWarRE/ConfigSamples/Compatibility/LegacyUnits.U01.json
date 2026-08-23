@@ -1,0 +1,20 @@
+{
+  "Units": [
+    {
+      "Id": "U01",
+      "Name": "攻坚者I型",
+      "Type": "Staff",
+      "Durability": 1,
+      "Attack": 1,
+      "Speed": 1.0,
+      "AttackInterval": 1.0,
+      "Range": 1,
+      "ResourceCost": 1,
+      "DeployCooldown": 3.0,
+      "Effect": "",
+      "ResourceRate": 0.0,
+      "ScoreRate": 0.0,
+      "CanDeployOutside": false
+    }
+  ]
+}

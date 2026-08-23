@@ -32,20 +32,32 @@ namespace CompanyWarRE.Application
     public sealed class BattleSliceSnapshot
     {
         public BattleSliceSnapshot(
+            int columns,
+            int rows,
             int resources,
             double elapsedSeconds,
             double remainingCooldown,
+            string unitId,
+            int unitResourceCost,
             IReadOnlyList<BattleSliceCellSnapshot> cells)
         {
+            Columns = columns;
+            Rows = rows;
             Resources = resources;
             ElapsedSeconds = elapsedSeconds;
             RemainingCooldown = remainingCooldown;
+            UnitId = unitId;
+            UnitResourceCost = unitResourceCost;
             Cells = cells ?? throw new ArgumentNullException(nameof(cells));
         }
 
+        public int Columns { get; }
+        public int Rows { get; }
         public int Resources { get; }
         public double ElapsedSeconds { get; }
         public double RemainingCooldown { get; }
+        public string UnitId { get; }
+        public int UnitResourceCost { get; }
         public IReadOnlyList<BattleSliceCellSnapshot> Cells { get; }
     }
 
@@ -59,6 +71,71 @@ namespace CompanyWarRE.Application
 
         public bool Succeeded { get; }
         public DeploymentFailure Failure { get; }
+    }
+
+    public sealed class BattleSliceConfiguration
+    {
+        public BattleSliceConfiguration(
+            int columns,
+            int rows,
+            int controlledColumns,
+            int initialResources,
+            double fixedProductionIntervalSeconds,
+            double transmitterProductionIntervalSeconds,
+            GridPosition transmitterPosition,
+            int transmitterAmount,
+            UnitDefinition testUnit)
+        {
+            if (columns <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(columns));
+            }
+
+            if (rows <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(rows));
+            }
+
+            if (controlledColumns <= 0 || controlledColumns > columns)
+            {
+                throw new ArgumentOutOfRangeException(nameof(controlledColumns));
+            }
+
+            Columns = columns;
+            Rows = rows;
+            ControlledColumns = controlledColumns;
+            InitialResources = Math.Max(0, initialResources);
+            FixedProductionIntervalSeconds = Math.Max(0.01d, fixedProductionIntervalSeconds);
+            TransmitterProductionIntervalSeconds = Math.Max(0.01d, transmitterProductionIntervalSeconds);
+            TransmitterPosition = transmitterPosition;
+            TransmitterAmount = Math.Max(0, transmitterAmount);
+            TestUnit = testUnit ?? throw new ArgumentNullException(nameof(testUnit));
+        }
+
+        public int Columns { get; }
+        public int Rows { get; }
+        public int ControlledColumns { get; }
+        public int InitialResources { get; }
+        public double FixedProductionIntervalSeconds { get; }
+        public double TransmitterProductionIntervalSeconds { get; }
+        public GridPosition TransmitterPosition { get; }
+        public int TransmitterAmount { get; }
+        public UnitDefinition TestUnit { get; }
+    }
+
+    public sealed class ConfigureBattleSliceCommand : AbstractCommand
+    {
+        private readonly BattleSliceConfiguration _configuration;
+
+        public ConfigureBattleSliceCommand(BattleSliceConfiguration configuration)
+        {
+            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+        }
+
+        protected override void OnExecute()
+        {
+            this.GetModel<BattleSliceModel>().Configure(_configuration);
+        }
     }
 
     public sealed class ResetBattleSliceCommand : AbstractCommand
@@ -127,9 +204,7 @@ namespace CompanyWarRE.Application
 
     public sealed class BattleSliceModel : AbstractModel
     {
-        public const int Columns = 6;
-        public const int Rows = 6;
-
+        private BattleSliceConfiguration _configuration;
         private BattleGrid _grid;
         private ResourceEconomy _economy;
         private DeploymentService _deployment;
@@ -137,25 +212,39 @@ namespace CompanyWarRE.Application
 
         protected override void OnInit()
         {
+        }
+
+        public void Configure(BattleSliceConfiguration configuration)
+        {
+            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             ResetSlice();
         }
 
         public void ResetSlice()
         {
-            _grid = new BattleGrid(Columns, Rows);
-            for (var column = 1; column <= Columns / 2; column++)
+            EnsureConfigured();
+            _grid = new BattleGrid(_configuration.Columns, _configuration.Rows);
+            for (var column = 1; column <= _configuration.ControlledColumns; column++)
             {
-                for (var row = 1; row <= Rows; row++)
+                for (var row = 1; row <= _configuration.Rows; row++)
                 {
                     _grid.SetOwnership(new GridPosition(column, row), true);
                 }
             }
 
             _economy = new ResourceEconomy();
-            _economy.Reset(8);
-            _economy.ConfigureProduction(2d, 3d);
-            _economy.RegisterTransmitter(new GridPosition(2, 2), 1);
-            _testUnit = new UnitDefinition("U01", 3, 2d);
+            _economy.Reset(_configuration.InitialResources);
+            _economy.ConfigureProduction(
+                _configuration.FixedProductionIntervalSeconds,
+                _configuration.TransmitterProductionIntervalSeconds);
+            if (_configuration.TransmitterAmount > 0 && _grid.IsInside(_configuration.TransmitterPosition))
+            {
+                _economy.RegisterTransmitter(
+                    _configuration.TransmitterPosition,
+                    _configuration.TransmitterAmount);
+            }
+
+            _testUnit = _configuration.TestUnit;
             _deployment = new DeploymentService(_grid, _economy);
         }
 
@@ -177,10 +266,11 @@ namespace CompanyWarRE.Application
 
         public BattleSliceSnapshot CreateSnapshot()
         {
-            var cells = new List<BattleSliceCellSnapshot>(Columns * Rows);
-            for (var column = 1; column <= Columns; column++)
+            EnsureConfigured();
+            var cells = new List<BattleSliceCellSnapshot>(_configuration.Columns * _configuration.Rows);
+            for (var column = 1; column <= _configuration.Columns; column++)
             {
-                for (var row = 1; row <= Rows; row++)
+                for (var row = 1; row <= _configuration.Rows; row++)
                 {
                     var cell = _grid.GetCell(new GridPosition(column, row));
                     cells.Add(new BattleSliceCellSnapshot(
@@ -192,10 +282,22 @@ namespace CompanyWarRE.Application
             }
 
             return new BattleSliceSnapshot(
+                _configuration.Columns,
+                _configuration.Rows,
                 _economy.Resources,
                 _economy.ElapsedSeconds,
                 _economy.GetRemainingCooldown(_testUnit),
+                _testUnit.Id,
+                _testUnit.ResourceCost,
                 cells);
+        }
+
+        private void EnsureConfigured()
+        {
+            if (_configuration == null)
+            {
+                throw new InvalidOperationException("Battle slice configuration has not been loaded.");
+            }
         }
     }
 }

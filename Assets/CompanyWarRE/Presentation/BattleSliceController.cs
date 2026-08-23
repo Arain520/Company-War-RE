@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using CompanyWarRE.Application;
 using CompanyWarRE.Domain;
+using CompanyWarRE.Infrastructure.Configuration;
 using QFramework;
 using UnityEngine;
 
@@ -8,6 +9,9 @@ namespace CompanyWarRE.Presentation
 {
     public sealed class BattleSliceController : MonoBehaviour, IController
     {
+        [SerializeField] private TextAsset legacyUnitsJson;
+        [SerializeField] private TextAsset sliceSettingsJson;
+
         private readonly Dictionary<GridPosition, BattleSliceCellView> _cellViews =
             new Dictionary<GridPosition, BattleSliceCellView>();
 
@@ -16,6 +20,8 @@ namespace CompanyWarRE.Presentation
         private GridPosition _selected = new GridPosition(1, 1);
         private int _actorSequence = 1;
         private string _lastAction = "Ready";
+        private string _configurationError;
+        private bool _isReady;
 
         public IArchitecture GetArchitecture()
         {
@@ -25,13 +31,24 @@ namespace CompanyWarRE.Presentation
         private void Awake()
         {
             _architecture = GetArchitecture();
+            if (!TryConfigureSlice())
+            {
+                return;
+            }
+
             EnsureSceneInfrastructure();
             BuildGrid();
-            ResetSlice();
+            _isReady = true;
+            RefreshView();
         }
 
         private void Update()
         {
+            if (!_isReady)
+            {
+                return;
+            }
+
             _architecture.SendCommand(new AdvanceBattleSliceTimeCommand(Time.deltaTime));
             ProcessPointerInput();
             ProcessKeyboardInput();
@@ -45,6 +62,37 @@ namespace CompanyWarRE.Presentation
             _actorSequence = 1;
             _lastAction = "Slice reset";
             RefreshView();
+        }
+
+        private bool TryConfigureSlice()
+        {
+            var documents = new Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase);
+            if (legacyUnitsJson != null)
+            {
+                documents["legacy-units"] = legacyUnitsJson.text;
+            }
+
+            if (sliceSettingsJson != null)
+            {
+                documents["slice-settings"] = sliceSettingsJson.text;
+            }
+
+            var provider = new LegacyBattleSliceConfigurationProvider(
+                new DictionaryConfigurationTextSource(documents));
+            var result = provider.Load("legacy-units", "slice-settings");
+            if (!result.Succeeded)
+            {
+                _configurationError = string.Join("\n", result.Issues);
+                _lastAction = "Configuration failed";
+                Debug.LogError("BattleSlice configuration failed:\n" + _configurationError, this);
+                return false;
+            }
+
+            _architecture.SendCommand(new ConfigureBattleSliceCommand(result.Configuration));
+            _snapshot = _architecture.SendQuery(new GetBattleSliceSnapshotQuery());
+            _configurationError = null;
+            _lastAction = $"Loaded legacy {result.Configuration.TestUnit.Id}";
+            return true;
         }
 
         private void DeploySelected()
@@ -121,9 +169,9 @@ namespace CompanyWarRE.Presentation
             var root = new GameObject("RuntimeGrid").transform;
             root.SetParent(transform, false);
 
-            for (var column = 1; column <= BattleSliceModel.Columns; column++)
+            for (var column = 1; column <= _snapshot.Columns; column++)
             {
-                for (var row = 1; row <= BattleSliceModel.Rows; row++)
+                for (var row = 1; row <= _snapshot.Rows; row++)
                 {
                     var position = new GridPosition(column, row);
                     var cell = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -178,15 +226,24 @@ namespace CompanyWarRE.Presentation
         {
             if (_snapshot == null)
             {
+                GUILayout.BeginArea(new Rect(16f, 16f, 520f, 180f), GUI.skin.box);
+                GUILayout.Label("Company War-RE | Configuration compatibility slice");
+                GUILayout.Label("Configuration load failed:");
+                GUILayout.Label(string.IsNullOrWhiteSpace(_configurationError)
+                    ? "No configuration was loaded."
+                    : _configurationError);
+                GUILayout.EndArea();
                 return;
             }
 
             GUILayout.BeginArea(new Rect(16f, 16f, 420f, 190f), GUI.skin.box);
             GUILayout.Label("Company War-RE | Domain vertical slice");
             GUILayout.Label($"Resources: {_snapshot.Resources}    Time: {_snapshot.ElapsedSeconds:0.0}s");
-            GUILayout.Label($"U01 cooldown: {_snapshot.RemainingCooldown:0.0}s    Selected: {_selected}");
+            GUILayout.Label(
+                $"{_snapshot.UnitId} cost: {_snapshot.UnitResourceCost}    " +
+                $"cooldown: {_snapshot.RemainingCooldown:0.0}s    Selected: {_selected}");
             GUILayout.Space(6f);
-            GUILayout.Label("Left click: select | Right click / D / Space: deploy U01");
+            GUILayout.Label($"Left click: select | Right click / D / Space: deploy {_snapshot.UnitId}");
             GUILayout.Label("P: toggle 3x3 pollution block | R: reset");
             GUILayout.Label("Green owned | Gray unowned | Purple polluted | Cyan unit");
             GUILayout.Space(6f);
