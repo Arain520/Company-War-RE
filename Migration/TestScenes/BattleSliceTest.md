@@ -40,6 +40,9 @@ placeholders are test visualization, not migrated production art.
   ally-owned rows.
 - A successful deployment displays a cyan U01. Same-column U01/E01 actors advance,
   meet, exchange damage, and disappear on death; the HUD counts combat events.
+- U01 and E01 in different small columns but the same 3×3 control-block column now
+  bind to a shared battle block, move to reserved faction rows, and can fight inside
+  that block. Multiple deployed U01 actors may focus one E01.
 - If E01 reaches owned row 6 without a living ally melee defender in that 3×3
   control block, rows 4-6 / columns 1-3 turn purple, lose ownership, and E01 dies.
 - Pollution colors the whole selected 3 x 3 control block purple and blocks
@@ -49,7 +52,7 @@ placeholders are test visualization, not migrated production art.
 
 ## Non-goals
 
-This scene does not validate Cow art, final UI, full control-block combat, ranged or
-special units, production spawning, save files, Addressables, ResKit,
+This scene does not validate Cow art, final UI, ranged or special units, production
+spawning, save files, Addressables, ResKit,
 StreamingAssets, or build configuration. It is not added to EditorBuildSettings and
 does not alter ProjectSettings.

@@ -94,6 +94,12 @@ namespace CompanyWarRE.Domain.Tests
             var ally = simulation.CreateSnapshot().Single(actor => actor.ActorId == "ally");
             Assert.That(ally.IsAlive, Is.True);
             Assert.That(ally.LanePosition, Is.GreaterThan(positionAfterCombat));
+            Assert.That(
+                simulation.Events.Any(item => item.Type == CombatEventType.MeleeBattlefieldStarted),
+                Is.True);
+            Assert.That(
+                simulation.Events.Any(item => item.Type == CombatEventType.MeleeBattlefieldEnded),
+                Is.True);
         }
 
         [Test]
@@ -132,7 +138,7 @@ namespace CompanyWarRE.Domain.Tests
         }
 
         [Test]
-        public void LivingAllyMeleeInInvadedBlock_DelaysPollution()
+        public void LivingAllyMeleeInInvadedBlock_StartsBattleAndPreventsPollution()
         {
             var grid = CreateTerritoryGrid();
             var simulation = new CombatSimulation(9, 9);
@@ -143,7 +149,97 @@ namespace CompanyWarRE.Domain.Tests
 
             Assert.That(grid.PollutionChanges, Is.Empty);
             Assert.That(simulation.Events.Any(item => item.Type == CombatEventType.Pollution), Is.False);
-            Assert.That(simulation.CreateSnapshot().Single(actor => actor.ActorId == "enemy").IsAlive, Is.True);
+            Assert.That(simulation.Events.Count(item => item.Type == CombatEventType.Attack), Is.EqualTo(2));
+            Assert.That(simulation.CreateSnapshot().All(actor => !actor.IsAlive), Is.True);
+        }
+
+        [Test]
+        public void DifferentSmallColumnsInSameControlBlock_EngageOnReservedBattleRows()
+        {
+            var ally = new CombatantDefinition("U-LINE", "Staff", 10, 1d, 1d, 1d, 1);
+            var enemy = new CombatantDefinition("E-LINE", "Staff", 10, 1d, 1d, 1d, 1);
+            var simulation = new CombatSimulation(3, 6);
+            simulation.TryAddActor("ally", Team.Ally, ally, 1, 4d);
+            simulation.TryAddActor("enemy", Team.Enemy, enemy, 3, 6d);
+
+            simulation.Advance(0.25d);
+
+            var firstSnapshot = simulation.CreateSnapshot();
+            Assert.That(firstSnapshot.Single(actor => actor.ActorId == "ally").LanePosition, Is.EqualTo(4d));
+            Assert.That(firstSnapshot.Single(actor => actor.ActorId == "enemy").LanePosition, Is.EqualTo(6d));
+            Assert.That(simulation.Events.Count(item => item.Type == CombatEventType.Attack), Is.Zero);
+            var started = simulation.Events.Single(item => item.Type == CombatEventType.MeleeBattlefieldStarted);
+            Assert.That(started.ControlBlockColumn, Is.EqualTo(1));
+            Assert.That(started.ControlBlockRow, Is.EqualTo(2));
+            Assert.That(started.Column, Is.EqualTo(2));
+            Assert.That(started.Row, Is.EqualTo(5));
+
+            simulation.Advance(0.75d);
+
+            Assert.That(simulation.Events.Count(item => item.Type == CombatEventType.Attack), Is.EqualTo(2));
+        }
+
+        [Test]
+        public void FasterSide_SelectsWhichAdjacentControlBlockHostsBattle()
+        {
+            var fastAllySimulation = new CombatSimulation(3, 6);
+            fastAllySimulation.TryAddActor(
+                "ally",
+                Team.Ally,
+                new CombatantDefinition("U-FAST", "Staff", 10, 1d, 3d, 1d, 1),
+                2,
+                3d);
+            fastAllySimulation.TryAddActor(
+                "enemy",
+                Team.Enemy,
+                new CombatantDefinition("E-SLOW", "Staff", 10, 1d, 1d, 1d, 1),
+                2,
+                5d);
+            fastAllySimulation.Advance(1d);
+            var allyFirst = fastAllySimulation.CreateSnapshot();
+            Assert.That(allyFirst.Single(actor => actor.Team == Team.Ally).LanePosition, Is.EqualTo(4d));
+            Assert.That(allyFirst.Single(actor => actor.Team == Team.Enemy).LanePosition, Is.EqualTo(6d));
+
+            var fastEnemySimulation = new CombatSimulation(3, 6);
+            fastEnemySimulation.TryAddActor(
+                "ally",
+                Team.Ally,
+                new CombatantDefinition("U-SLOW", "Staff", 10, 1d, 1d, 1d, 1),
+                2,
+                2d);
+            fastEnemySimulation.TryAddActor(
+                "enemy",
+                Team.Enemy,
+                new CombatantDefinition("E-FAST", "Staff", 10, 1d, 4d, 1d, 1),
+                2,
+                5d);
+            fastEnemySimulation.Advance(1d);
+            var enemyFirst = fastEnemySimulation.CreateSnapshot();
+            Assert.That(enemyFirst.Single(actor => actor.Team == Team.Ally).LanePosition, Is.EqualTo(1d));
+            Assert.That(enemyFirst.Single(actor => actor.Team == Team.Enemy).LanePosition, Is.EqualTo(3d));
+        }
+
+        [Test]
+        public void MultipleAlliesInSameControlBlock_CanFocusOneEnemy()
+        {
+            var allyDefinition = new CombatantDefinition("U-CROWD", "Staff", 10, 1d, 1d, 0.1d, 1);
+            var enemyDefinition = new CombatantDefinition("E-CROWD", "Staff", 3, 0d, 1d, 0.1d, 1);
+            var simulation = new CombatSimulation(3, 6);
+            simulation.TryAddActor("ally-a", Team.Ally, allyDefinition, 1, 5d);
+            simulation.TryAddActor("ally-b", Team.Ally, allyDefinition, 3, 5d);
+            simulation.TryAddActor("enemy", Team.Enemy, enemyDefinition, 2, 5d);
+
+            simulation.Advance(0.1d);
+
+            var attackingAllies = simulation.Events
+                .Where(item => item.Type == CombatEventType.Attack && item.ActorId.StartsWith("ally-"))
+                .Select(item => item.ActorId)
+                .Distinct()
+                .ToArray();
+            Assert.That(attackingAllies, Is.EquivalentTo(new[] { "ally-a", "ally-b" }));
+            Assert.That(
+                simulation.CreateSnapshot().Single(actor => actor.ActorId == "enemy").HitPoints,
+                Is.EqualTo(1d));
         }
 
         private static CombatSimulation CreateDuel(double allyLane, double enemyLane)

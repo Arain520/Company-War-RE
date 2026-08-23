@@ -274,7 +274,7 @@ namespace CompanyWarRE.Presentation
                 return;
             }
 
-            GUILayout.BeginArea(new Rect(16f, 16f, 470f, 225f), GUI.skin.box);
+            GUILayout.BeginArea(new Rect(16f, 16f, 470f, 245f), GUI.skin.box);
             GUILayout.Label("Company War-RE | U01 vs E01 combat slice");
             GUILayout.Label($"Resources: {_snapshot.Resources}    Time: {_snapshot.ElapsedSeconds:0.0}s");
             GUILayout.Label(
@@ -305,6 +305,10 @@ namespace CompanyWarRE.Presentation
 
             GUILayout.Label(
                 $"Alive: ally {aliveAllies} / enemy {aliveEnemies}    Combat events: {_snapshot.CombatEvents.Count}");
+            if (_snapshot.CombatEvents.Count > 0)
+            {
+                GUILayout.Label(Describe(_snapshot.CombatEvents[_snapshot.CombatEvents.Count - 1]));
+            }
             GUILayout.Space(6f);
             GUILayout.Label(_lastAction);
             GUILayout.EndArea();
@@ -332,6 +336,25 @@ namespace CompanyWarRE.Presentation
                     return "combat registration rejected";
                 default:
                     return failure.ToString();
+            }
+        }
+
+        private static string Describe(CombatEvent combatEvent)
+        {
+            switch (combatEvent.Type)
+            {
+                case CombatEventType.Attack:
+                    return $"Attack: {combatEvent.ActorId} -> {combatEvent.TargetActorId}";
+                case CombatEventType.MeleeBattlefieldStarted:
+                    return $"Battlefield started: CB({combatEvent.ControlBlockColumn}, {combatEvent.ControlBlockRow})";
+                case CombatEventType.MeleeBattlefieldEnded:
+                    return $"Battlefield ended: CB({combatEvent.ControlBlockColumn}, {combatEvent.ControlBlockRow})";
+                case CombatEventType.Pollution:
+                    return $"Polluted: ({combatEvent.Column}, {combatEvent.Row})";
+                case CombatEventType.Death:
+                    return $"Death: {combatEvent.ActorId}";
+                default:
+                    return combatEvent.Type.ToString();
             }
         }
 
