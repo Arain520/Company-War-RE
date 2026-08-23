@@ -20,6 +20,8 @@ internal static class RunCompiledBehaviorTests
         foreach (var type in assembly.GetTypes())
         {
             object instance = null;
+            var setupMethods = GetLifecycleMethods<SetUpAttribute>(type);
+            var tearDownMethods = GetLifecycleMethods<TearDownAttribute>(type);
             foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
             {
                 var invocations = GetInvocations(method);
@@ -37,6 +39,7 @@ internal static class RunCompiledBehaviorTests
                 {
                     try
                     {
+                        InvokeAll(instance, setupMethods);
                         method.Invoke(instance, arguments);
                         Console.WriteLine("PASS " + type.Name + "." + method.Name);
                         passed++;
@@ -46,6 +49,10 @@ internal static class RunCompiledBehaviorTests
                         var cause = exception.InnerException ?? exception;
                         Console.WriteLine("FAIL " + type.Name + "." + method.Name + ": " + cause.Message);
                         failed++;
+                    }
+                    finally
+                    {
+                        InvokeAll(instance, tearDownMethods);
                     }
                 }
             }
@@ -72,5 +79,28 @@ internal static class RunCompiledBehaviorTests
         return method.IsDefined(typeof(TestAttribute), false)
             ? new[] { Array.Empty<object>() }
             : null;
+    }
+
+    private static IReadOnlyList<MethodInfo> GetLifecycleMethods<TAttribute>(Type type)
+        where TAttribute : Attribute
+    {
+        var methods = new List<MethodInfo>();
+        foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+        {
+            if (method.IsDefined(typeof(TAttribute), true))
+            {
+                methods.Add(method);
+            }
+        }
+
+        return methods;
+    }
+
+    private static void InvokeAll(object instance, IReadOnlyList<MethodInfo> methods)
+    {
+        foreach (var method in methods)
+        {
+            method.Invoke(instance, Array.Empty<object>());
+        }
     }
 }

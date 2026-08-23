@@ -20,3 +20,11 @@ Second-batch artifacts:
 - `Assets/CompanyWarRE/Tests/Editor/Domain` contains EditMode characterization tests.
 
 The second batch still imports no Cow scene, prefab, ScriptableObject, or production resource.
+
+Test vertical slice:
+
+- `Assets/CompanyWarRE/Scenes/BattleSliceTest.unity` connects runtime input and
+  placeholder visuals to QFramework commands/queries and the pure C# Domain.
+- `TestScenes/BattleSliceTest.md` records controls, expected behavior, and non-goals.
+- The scene is intentionally excluded from build settings until the target platform
+  and production scene flow are approved.

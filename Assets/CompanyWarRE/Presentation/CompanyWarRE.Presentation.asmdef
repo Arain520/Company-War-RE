@@ -1,0 +1,18 @@
+{
+  "name": "CompanyWarRE.Presentation",
+  "rootNamespace": "CompanyWarRE.Presentation",
+  "references": [
+    "CompanyWarRE.Application",
+    "CompanyWarRE.Domain",
+    "QFramework"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
