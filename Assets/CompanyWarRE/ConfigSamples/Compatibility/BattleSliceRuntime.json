@@ -2,7 +2,7 @@
   "SchemaVersion": 1,
   "Columns": 9,
   "Rows": 9,
-  "ControlledColumns": 6,
+  "ControlledRows": 6,
   "InitialResources": 10,
   "FixedProductionIntervalSeconds": 5.0,
   "TransmitterProductionIntervalSeconds": 3.0,

@@ -114,7 +114,7 @@ namespace CompanyWarRE.Application
         public BattleSliceConfiguration(
             int columns,
             int rows,
-            int controlledColumns,
+            int controlledRows,
             int initialResources,
             double fixedProductionIntervalSeconds,
             double transmitterProductionIntervalSeconds,
@@ -135,14 +135,14 @@ namespace CompanyWarRE.Application
                 throw new ArgumentOutOfRangeException(nameof(rows));
             }
 
-            if (controlledColumns <= 0 || controlledColumns > columns)
+            if (controlledRows <= 0 || controlledRows > rows)
             {
-                throw new ArgumentOutOfRangeException(nameof(controlledColumns));
+                throw new ArgumentOutOfRangeException(nameof(controlledRows));
             }
 
             Columns = columns;
             Rows = rows;
-            ControlledColumns = controlledColumns;
+            ControlledRows = controlledRows;
             InitialResources = Math.Max(0, initialResources);
             FixedProductionIntervalSeconds = Math.Max(0.01d, fixedProductionIntervalSeconds);
             TransmitterProductionIntervalSeconds = Math.Max(0.01d, transmitterProductionIntervalSeconds);
@@ -162,12 +162,19 @@ namespace CompanyWarRE.Application
                 throw new ArgumentOutOfRangeException(nameof(enemySpawnPosition));
             }
 
+            if (enemySpawnPosition.Row <= controlledRows)
+            {
+                throw new ArgumentException(
+                    "Enemy spawn must be outside ally-controlled rows.",
+                    nameof(enemySpawnPosition));
+            }
+
             EnemySpawnPosition = enemySpawnPosition;
         }
 
         public int Columns { get; }
         public int Rows { get; }
-        public int ControlledColumns { get; }
+        public int ControlledRows { get; }
         public int InitialResources { get; }
         public double FixedProductionIntervalSeconds { get; }
         public double TransmitterProductionIntervalSeconds { get; }
@@ -283,9 +290,9 @@ namespace CompanyWarRE.Application
         {
             EnsureConfigured();
             _grid = new BattleGrid(_configuration.Columns, _configuration.Rows);
-            for (var column = 1; column <= _configuration.ControlledColumns; column++)
+            for (var column = 1; column <= _configuration.Columns; column++)
             {
-                for (var row = 1; row <= _configuration.Rows; row++)
+                for (var row = 1; row <= _configuration.ControlledRows; row++)
                 {
                     _grid.SetOwnership(new GridPosition(column, row), true);
                 }
@@ -318,7 +325,7 @@ namespace CompanyWarRE.Application
         public void Advance(double deltaSeconds)
         {
             _economy.Advance(deltaSeconds);
-            _combat.Advance(deltaSeconds);
+            _combat.Advance(deltaSeconds, _grid);
             foreach (var actor in _combat.CreateSnapshot())
             {
                 if (!actor.IsAlive && _deploymentPositions.TryGetValue(actor.ActorId, out var position))

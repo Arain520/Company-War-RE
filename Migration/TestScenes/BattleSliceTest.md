@@ -30,14 +30,18 @@ placeholders are test visualization, not migrated production art.
 
 ## Expected behavior
 
-- The left 54 green cells are owned; the right 27 gray cells reject deployment.
+- The lower rows 1-6 (54 green cells) are owned; upper rows 7-9 (27 gray cells)
+  form the enemy region and reject deployment.
 - U01 costs 1 resource and has a three-second per-unit cooldown, matching Cow's
   `Units.json`.
 - Resources start at 10, gain one every five seconds, and receive one transmitter
   resource every three seconds.
-- E01 starts as a red combatant at column 3, row 9.
+- E01 starts as a red combatant at column 3, row 9 and moves toward the lower,
+  ally-owned rows.
 - A successful deployment displays a cyan U01. Same-column U01/E01 actors advance,
   meet, exchange damage, and disappear on death; the HUD counts combat events.
+- If E01 reaches owned row 6 without a living ally melee defender in that 3×3
+  control block, rows 4-6 / columns 1-3 turn purple, lose ownership, and E01 dies.
 - Pollution colors the whole selected 3 x 3 control block purple and blocks
   deployment there.
 - The on-screen panel displays resources, elapsed time, cooldown, selection, and

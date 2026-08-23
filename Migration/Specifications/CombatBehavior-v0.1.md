@@ -22,6 +22,8 @@ values; enemies advance toward decreasing values.
 ## Implemented behavior
 
 - Only a living opponent in the same column and in front can be targeted.
+- The battlefield advances along rows: allies move from low to high row numbers;
+  enemies spawn in high, non-owned rows and move toward low, ally-owned rows.
 - Moving melee actors close to legacy contact distance `0.12`, with epsilon `0.02`.
 - A tick moves actors before resolving attacks.
 - Attack progress advances only while a valid target exists and resets otherwise.
@@ -31,6 +33,11 @@ values; enemies advance toward decreasing values.
   time can kill each other simultaneously.
 - Death is reported once. Dead actors neither move nor attack on later ticks.
 - A surviving melee actor resumes forward movement when no opponent remains.
+- When an enemy first occupies an owned cell and no living ally melee actor defends
+  that 3×3 control block, the whole block becomes polluted and unowned. The invading
+  enemy self-destructs and emits pollution followed by death events.
+- A living ally melee actor anywhere in the invaded control block delays pollution,
+  matching Cow's encounter-first rule.
 - The Application layer removes a dead deployed ally from its original deployment
   cell and exposes combat actors/events through a read-only snapshot.
 
@@ -46,7 +53,7 @@ Deferred items include:
 
 - reserved battle-row rotation and multi-actor focus rules;
 - ranged targeting and projectiles;
-- enemy territory breach, pollution, and assault score integration;
+- assault score integration after an enemy death or breach;
 - buildings, support units, healing, conversion, execution, buffs, and every
   unit-specific effect;
 - final art, animation, audio, death effect, spawning waves, victory/defeat wiring,

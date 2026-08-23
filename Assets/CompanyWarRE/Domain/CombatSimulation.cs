@@ -46,6 +46,7 @@ namespace CompanyWarRE.Domain
     public enum CombatEventType
     {
         Attack,
+        Pollution,
         Death
     }
 
@@ -56,13 +57,21 @@ namespace CompanyWarRE.Domain
             CombatEventType type,
             string actorId,
             string targetActorId,
-            double amount)
+            double amount,
+            int column = 0,
+            int row = 0,
+            int controlBlockColumn = 0,
+            int controlBlockRow = 0)
         {
             Sequence = sequence;
             Type = type;
             ActorId = actorId ?? string.Empty;
             TargetActorId = targetActorId ?? string.Empty;
             Amount = amount;
+            Column = column;
+            Row = row;
+            ControlBlockColumn = controlBlockColumn;
+            ControlBlockRow = controlBlockRow;
         }
 
         public long Sequence { get; }
@@ -70,6 +79,10 @@ namespace CompanyWarRE.Domain
         public string ActorId { get; }
         public string TargetActorId { get; }
         public double Amount { get; }
+        public int Column { get; }
+        public int Row { get; }
+        public int ControlBlockColumn { get; }
+        public int ControlBlockRow { get; }
     }
 
     public sealed class CombatActorSnapshot
@@ -175,8 +188,19 @@ namespace CompanyWarRE.Domain
 
         public void Advance(double deltaSeconds)
         {
+            Advance(deltaSeconds, null);
+        }
+
+        public void Advance(double deltaSeconds, BattleGrid grid)
+        {
+            if (grid != null && (grid.Columns != _columns || grid.Rows != _rows))
+            {
+                throw new ArgumentException("Combat and territory dimensions must match.", nameof(grid));
+            }
+
             var delta = Math.Max(0.0001d, deltaSeconds);
             MoveActors(delta);
+            ResolveEnemyTerritoryBreaches(grid);
             ResolveAttacks(delta);
             ReportDeaths();
         }
@@ -264,6 +288,56 @@ namespace CompanyWarRE.Domain
             }
         }
 
+        private void ResolveEnemyTerritoryBreaches(BattleGrid grid)
+        {
+            if (grid == null)
+            {
+                return;
+            }
+
+            foreach (var enemy in _actors.Where(actor => actor.IsAlive && actor.Team == Team.Enemy).ToList())
+            {
+                var position = ToDiscretePosition(enemy);
+                var cell = grid.GetCell(position);
+                if (cell == null || !cell.IsOwned)
+                {
+                    continue;
+                }
+
+                var enemyBlock = grid.GetControlBlockForCell(position);
+                var defended = _actors.Any(actor =>
+                    actor.IsAlive &&
+                    actor.Team == Team.Ally &&
+                    actor.Definition.IsMovingMelee &&
+                    SameControlBlock(grid, enemyBlock, ToDiscretePosition(actor)));
+                if (defended)
+                {
+                    continue;
+                }
+
+                grid.SetPollution(position, true);
+                if (enemyBlock != null)
+                {
+                    foreach (var affectedCell in enemyBlock.Cells)
+                    {
+                        affectedCell.IsOwned = false;
+                    }
+                }
+
+                _events.Add(new CombatEvent(
+                    _nextEventSequence++,
+                    CombatEventType.Pollution,
+                    enemy.ActorId,
+                    string.Empty,
+                    0d,
+                    position.Column,
+                    position.Row,
+                    enemyBlock?.Position.Column ?? 0,
+                    enemyBlock?.Position.Row ?? 0));
+                enemy.HitPoints = 0d;
+            }
+        }
+
         private void ReportDeaths()
         {
             foreach (var actor in _actors.Where(candidate => !candidate.IsAlive && !candidate.DeathReported))
@@ -322,6 +396,23 @@ namespace CompanyWarRE.Domain
         private double ClampLane(double lanePosition)
         {
             return Math.Max(1d, Math.Min(_rows, lanePosition));
+        }
+
+        private GridPosition ToDiscretePosition(CombatActor actor)
+        {
+            var row = actor.Team == Team.Ally
+                ? (int)Math.Floor(actor.LanePosition + ContactEpsilon)
+                : (int)Math.Ceiling(actor.LanePosition - ContactEpsilon);
+            return new GridPosition(actor.Column, Math.Max(1, Math.Min(_rows, row)));
+        }
+
+        private static bool SameControlBlock(
+            BattleGrid grid,
+            ControlBlock expected,
+            GridPosition position)
+        {
+            var actual = grid.GetControlBlockForCell(position);
+            return expected != null && actual != null && expected.Position.Equals(actual.Position);
         }
 
         private static int Direction(Team team)

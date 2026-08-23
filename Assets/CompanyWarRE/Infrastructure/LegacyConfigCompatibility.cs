@@ -104,8 +104,10 @@ namespace CompanyWarRE.Infrastructure.Configuration
         public int Columns;
         [DataMember(Name = "Rows")]
         public int Rows;
+        [DataMember(Name = "ControlledRows")]
+        public int ControlledRows;
         [DataMember(Name = "ControlledColumns")]
-        public int ControlledColumns;
+        public int LegacyControlledColumns;
         [DataMember(Name = "InitialResources")]
         public int InitialResources;
         [DataMember(Name = "FixedProductionIntervalSeconds")]
@@ -259,6 +261,7 @@ namespace CompanyWarRE.Infrastructure.Configuration
                 selectedUnit.DeployCooldown,
                 deploymentMode,
                 footprint);
+            var controlledRows = ResolveControlledRows(settings);
             var allyCombatant = new CombatantDefinition(
                 selectedUnit.Id,
                 selectedUnit.Type,
@@ -279,7 +282,7 @@ namespace CompanyWarRE.Infrastructure.Configuration
             var configuration = new BattleSliceConfiguration(
                 settings.Columns,
                 settings.Rows,
-                settings.ControlledColumns,
+                controlledRows,
                 settings.InitialResources,
                 settings.FixedProductionIntervalSeconds,
                 settings.TransmitterProductionIntervalSeconds,
@@ -336,12 +339,13 @@ namespace CompanyWarRE.Infrastructure.Configuration
                 issues.Add(new ConfigurationIssue("CFG_RANGE", path, "Grid dimensions must be positive."));
             }
 
-            if (settings.ControlledColumns <= 0 || settings.ControlledColumns > settings.Columns)
+            var controlledRows = ResolveControlledRows(settings);
+            if (controlledRows <= 0 || controlledRows > settings.Rows)
             {
                 issues.Add(new ConfigurationIssue(
                     "CFG_RANGE",
-                    path + ".ControlledColumns",
-                    "ControlledColumns must be inside the configured grid."));
+                    path + ".ControlledRows",
+                    "ControlledRows must be inside the configured grid."));
             }
 
             if (settings.InitialResources < 0)
@@ -397,6 +401,20 @@ namespace CompanyWarRE.Infrastructure.Configuration
                     path + ".EnemySpawnPosition",
                     "Enemy spawn position must be inside the grid."));
             }
+            else if (settings.EnemySpawnRow <= controlledRows)
+            {
+                issues.Add(new ConfigurationIssue(
+                    "CFG_RANGE",
+                    path + ".EnemySpawnPosition",
+                    "Enemy spawn position must be outside ally-controlled rows."));
+            }
+        }
+
+        private static int ResolveControlledRows(BattleSliceSettingsDto settings)
+        {
+            return settings.ControlledRows > 0
+                ? settings.ControlledRows
+                : settings.LegacyControlledColumns;
         }
 
         private static LegacyUnitDto ValidateAndFindUnit(

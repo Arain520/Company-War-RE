@@ -13,6 +13,11 @@ The test runtime settings preserve separately audited code defaults where releva
 initial resources 10, fixed production every 5 seconds, and transmitter production
 every 3 seconds. They are not presented as fields from Cow `Units.json`.
 
+Territory is composed along the row axis: rows `1..ControlledRows` belong to the
+ally and enemy spawn rows must be greater than `ControlledRows`. The earlier
+`ControlledColumns` test setting is retained as a deprecated read alias so existing
+v1 text does not fail abruptly, but new composition must write `ControlledRows`.
+
 ## Boundary
 
 ```

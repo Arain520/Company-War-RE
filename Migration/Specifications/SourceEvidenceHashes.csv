@@ -14,3 +14,5 @@
 "Assets/_Game/Tests/Cases/CW_Core_04_CombatRotationAndDeathTests.cs","ade54f90e504aa677c72d7d1f2d62a6bad22401c16cc6418ab0af3f5a7ff80ce","5190","Combat targeting, attack, rotation, and death characterization"
 "Assets/_Game/Tests/Cases/CW_UNIT_0109_ControlBlockEncounter.cs","785d3f2caa82db5e1f160eec0ad25d70b74b0b019847a2ba69eeedc7c8249145","11508","Control-block encounter and movement characterization"
 "Assets/_Game/Tests/Cases/CW_TEST_U01_VS_E02_Detailed.cs","ed12d3161f6b56516071d2426d9214cb06f13fbd5dfb3b4ffc7cfc7c9dbbd372","4830","U01 attrition evidence"
+"Assets/_Game/Tests/Cases/CW_Core_05_PollutionAndLossConditionTests.cs","9cacac59d0a94315b95e807d705007ed6a3b544700233891d99c085e42fa8652","2196","Enemy breach pollution and self-destruction characterization"
+"Assets/_Game/Tests/Cases/CW_UNIT_0103_BattleEngine.cs","d45fbd264586f68f18f11fc5daedaa8be942184a122a423908f234ac24ed1d7d","5198","Vertical movement from enemy rows into ally-owned rows"

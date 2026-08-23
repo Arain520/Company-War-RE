@@ -96,12 +96,76 @@ namespace CompanyWarRE.Domain.Tests
             Assert.That(ally.LanePosition, Is.GreaterThan(positionAfterCombat));
         }
 
+        [Test]
+        public void EnemyEnteringOwnedRows_PollutesWholeControlBlockAndDies()
+        {
+            var grid = CreateTerritoryGrid();
+            var simulation = new CombatSimulation(9, 9);
+            simulation.TryAddActor("enemy", Team.Enemy, E01, 3, 9d);
+
+            simulation.Advance(3d, grid);
+
+            var invadedBlock = grid.GetControlBlockForCell(new GridPosition(3, 6));
+            Assert.That(invadedBlock.Cells.Count(cell => cell.IsPolluted), Is.EqualTo(9));
+            Assert.That(invadedBlock.Cells.Any(cell => cell.IsOwned), Is.False);
+            Assert.That(simulation.CreateSnapshot().Single().IsAlive, Is.False);
+            var pollution = simulation.Events.Single(item => item.Type == CombatEventType.Pollution);
+            Assert.That(pollution.Column, Is.EqualTo(3));
+            Assert.That(pollution.Row, Is.EqualTo(6));
+            Assert.That(pollution.ControlBlockColumn, Is.EqualTo(1));
+            Assert.That(pollution.ControlBlockRow, Is.EqualTo(2));
+            Assert.That(simulation.Events.Count(item => item.Type == CombatEventType.Death), Is.EqualTo(1));
+        }
+
+        [Test]
+        public void EnemyInEnemyTerritory_DoesNotPolluteBeforeCrossingBoundary()
+        {
+            var grid = CreateTerritoryGrid();
+            var simulation = new CombatSimulation(9, 9);
+            simulation.TryAddActor("enemy", Team.Enemy, E01, 3, 9d);
+
+            simulation.Advance(2d, grid);
+
+            Assert.That(grid.PollutionChanges, Is.Empty);
+            Assert.That(simulation.Events.Any(item => item.Type == CombatEventType.Pollution), Is.False);
+            Assert.That(simulation.CreateSnapshot().Single().IsAlive, Is.True);
+        }
+
+        [Test]
+        public void LivingAllyMeleeInInvadedBlock_DelaysPollution()
+        {
+            var grid = CreateTerritoryGrid();
+            var simulation = new CombatSimulation(9, 9);
+            simulation.TryAddActor("ally", Team.Ally, U01, 2, 5d);
+            simulation.TryAddActor("enemy", Team.Enemy, E01, 3, 7d);
+
+            simulation.Advance(1d, grid);
+
+            Assert.That(grid.PollutionChanges, Is.Empty);
+            Assert.That(simulation.Events.Any(item => item.Type == CombatEventType.Pollution), Is.False);
+            Assert.That(simulation.CreateSnapshot().Single(actor => actor.ActorId == "enemy").IsAlive, Is.True);
+        }
+
         private static CombatSimulation CreateDuel(double allyLane, double enemyLane)
         {
             var simulation = new CombatSimulation(9, 9);
             Assert.That(simulation.TryAddActor("ally", Team.Ally, U01, 3, allyLane), Is.True);
             Assert.That(simulation.TryAddActor("enemy", Team.Enemy, E01, 3, enemyLane), Is.True);
             return simulation;
+        }
+
+        private static BattleGrid CreateTerritoryGrid()
+        {
+            var grid = new BattleGrid(9, 9);
+            for (var column = 1; column <= 9; column++)
+            {
+                for (var row = 1; row <= 6; row++)
+                {
+                    grid.SetOwnership(new GridPosition(column, row), true);
+                }
+            }
+
+            return grid;
         }
     }
 }

@@ -28,7 +28,7 @@ namespace CompanyWarRE.Infrastructure.Tests
             Assert.That(result.Succeeded, Is.True, JoinIssues(result));
             Assert.That(result.Configuration.Columns, Is.EqualTo(9));
             Assert.That(result.Configuration.Rows, Is.EqualTo(9));
-            Assert.That(result.Configuration.ControlledColumns, Is.EqualTo(6));
+            Assert.That(result.Configuration.ControlledRows, Is.EqualTo(6));
             Assert.That(result.Configuration.InitialResources, Is.EqualTo(10));
             Assert.That(result.Configuration.FixedProductionIntervalSeconds, Is.EqualTo(5d));
             Assert.That(result.Configuration.TransmitterProductionIntervalSeconds, Is.EqualTo(3d));
@@ -118,7 +118,7 @@ namespace CompanyWarRE.Infrastructure.Tests
                 "{\"Units\":[{\"Id\":\"U01\",\"Type\":\"Staff\",\"ResourceCost\":-1," +
                 "\"DeployCooldown\":-1}]}";
             const string settings =
-                "{\"SchemaVersion\":2,\"Columns\":0,\"Rows\":6,\"ControlledColumns\":7," +
+                "{\"SchemaVersion\":2,\"Columns\":0,\"Rows\":6,\"ControlledRows\":7," +
                 "\"InitialResources\":-1,\"FixedProductionIntervalSeconds\":0," +
                 "\"TransmitterProductionIntervalSeconds\":0,\"TransmitterAmount\":-1," +
                 "\"TestUnitId\":\"U01\"}";
@@ -128,6 +128,38 @@ namespace CompanyWarRE.Infrastructure.Tests
             Assert.That(result.Succeeded, Is.False);
             Assert.That(result.Issues.Select(issue => issue.Code), Does.Contain("CFG_SCHEMA"));
             Assert.That(result.Issues.Count(issue => issue.Code == "CFG_RANGE"), Is.GreaterThanOrEqualTo(5));
+        }
+
+        [Test]
+        public void Settings_DeprecatedControlledColumnsAliasMapsToControlledRows()
+        {
+            const string units =
+                "{\"Units\":[{\"Id\":\"U01\",\"Type\":\"Staff\",\"Durability\":1," +
+                "\"Attack\":1,\"Speed\":1,\"AttackInterval\":1,\"Range\":1," +
+                "\"ResourceCost\":1,\"DeployCooldown\":3}]}";
+            var legacySettings = ValidSettingsJson().Replace("ControlledRows", "ControlledColumns");
+
+            var result = CreateProvider(units, legacySettings).Load("units", "enemies", "settings");
+
+            Assert.That(result.Succeeded, Is.True, JoinIssues(result));
+            Assert.That(result.Configuration.ControlledRows, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void Validator_RejectsEnemySpawnInsideAllyControlledRows()
+        {
+            var settings = ValidSettingsJson().Replace("\"EnemySpawnRow\":6", "\"EnemySpawnRow\":3");
+
+            var result = CreateProvider(
+                    "{\"Units\":[{\"Id\":\"U01\",\"Type\":\"Staff\",\"Durability\":1," +
+                    "\"Attack\":1,\"Speed\":1,\"AttackInterval\":1,\"Range\":1," +
+                    "\"ResourceCost\":1,\"DeployCooldown\":3}]}",
+                    settings)
+                .Load("units", "enemies", "settings");
+
+            Assert.That(result.Succeeded, Is.False);
+            Assert.That(result.Issues.Any(issue =>
+                issue.Code == "CFG_RANGE" && issue.Path.EndsWith(".EnemySpawnPosition")), Is.True);
         }
 
         private static LegacyBattleSliceConfigurationProvider CreateProvider(
@@ -147,7 +179,7 @@ namespace CompanyWarRE.Infrastructure.Tests
         private static string ValidSettingsJson(string unitId = "U01")
         {
             return
-                "{\"SchemaVersion\":1,\"Columns\":6,\"Rows\":6,\"ControlledColumns\":3," +
+                "{\"SchemaVersion\":1,\"Columns\":6,\"Rows\":6,\"ControlledRows\":3," +
                 "\"InitialResources\":10,\"FixedProductionIntervalSeconds\":5," +
                 "\"TransmitterProductionIntervalSeconds\":3,\"TransmitterColumn\":2," +
                 "\"TransmitterRow\":2,\"TransmitterAmount\":1,\"TestUnitId\":\"" + unitId + "\"," +
