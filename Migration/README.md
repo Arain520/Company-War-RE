@@ -11,3 +11,12 @@ First-batch constraints:
 - QFramework stays outside the pure C# Domain layer.
 
 Run `Tools/Create-CowSnapshot.ps1` before `Tools/Generate-FirstBatchInventory.ps1`. Both scripts only write below the target project.
+
+Second-batch artifacts:
+
+- `Specifications/DomainBehavior-v0.1.md` is the reviewed behavior contract draft.
+- `Specifications/LegacyBehaviorTraceability.csv` connects Cow evidence to executable tests.
+- `Assets/CompanyWarRE/Domain` contains the pure C# rewrite skeleton.
+- `Assets/CompanyWarRE/Tests/Editor/Domain` contains EditMode characterization tests.
+
+The second batch still imports no Cow scene, prefab, ScriptableObject, or production resource.
