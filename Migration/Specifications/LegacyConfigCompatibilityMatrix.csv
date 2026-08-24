@@ -50,4 +50,4 @@
 "Levels/Lxx.json","RequiredAssaultScore","LegacyLevelDto.RequiredAssaultScore","BattleProgression.RequiredAssaultScore","Non-negative; informational for current building-victory rule","Implemented"
 "Levels/Lxx.json","Stages[]","LegacyLevelDto.Stages","Schedule selection metadata","Preserved in DTO; filtering the shared schedule document is deferred","DTO-Only"
 "Levels/Lxx.json","EnemyBuildings[].Type","LegacyBuildingPlacementDto.Type","EnemyBuildingPlacement.TemplateId","Must resolve to an enemy definition with Type containing Building","Implemented"
-"Levels/Lxx.json","EnemyBuildings[].Col/Row","LegacyBuildingPlacementDto position","EnemyBuildingPlacement.Position","Target override: position is the center of a horizontal three-cell footprint; full footprint must fit inside grid and cannot overlap another","Product-Override-Implemented"
+"Levels/Lxx.json","EnemyBuildings[].Col/Row","LegacyBuildingPlacementDto position","EnemyBuildingPlacement.Position","Position selects its 3x3 control block; all nine cells must fit inside the grid and cannot overlap another building block","Implemented"

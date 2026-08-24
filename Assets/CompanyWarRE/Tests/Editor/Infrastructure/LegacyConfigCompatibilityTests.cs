@@ -203,20 +203,20 @@ namespace CompanyWarRE.Infrastructure.Tests
         }
 
         [Test]
-        public void LevelValidator_RejectsOverlappingAndOutOfBoundsThreeCellFootprints()
+        public void LevelValidator_RejectsOverlappingAndIncompleteNineCellControlBlocks()
         {
             const string units =
                 "{\"Units\":[{\"Id\":\"U01\",\"Type\":\"Staff\",\"Durability\":1," +
                 "\"Attack\":1,\"Speed\":1,\"AttackInterval\":1,\"Range\":1," +
                 "\"ResourceCost\":1,\"DeployCooldown\":3}]}";
             const string level =
-                "{\"Id\":\"invalid\",\"Columns\":6,\"Rows\":6,\"EnemyBuildings\":[" +
+                "{\"Id\":\"invalid\",\"Columns\":5,\"Rows\":6,\"EnemyBuildings\":[" +
                 "{\"Type\":\"E06\",\"Col\":2,\"Row\":6}," +
                 "{\"Type\":\"E07\",\"Col\":3,\"Row\":6}," +
-                "{\"Type\":\"E06\",\"Col\":6,\"Row\":6}]}";
+                "{\"Type\":\"E06\",\"Col\":5,\"Row\":6}]}";
             var provider = CreateProvider(
                 units,
-                ValidSettingsJson(),
+                ValidSettingsJson().Replace("\"Columns\":6", "\"Columns\":5"),
                 File.ReadAllText(EnemiesPath),
                 null,
                 level);

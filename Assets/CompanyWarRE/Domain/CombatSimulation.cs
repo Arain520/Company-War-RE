@@ -42,6 +42,7 @@ namespace CompanyWarRE.Domain
         public bool IsBuilding =>
             Type.IndexOf("build", StringComparison.OrdinalIgnoreCase) >= 0;
         public int FootprintColumns => IsBuilding ? BattleGrid.ControlBlockSize : 1;
+        public int FootprintRows => IsBuilding ? BattleGrid.ControlBlockSize : 1;
         public bool IsMovingMelee =>
             Speed > 0d && Range <= 1 && string.Equals(Type, "Staff", StringComparison.OrdinalIgnoreCase);
     }
@@ -92,7 +93,7 @@ namespace CompanyWarRE.Domain
 
     public sealed class CombatActorSnapshot
     {
-        internal CombatActorSnapshot(CombatActor actor, int gridColumns)
+        internal CombatActorSnapshot(CombatActor actor, int gridColumns, int gridRows)
         {
             ActorId = actor.ActorId;
             TemplateId = actor.Definition.Id;
@@ -106,9 +107,21 @@ namespace CompanyWarRE.Domain
             IsBuilding = actor.Definition.IsBuilding;
             AssaultScoreReward = actor.Definition.AssaultScoreReward;
             FootprintColumns = actor.Definition.FootprintColumns;
-            var half = FootprintColumns / 2;
-            FootprintStartColumn = Math.Max(1, actor.Column - half);
-            FootprintEndColumn = Math.Min(gridColumns, actor.Column + half);
+            FootprintRows = actor.Definition.FootprintRows;
+            var actorRow = (int)Math.Round(actor.LanePosition);
+            if (IsBuilding)
+            {
+                FootprintStartColumn = GetControlBlockStart(actor.Column);
+                FootprintStartRow = GetControlBlockStart(actorRow);
+            }
+            else
+            {
+                FootprintStartColumn = actor.Column;
+                FootprintStartRow = actorRow;
+            }
+
+            FootprintEndColumn = Math.Min(gridColumns, FootprintStartColumn + FootprintColumns - 1);
+            FootprintEndRow = Math.Min(gridRows, FootprintStartRow + FootprintRows - 1);
         }
 
         public string ActorId { get; }
@@ -123,8 +136,17 @@ namespace CompanyWarRE.Domain
         public bool IsBuilding { get; }
         public int AssaultScoreReward { get; }
         public int FootprintColumns { get; }
+        public int FootprintRows { get; }
         public int FootprintStartColumn { get; }
         public int FootprintEndColumn { get; }
+        public int FootprintStartRow { get; }
+        public int FootprintEndRow { get; }
+
+        private static int GetControlBlockStart(int cellIndex)
+        {
+            return ((Math.Max(1, cellIndex) - 1) / BattleGrid.ControlBlockSize) *
+                   BattleGrid.ControlBlockSize + 1;
+        }
     }
 
     internal sealed class CombatActor
@@ -211,10 +233,17 @@ namespace CompanyWarRE.Domain
                 return false;
             }
 
-            var footprintHalf = definition.FootprintColumns / 2;
-            if (column - footprintHalf < 1 || column + footprintHalf > _columns)
+            if (definition.IsBuilding)
             {
-                return false;
+                var buildingRow = (int)Math.Round(lanePosition);
+                var startColumn = GetControlBlockStart(column);
+                var startRow = GetControlBlockStart(buildingRow);
+                if (Math.Abs(lanePosition - buildingRow) > 0.0001d ||
+                    startColumn + BattleGrid.ControlBlockSize - 1 > _columns ||
+                    startRow + BattleGrid.ControlBlockSize - 1 > _rows)
+                {
+                    return false;
+                }
             }
 
             _actors.Add(new CombatActor(actorId, team, definition, column, lanePosition));
@@ -248,7 +277,7 @@ namespace CompanyWarRE.Domain
         {
             return _actors
                 .OrderBy(actor => actor.ActorId, StringComparer.Ordinal)
-                .Select(actor => new CombatActorSnapshot(actor, _columns))
+                .Select(actor => new CombatActorSnapshot(actor, _columns, _rows))
                 .ToArray();
         }
 
@@ -685,8 +714,19 @@ namespace CompanyWarRE.Domain
 
         private static bool OccupiesColumn(CombatActor actor, int column)
         {
-            var half = actor.Definition.FootprintColumns / 2;
-            return column >= actor.Column - half && column <= actor.Column + half;
+            if (!actor.Definition.IsBuilding)
+            {
+                return actor.Column == column;
+            }
+
+            var startColumn = GetControlBlockStart(actor.Column);
+            return column >= startColumn && column < startColumn + BattleGrid.ControlBlockSize;
+        }
+
+        private static int GetControlBlockStart(int cellIndex)
+        {
+            return ((Math.Max(1, cellIndex) - 1) / BattleGrid.ControlBlockSize) *
+                   BattleGrid.ControlBlockSize + 1;
         }
 
         private double ClampLane(double lanePosition)

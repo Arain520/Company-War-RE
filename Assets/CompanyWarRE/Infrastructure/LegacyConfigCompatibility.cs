@@ -467,21 +467,21 @@ namespace CompanyWarRE.Infrastructure.Configuration
                     continue;
                 }
 
-                var halfFootprint = definition.FootprintColumns / 2;
-                if (building.Column - halfFootprint < 1 ||
-                    building.Column + halfFootprint > settings.Columns)
+                var startColumn = GetControlBlockStart(building.Column);
+                var startRow = GetControlBlockStart(building.Row);
+                if (startColumn + BattleGrid.ControlBlockSize - 1 > settings.Columns ||
+                    startRow + BattleGrid.ControlBlockSize - 1 > settings.Rows)
                 {
                     issues.Add(new ConfigurationIssue(
                         "CFG_RANGE",
                         buildingPath,
-                        "The building's three-cell horizontal footprint must fit inside the grid."));
+                        "The building's 3x3 control-block footprint must fit inside the grid."));
                     continue;
                 }
 
-                var footprint = Enumerable.Range(
-                        building.Column - halfFootprint,
-                        definition.FootprintColumns)
-                    .Select(column => new GridPosition(column, building.Row))
+                var footprint = Enumerable.Range(startColumn, BattleGrid.ControlBlockSize)
+                    .SelectMany(column => Enumerable.Range(startRow, BattleGrid.ControlBlockSize)
+                        .Select(row => new GridPosition(column, row)))
                     .ToArray();
                 if (footprint.Any(cell => occupied.Contains(cell)))
                 {
@@ -498,6 +498,12 @@ namespace CompanyWarRE.Infrastructure.Configuration
             }
 
             return result;
+        }
+
+        private static int GetControlBlockStart(int cellIndex)
+        {
+            return ((Math.Max(1, cellIndex) - 1) / BattleGrid.ControlBlockSize) *
+                   BattleGrid.ControlBlockSize + 1;
         }
 
         private static CombatantDefinition MapEnemyCombatant(LegacyEnemyDto enemy)

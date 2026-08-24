@@ -9,6 +9,8 @@ namespace CompanyWarRE.Presentation
 {
     public sealed class BattleSliceController : MonoBehaviour, IController
     {
+        internal const float ColumnGroupGap = 0.45f;
+
         [SerializeField] private TextAsset legacyUnitsJson;
         [SerializeField] private TextAsset legacyEnemiesJson;
         [SerializeField] private TextAsset sliceSettingsJson;
@@ -206,7 +208,7 @@ namespace CompanyWarRE.Presentation
                     var cell = GameObject.CreatePrimitive(PrimitiveType.Cube);
                     cell.name = $"Cell_{column}_{row}";
                     cell.transform.SetParent(root, false);
-                    cell.transform.localPosition = new Vector3(column - 1, 0f, row - 1);
+                    cell.transform.localPosition = new Vector3(GetColumnWorldX(column), 0f, row - 1);
                     cell.transform.localScale = new Vector3(0.9f, 0.18f, 0.9f);
                     var view = cell.AddComponent<BattleSliceCellView>();
                     view.Initialize(position);
@@ -259,8 +261,9 @@ namespace CompanyWarRE.Presentation
                 cameraObject.tag = "MainCamera";
                 var camera = cameraObject.AddComponent<Camera>();
                 cameraObject.AddComponent<AudioListener>();
-                var center = new Vector3((columns - 1) * 0.5f, 0f, (rows - 1) * 0.5f);
-                var extent = Mathf.Max(columns, rows);
+                var lastColumnX = GetColumnWorldX(columns);
+                var center = new Vector3(lastColumnX * 0.5f, 0f, (rows - 1) * 0.5f);
+                var extent = Mathf.Max(lastColumnX + 1f, rows);
                 camera.transform.position = new Vector3(center.x, extent * 1.3f, center.z - extent * 1.05f);
                 camera.transform.LookAt(center);
                 camera.clearFlags = CameraClearFlags.SolidColor;
@@ -275,6 +278,13 @@ namespace CompanyWarRE.Presentation
                 light.intensity = 1.25f;
                 lightObject.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
             }
+        }
+
+        internal static float GetColumnWorldX(int column)
+        {
+            var zeroBasedColumn = Mathf.Max(0, column - 1);
+            var completedGroups = zeroBasedColumn / BattleGrid.ControlBlockSize;
+            return zeroBasedColumn + completedGroups * ColumnGroupGap;
         }
 
         private void OnGUI()
@@ -300,7 +310,7 @@ namespace CompanyWarRE.Presentation
             GUILayout.Space(6f);
             GUILayout.Label($"Left click: select | Right click / D / Space: deploy {_snapshot.UnitId}");
             GUILayout.Label("P: toggle 3x3 pollution block | R: reset");
-            GUILayout.Label("Green owned | Gray unowned | Purple polluted | Cyan ally | Red enemy");
+            GUILayout.Label("Green owned | Gray unowned | Purple polluted | Wider gap every 3 columns");
             var aliveAllies = 0;
             var aliveEnemies = 0;
             foreach (var combatant in _snapshot.Combatants)

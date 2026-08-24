@@ -58,25 +58,35 @@ namespace CompanyWarRE.Domain.Tests
         }
 
         [Test]
-        public void EnemyBuildingFootprint_OccupiesExactlyThreeHorizontalCellsAndCanBeCleared()
+        public void EnemyBuildingFootprint_OccupiesWholeNineCellControlBlockAndCanBeCleared()
         {
             var grid = new BattleGrid(9, 6);
 
             Assert.That(
-                grid.TryOccupyHorizontalBuildingFootprint(new GridPosition(5, 6), "building-E06"),
+                grid.TryOccupyBuildingControlBlock(new GridPosition(5, 6), "building-E06"),
                 Is.True);
 
+            var footprint = Enumerable.Range(4, 3)
+                .SelectMany(column => Enumerable.Range(4, 3)
+                    .Select(row => grid.GetCell(new GridPosition(column, row))))
+                .ToArray();
             Assert.That(
-                new[] { 4, 5, 6 }.All(column =>
-                    grid.GetCell(new GridPosition(column, 6)).BuildingId == "building-E06"),
+                footprint.All(cell => cell.BuildingId == "building-E06"),
                 Is.True);
-            Assert.That(grid.GetCell(new GridPosition(3, 6)).IsBlockedByBuilding, Is.False);
+            Assert.That(
+                grid.TryOccupyBuildingControlBlock(new GridPosition(4, 4), "overlap"),
+                Is.False);
+            Assert.That(grid.GetCell(new GridPosition(3, 4)).IsBlockedByBuilding, Is.False);
             Assert.That(grid.GetCell(new GridPosition(7, 6)).IsBlockedByBuilding, Is.False);
-            Assert.That(grid.ClearBuildingFootprint("building-E06"), Is.EqualTo(3));
+            Assert.That(grid.ClearBuildingFootprint("building-E06"), Is.EqualTo(9));
             Assert.That(
-                new[] { 4, 5, 6 }.All(column =>
-                    !grid.GetCell(new GridPosition(column, 6)).IsBlockedByBuilding),
+                footprint.All(cell => !cell.IsBlockedByBuilding),
                 Is.True);
+
+            var incompleteGrid = new BattleGrid(5, 6);
+            Assert.That(
+                incompleteGrid.TryOccupyBuildingControlBlock(new GridPosition(5, 6), "partial"),
+                Is.False);
         }
     }
 }

@@ -219,38 +219,30 @@ namespace CompanyWarRE.Domain
                    !cell.IsBlockedByBuilding && cell.OccupantCount < 1;
         }
 
-        public bool TryOccupyHorizontalBuildingFootprint(
-            GridPosition center,
-            string buildingId,
-            int footprintColumns = ControlBlockSize)
+        public bool TryOccupyBuildingControlBlock(
+            GridPosition position,
+            string buildingId)
         {
-            if (string.IsNullOrWhiteSpace(buildingId) || footprintColumns <= 0 || footprintColumns % 2 == 0 ||
-                !IsInside(center))
+            if (string.IsNullOrWhiteSpace(buildingId) || !IsInside(position))
             {
                 return false;
             }
 
-            var half = footprintColumns / 2;
-            var startColumn = center.Column - half;
-            var endColumn = center.Column + half;
-            if (startColumn < 1 || endColumn > Columns)
+            var block = GetControlBlockForCell(position);
+            if (block == null || block.Cells.Count != ControlBlockSize * ControlBlockSize)
             {
                 return false;
             }
 
-            var cells = new List<GridCell>();
-            for (var column = startColumn; column <= endColumn; column++)
+            foreach (var cell in block.Cells)
             {
-                var cell = GetCell(new GridPosition(column, center.Row));
-                if (cell == null || cell.IsBlockedByBuilding || cell.OccupantCount > 0)
+                if (cell.IsBlockedByBuilding || cell.OccupantCount > 0)
                 {
                     return false;
                 }
-
-                cells.Add(cell);
             }
 
-            foreach (var cell in cells)
+            foreach (var cell in block.Cells)
             {
                 cell.BuildingId = buildingId;
                 cell.AddOccupant(buildingId, MaximumOccupantsPerCell);

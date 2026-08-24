@@ -264,7 +264,7 @@ namespace CompanyWarRE.Domain.Tests
         }
 
         [Test]
-        public void ThreeColumnBuilding_CanBeFocusedFromEitherFootprintEdge()
+        public void NineCellBuilding_CanBeFocusedFromEitherFootprintEdge()
         {
             var simulation = new CombatSimulation(9, 9);
             var ally = new CombatantDefinition("U01", "Staff", 5, 1d, 1d, 1d, 1);
@@ -279,6 +279,11 @@ namespace CompanyWarRE.Domain.Tests
             Assert.That(buildingSnapshot.IsAlive, Is.False);
             Assert.That(buildingSnapshot.FootprintStartColumn, Is.EqualTo(4));
             Assert.That(buildingSnapshot.FootprintEndColumn, Is.EqualTo(6));
+            Assert.That(buildingSnapshot.FootprintStartRow, Is.EqualTo(7));
+            Assert.That(buildingSnapshot.FootprintEndRow, Is.EqualTo(9));
+            Assert.That(
+                buildingSnapshot.FootprintColumns * buildingSnapshot.FootprintRows,
+                Is.EqualTo(9));
             Assert.That(
                 simulation.Events
                     .Where(item => item.Type == CombatEventType.Attack && item.TargetActorId == "building")

@@ -139,9 +139,11 @@ namespace CompanyWarRE.Application.Tests
             var initial = _architecture.SendQuery(new GetBattleSliceSnapshotQuery());
             Assert.That(initial.EnemyBuildingCount, Is.EqualTo(1));
             Assert.That(initial.Combatants.Single(item => item.IsBuilding).LanePosition, Is.EqualTo(6d));
-            Assert.That(initial.Combatants.Single(item => item.IsBuilding).FootprintStartColumn, Is.EqualTo(2));
-            Assert.That(initial.Combatants.Single(item => item.IsBuilding).FootprintEndColumn, Is.EqualTo(4));
-            Assert.That(initial.Cells.Count(item => item.IsBlockedByBuilding), Is.EqualTo(3));
+            Assert.That(initial.Combatants.Single(item => item.IsBuilding).FootprintStartColumn, Is.EqualTo(1));
+            Assert.That(initial.Combatants.Single(item => item.IsBuilding).FootprintEndColumn, Is.EqualTo(3));
+            Assert.That(initial.Combatants.Single(item => item.IsBuilding).FootprintStartRow, Is.EqualTo(4));
+            Assert.That(initial.Combatants.Single(item => item.IsBuilding).FootprintEndRow, Is.EqualTo(6));
+            Assert.That(initial.Cells.Count(item => item.IsBlockedByBuilding), Is.EqualTo(9));
             Assert.That(initial.ValidSpawnPointCount, Is.EqualTo(1));
 
             var deployment = _architecture.SendCommand(new DeployBattleSliceUnitCommand(

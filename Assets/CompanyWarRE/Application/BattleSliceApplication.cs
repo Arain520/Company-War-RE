@@ -56,8 +56,11 @@ namespace CompanyWarRE.Application
             IsAlive = actor.IsAlive;
             IsBuilding = actor.IsBuilding;
             FootprintColumns = actor.FootprintColumns;
+            FootprintRows = actor.FootprintRows;
             FootprintStartColumn = actor.FootprintStartColumn;
             FootprintEndColumn = actor.FootprintEndColumn;
+            FootprintStartRow = actor.FootprintStartRow;
+            FootprintEndRow = actor.FootprintEndRow;
         }
 
         public string ActorId { get; }
@@ -70,8 +73,11 @@ namespace CompanyWarRE.Application
         public bool IsAlive { get; }
         public bool IsBuilding { get; }
         public int FootprintColumns { get; }
+        public int FootprintRows { get; }
         public int FootprintStartColumn { get; }
         public int FootprintEndColumn { get; }
+        public int FootprintStartRow { get; }
+        public int FootprintEndRow { get; }
     }
 
     public sealed class BattleSliceSnapshot
@@ -260,6 +266,7 @@ namespace CompanyWarRE.Application
             EnemyBuildings = enemyBuildings == null
                 ? Array.Empty<EnemyBuildingPlacement>()
                 : enemyBuildings.ToArray();
+            var occupiedBuildingCells = new HashSet<GridPosition>();
             foreach (var building in EnemyBuildings)
             {
                 if (building == null ||
@@ -278,14 +285,28 @@ namespace CompanyWarRE.Application
                         nameof(enemyBuildings));
                 }
 
-                var halfFootprint = buildingDefinition.FootprintColumns / 2;
-                if (building.Position.Column - halfFootprint < 1 ||
-                    building.Position.Column + halfFootprint > columns)
+                var startColumn = GetControlBlockStart(building.Position.Column);
+                var startRow = GetControlBlockStart(building.Position.Row);
+                if (startColumn + BattleGrid.ControlBlockSize - 1 > columns ||
+                    startRow + BattleGrid.ControlBlockSize - 1 > rows)
                 {
                     throw new ArgumentException(
-                        "Enemy building's three-cell footprint must fit inside the grid: " +
+                        "Enemy building's 3x3 control-block footprint must fit inside the grid: " +
                         building.TemplateId,
                         nameof(enemyBuildings));
+                }
+
+                for (var column = startColumn; column < startColumn + BattleGrid.ControlBlockSize; column++)
+                {
+                    for (var row = startRow; row < startRow + BattleGrid.ControlBlockSize; row++)
+                    {
+                        if (!occupiedBuildingCells.Add(new GridPosition(column, row)))
+                        {
+                            throw new ArgumentException(
+                                "Enemy building control-block footprints cannot overlap: " + building.TemplateId,
+                                nameof(enemyBuildings));
+                        }
+                    }
                 }
             }
 
@@ -314,6 +335,12 @@ namespace CompanyWarRE.Application
         public int RequiredAssaultScore { get; }
         public bool VictoryByEnemyBuildings { get; }
         public bool EnableBattleOutcomes { get; }
+
+        private static int GetControlBlockStart(int cellIndex)
+        {
+            return ((Math.Max(1, cellIndex) - 1) / BattleGrid.ControlBlockSize) *
+                   BattleGrid.ControlBlockSize + 1;
+        }
     }
 
     public sealed class ConfigureBattleSliceCommand : AbstractCommand
@@ -465,10 +492,7 @@ namespace CompanyWarRE.Application
                 var placement = _configuration.EnemyBuildings[index];
                 var definition = _configuration.EnemyCombatants[placement.TemplateId];
                 var actorId = $"building-{placement.TemplateId}-{index + 1:00}";
-                if (!_grid.TryOccupyHorizontalBuildingFootprint(
-                        placement.Position,
-                        actorId,
-                        definition.FootprintColumns))
+                if (!_grid.TryOccupyBuildingControlBlock(placement.Position, actorId))
                 {
                     throw new InvalidOperationException("Enemy building footprint registration failed: " + actorId);
                 }

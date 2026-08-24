@@ -36,9 +36,11 @@ placeholders are test visualization, not migrated production art.
   `Units.json`.
 - Resources start at 10, gain one every five seconds, and receive one transmitter
   resource every three seconds.
-- Three enlarged magenta enemy buildings are centered at `(2,9)`, `(8,9)`, and
-  `(14,9)`. Each occupies exactly three horizontal cells, so their footprints are
-  columns `1-3`, `7-9`, and `13-15` respectively.
+- Three enlarged magenta enemy buildings are configured at `(2,9)`, `(8,9)`, and
+  `(14,9)`. Each occupies all nine cells of its 3x3 control block: columns `1-3`,
+  `7-9`, and `13-15` respectively, all across rows `7-9`.
+- A wider gap is rendered after columns `3`, `6`, `9`, and `12`, making every
+  three-column control group visually distinct.
 - Staged waves begin after ten seconds. Enemies are generated from valid columns;
   buildings move their control-block columns' spawn points forward.
 - A successful deployment displays a cyan U01. Same-column U01/E01 actors advance,

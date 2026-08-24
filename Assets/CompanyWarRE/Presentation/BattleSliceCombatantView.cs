@@ -52,10 +52,16 @@ namespace CompanyWarRE.Presentation
                 return;
             }
 
-            transform.localPosition = new Vector3(
-                snapshot.Column - 1,
-                0.12f,
-                (float)snapshot.LanePosition - 1f);
+            var worldX = BattleSliceController.GetColumnWorldX(snapshot.Column);
+            var worldZ = (float)snapshot.LanePosition - 1f;
+            if (snapshot.IsBuilding)
+            {
+                worldX = (BattleSliceController.GetColumnWorldX(snapshot.FootprintStartColumn) +
+                          BattleSliceController.GetColumnWorldX(snapshot.FootprintEndColumn)) * 0.5f;
+                worldZ = (snapshot.FootprintStartRow + snapshot.FootprintEndRow) * 0.5f - 1f;
+            }
+
+            transform.localPosition = new Vector3(worldX, 0.12f, worldZ);
             _bodyMaterial.color = snapshot.Team == Team.Ally ? AllyColor : EnemyColor;
             var ratio = snapshot.MaximumHitPoints <= 0d
                 ? 0f
@@ -64,7 +70,7 @@ namespace CompanyWarRE.Presentation
             {
                 _bodyMaterial.color = EnemyBuildingColor;
                 _body.localPosition = new Vector3(0f, 0.65f, 0f);
-                _body.localScale = new Vector3(2.75f, 0.75f, 0.8f);
+                _body.localScale = new Vector3(2.75f, 0.75f, 2.75f);
                 _healthFill.localScale = new Vector3(2.4f * ratio, 0.08f, 0.08f);
                 _healthFill.localPosition = new Vector3(-1.2f * (1f - ratio), 1.55f, 0f);
             }
