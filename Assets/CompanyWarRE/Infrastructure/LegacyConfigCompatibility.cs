@@ -456,6 +456,7 @@ namespace CompanyWarRE.Infrastructure.Configuration
                         "CFG_REFERENCE",
                         buildingPath + ".Type",
                         "Enemy building definition was not found: " + building.Type + "."));
+                    continue;
                 }
 
                 var position = new GridPosition(building.Column, building.Row);
@@ -466,10 +467,31 @@ namespace CompanyWarRE.Infrastructure.Configuration
                     continue;
                 }
 
-                if (!occupied.Add(position))
+                var halfFootprint = definition.FootprintColumns / 2;
+                if (building.Column - halfFootprint < 1 ||
+                    building.Column + halfFootprint > settings.Columns)
                 {
-                    issues.Add(new ConfigurationIssue("CFG_DUPLICATE", buildingPath, "Building positions must be unique."));
+                    issues.Add(new ConfigurationIssue(
+                        "CFG_RANGE",
+                        buildingPath,
+                        "The building's three-cell horizontal footprint must fit inside the grid."));
                     continue;
+                }
+
+                var footprint = Enumerable.Range(
+                        building.Column - halfFootprint,
+                        definition.FootprintColumns)
+                    .Select(column => new GridPosition(column, building.Row))
+                    .ToArray();
+                if (footprint.Any(cell => occupied.Contains(cell)))
+                {
+                    issues.Add(new ConfigurationIssue("CFG_DUPLICATE", buildingPath, "Building footprints cannot overlap."));
+                    continue;
+                }
+
+                foreach (var cell in footprint)
+                {
+                    occupied.Add(cell);
                 }
 
                 result.Add(new EnemyBuildingPlacement(building.Type, position));

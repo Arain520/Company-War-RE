@@ -41,6 +41,7 @@ namespace CompanyWarRE.Domain
         public int AssaultScoreReward { get; }
         public bool IsBuilding =>
             Type.IndexOf("build", StringComparison.OrdinalIgnoreCase) >= 0;
+        public int FootprintColumns => IsBuilding ? BattleGrid.ControlBlockSize : 1;
         public bool IsMovingMelee =>
             Speed > 0d && Range <= 1 && string.Equals(Type, "Staff", StringComparison.OrdinalIgnoreCase);
     }
@@ -91,7 +92,7 @@ namespace CompanyWarRE.Domain
 
     public sealed class CombatActorSnapshot
     {
-        internal CombatActorSnapshot(CombatActor actor)
+        internal CombatActorSnapshot(CombatActor actor, int gridColumns)
         {
             ActorId = actor.ActorId;
             TemplateId = actor.Definition.Id;
@@ -104,6 +105,10 @@ namespace CompanyWarRE.Domain
             IsAlive = actor.IsAlive;
             IsBuilding = actor.Definition.IsBuilding;
             AssaultScoreReward = actor.Definition.AssaultScoreReward;
+            FootprintColumns = actor.Definition.FootprintColumns;
+            var half = FootprintColumns / 2;
+            FootprintStartColumn = Math.Max(1, actor.Column - half);
+            FootprintEndColumn = Math.Min(gridColumns, actor.Column + half);
         }
 
         public string ActorId { get; }
@@ -117,6 +122,9 @@ namespace CompanyWarRE.Domain
         public bool IsAlive { get; }
         public bool IsBuilding { get; }
         public int AssaultScoreReward { get; }
+        public int FootprintColumns { get; }
+        public int FootprintStartColumn { get; }
+        public int FootprintEndColumn { get; }
     }
 
     internal sealed class CombatActor
@@ -203,6 +211,12 @@ namespace CompanyWarRE.Domain
                 return false;
             }
 
+            var footprintHalf = definition.FootprintColumns / 2;
+            if (column - footprintHalf < 1 || column + footprintHalf > _columns)
+            {
+                return false;
+            }
+
             _actors.Add(new CombatActor(actorId, team, definition, column, lanePosition));
             return true;
         }
@@ -234,7 +248,7 @@ namespace CompanyWarRE.Domain
         {
             return _actors
                 .OrderBy(actor => actor.ActorId, StringComparer.Ordinal)
-                .Select(actor => new CombatActorSnapshot(actor))
+                .Select(actor => new CombatActorSnapshot(actor, _columns))
                 .ToArray();
         }
 
@@ -633,7 +647,7 @@ namespace CompanyWarRE.Domain
             var selectedDistance = double.MaxValue;
             foreach (var candidate in _actors)
             {
-                if (!candidate.IsAlive || candidate.Team == actor.Team || candidate.Column != actor.Column)
+                if (!candidate.IsAlive || candidate.Team == actor.Team || !SharesCombatColumn(actor, candidate))
                 {
                     continue;
                 }
@@ -662,6 +676,17 @@ namespace CompanyWarRE.Domain
             }
 
             return selected;
+        }
+
+        private static bool SharesCombatColumn(CombatActor first, CombatActor second)
+        {
+            return OccupiesColumn(first, second.Column) || OccupiesColumn(second, first.Column);
+        }
+
+        private static bool OccupiesColumn(CombatActor actor, int column)
+        {
+            var half = actor.Definition.FootprintColumns / 2;
+            return column >= actor.Column - half && column <= actor.Column + half;
         }
 
         private double ClampLane(double lanePosition)

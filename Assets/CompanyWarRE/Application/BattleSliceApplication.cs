@@ -16,17 +16,24 @@ namespace CompanyWarRE.Application
 
     public sealed class BattleSliceCellSnapshot
     {
-        public BattleSliceCellSnapshot(GridPosition position, bool isOwned, bool isPolluted, int occupantCount)
+        public BattleSliceCellSnapshot(
+            GridPosition position,
+            bool isOwned,
+            bool isPolluted,
+            bool isBlockedByBuilding,
+            int occupantCount)
         {
             Position = position;
             IsOwned = isOwned;
             IsPolluted = isPolluted;
+            IsBlockedByBuilding = isBlockedByBuilding;
             OccupantCount = occupantCount;
         }
 
         public GridPosition Position { get; }
         public bool IsOwned { get; }
         public bool IsPolluted { get; }
+        public bool IsBlockedByBuilding { get; }
         public int OccupantCount { get; }
     }
 
@@ -48,6 +55,9 @@ namespace CompanyWarRE.Application
             MaximumHitPoints = actor.MaximumHitPoints;
             IsAlive = actor.IsAlive;
             IsBuilding = actor.IsBuilding;
+            FootprintColumns = actor.FootprintColumns;
+            FootprintStartColumn = actor.FootprintStartColumn;
+            FootprintEndColumn = actor.FootprintEndColumn;
         }
 
         public string ActorId { get; }
@@ -59,6 +69,9 @@ namespace CompanyWarRE.Application
         public double MaximumHitPoints { get; }
         public bool IsAlive { get; }
         public bool IsBuilding { get; }
+        public int FootprintColumns { get; }
+        public int FootprintStartColumn { get; }
+        public int FootprintEndColumn { get; }
     }
 
     public sealed class BattleSliceSnapshot
@@ -264,6 +277,16 @@ namespace CompanyWarRE.Application
                         building.TemplateId,
                         nameof(enemyBuildings));
                 }
+
+                var halfFootprint = buildingDefinition.FootprintColumns / 2;
+                if (building.Position.Column - halfFootprint < 1 ||
+                    building.Position.Column + halfFootprint > columns)
+                {
+                    throw new ArgumentException(
+                        "Enemy building's three-cell footprint must fit inside the grid: " +
+                        building.TemplateId,
+                        nameof(enemyBuildings));
+                }
             }
 
             RequiredAssaultScore = Math.Max(0, requiredAssaultScore);
@@ -442,6 +465,14 @@ namespace CompanyWarRE.Application
                 var placement = _configuration.EnemyBuildings[index];
                 var definition = _configuration.EnemyCombatants[placement.TemplateId];
                 var actorId = $"building-{placement.TemplateId}-{index + 1:00}";
+                if (!_grid.TryOccupyHorizontalBuildingFootprint(
+                        placement.Position,
+                        actorId,
+                        definition.FootprintColumns))
+                {
+                    throw new InvalidOperationException("Enemy building footprint registration failed: " + actorId);
+                }
+
                 if (!_combat.TryAddActor(
                         actorId,
                         Team.Enemy,
@@ -552,6 +583,7 @@ namespace CompanyWarRE.Application
                         cell.Position,
                         cell.IsOwned,
                         cell.IsPolluted,
+                        cell.IsBlockedByBuilding,
                         cell.OccupantCount));
                 }
             }
@@ -590,6 +622,7 @@ namespace CompanyWarRE.Application
 
                 if (actor.IsBuilding)
                 {
+                    _grid.ClearBuildingFootprint(actor.ActorId);
                     _enemyWaves.DestroyEnemyBuilding(new GridPosition(
                         actor.Column,
                         (int)Math.Round(actor.LanePosition)));

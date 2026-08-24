@@ -14,24 +14,36 @@ Status: executable Domain/Application vertical slice
 
 All audited Cow files are read-only and pinned in `SourceEvidenceHashes.csv`.
 
+## Approved target override: three-cell building footprint
+
+Cow's current `GridMap.TryOccupyControlBlockWithBuilding` marks every cell in a
+3x3 control block. The user explicitly changed the target rule to “a building
+occupies three cells.” Company War-RE therefore uses a horizontal `1x3` footprint,
+centered on the configured column. This is an intentional product override, not an
+inferred Cow behavior.
+
 ## Implemented order and rules
 
 1. E06/E07 are registered as stationary enemy combat actors from the legacy level
    configuration. They do not move, pollute territory, or emit zero-damage attacks.
-2. A moving allied melee actor may approach and attack a building in the same small
-   column. Building health and death use the existing simultaneous-damage pipeline.
-3. Every enemy death awards its non-negative `AssaultScoreReward` exactly once.
+2. Each building blocks and occupies exactly three adjacent cells on one row. The
+   footprint must fit inside the grid and cannot overlap another building footprint.
+3. A moving allied melee actor may approach and attack a building from any of its
+   three footprint columns. Multiple columns may focus the same building. Building
+   health and death use the existing simultaneous-damage pipeline.
+4. Every enemy death awards its non-negative `AssaultScoreReward` exactly once.
    Score is retained for authorization/settlement display and does not directly win
    a building-objective battle.
-4. An enemy-building death decrements the living building count and informs the
-   wave scheduler. Spawn points for the affected control-block column are then
+5. An enemy-building death clears all three occupied cells, decrements the living
+   building count, and informs the wave scheduler. Spawn points for the affected
+   control-block column are then
    recalculated before outcome evaluation.
-5. Outcome priority matches current Cow runtime: no controlled territory is defeat;
+6. Outcome priority matches current Cow runtime: no controlled territory is defeat;
    when building victory is disabled, no valid spawn point is defeat; when building
    victory is enabled, zero living enemy buildings is victory.
-6. Reaching a terminal state stops future waves and time advancement. Deployment is
+7. Reaching a terminal state stops future waves and time advancement. Deployment is
    rejected with `BattleEnded` until the test slice is reset.
-7. Reset reconstructs territory, economy, combat actors, buildings, scheduler,
+8. Reset reconstructs territory, economy, combat actors, buildings, scheduler,
    score, and outcome state from immutable configuration.
 
 The level compatibility adapter is optional. Older isolated tests that omit a level
@@ -39,13 +51,13 @@ remain open-ended; loading a legacy level enables full outcome evaluation.
 
 ## Test-scene composition
 
-The target-owned slice uses a 9x9 compatibility level with one E06 at `(3,9)` and
-one E07 at `(7,9)`. These are deliberately a small, traceable composition rather
-than a wholesale copy of Cow's level directory.
+The target-owned slice is widened from 9x9 to 15x9. It places building centers at
+`(2,9)`, `(8,9)`, and `(14,9)`, producing non-overlapping footprints at columns
+`1-3`, `7-9`, and `13-15`. This remains a small, traceable composition rather than
+a wholesale copy of Cow's level directory.
 
 ## Deferred
 
-- building occupation of all nine cells and cross-small-column melee targeting;
 - E07/E12-E15 special production, attack, and aura behavior;
 - death-animation delay before score/removal;
 - authorization-choice UI and final settlement rewards;

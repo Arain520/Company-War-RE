@@ -1,3 +1,4 @@
+using System.Linq;
 using NUnit.Framework;
 
 namespace CompanyWarRE.Domain.Tests
@@ -54,6 +55,28 @@ namespace CompanyWarRE.Domain.Tests
             Assert.That(grid.TryAddOccupant(position, "A", BattleGrid.MaximumOccupantsPerCell), Is.True);
             Assert.That(grid.GetCell(position).OccupantCount, Is.EqualTo(1));
             Assert.That(grid.CanDeployStandardUnit(position), Is.False);
+        }
+
+        [Test]
+        public void EnemyBuildingFootprint_OccupiesExactlyThreeHorizontalCellsAndCanBeCleared()
+        {
+            var grid = new BattleGrid(9, 6);
+
+            Assert.That(
+                grid.TryOccupyHorizontalBuildingFootprint(new GridPosition(5, 6), "building-E06"),
+                Is.True);
+
+            Assert.That(
+                new[] { 4, 5, 6 }.All(column =>
+                    grid.GetCell(new GridPosition(column, 6)).BuildingId == "building-E06"),
+                Is.True);
+            Assert.That(grid.GetCell(new GridPosition(3, 6)).IsBlockedByBuilding, Is.False);
+            Assert.That(grid.GetCell(new GridPosition(7, 6)).IsBlockedByBuilding, Is.False);
+            Assert.That(grid.ClearBuildingFootprint("building-E06"), Is.EqualTo(3));
+            Assert.That(
+                new[] { 4, 5, 6 }.All(column =>
+                    !grid.GetCell(new GridPosition(column, 6)).IsBlockedByBuilding),
+                Is.True);
         }
     }
 }

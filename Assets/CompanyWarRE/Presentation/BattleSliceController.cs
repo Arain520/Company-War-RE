@@ -292,7 +292,7 @@ namespace CompanyWarRE.Presentation
             }
 
             GUILayout.BeginArea(new Rect(16f, 16f, 540f, 270f), GUI.skin.box);
-            GUILayout.Label("Company War-RE | U01 vs E01 combat slice");
+            GUILayout.Label("Company War-RE | Wide battle loop slice");
             GUILayout.Label($"Resources: {_snapshot.Resources}    Time: {_snapshot.ElapsedSeconds:0.0}s");
             GUILayout.Label(
                 $"{_snapshot.UnitId} cost: {_snapshot.UnitResourceCost}    " +

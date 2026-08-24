@@ -16,7 +16,7 @@ Unity input and runtime visuals
 
 The scene intentionally contains only `BattleSliceBootstrap` plus direct references
 to five compatibility JSON TextAssets. At runtime the Presentation layer creates
-the camera, light, 9 x 9 grid, and placeholder combatants with health bars. These
+the camera, light, 15 x 9 grid, and placeholder combatants with health bars. These
 placeholders are test visualization, not migrated production art.
 
 ## Run
@@ -30,13 +30,15 @@ placeholders are test visualization, not migrated production art.
 
 ## Expected behavior
 
-- The lower rows 1-6 (54 green cells) are owned; upper rows 7-9 (27 gray cells)
+- The lower rows 1-6 (90 green cells) are owned; upper rows 7-9 (45 gray cells)
   form the enemy region and reject deployment.
 - U01 costs 1 resource and has a three-second per-unit cooldown, matching Cow's
   `Units.json`.
 - Resources start at 10, gain one every five seconds, and receive one transmitter
   resource every three seconds.
-- E06 and E07 start as enlarged magenta enemy buildings at `(3,9)` and `(7,9)`.
+- Three enlarged magenta enemy buildings are centered at `(2,9)`, `(8,9)`, and
+  `(14,9)`. Each occupies exactly three horizontal cells, so their footprints are
+  columns `1-3`, `7-9`, and `13-15` respectively.
 - Staged waves begin after ten seconds. Enemies are generated from valid columns;
   buildings move their control-block columns' spawn points forward.
 - A successful deployment displays a cyan U01. Same-column U01/E01 actors advance,
@@ -48,9 +50,9 @@ placeholders are test visualization, not migrated production art.
   control block, rows 4-6 / columns 1-3 turn purple, lose ownership, and E01 dies.
 - Pollution colors the whole selected 3 x 3 control block purple and blocks
   deployment there.
-- Deploy U01 in columns 3 or 7 to advance toward and damage the corresponding
-  building. Enemy deaths add assault score exactly once.
-- Destroying both buildings changes the HUD state to `Victory` and stops waves.
+- Deploy U01 in any of the three columns covered by a building to advance toward
+  and damage that same building. Enemy deaths add assault score exactly once.
+- Destroying all three buildings changes the HUD state to `Victory` and stops waves.
   Losing every controlled block changes it to `Defeat`. Press `R` to reconstruct
   the complete initial battle state.
 - The on-screen panel displays resources, elapsed time, cooldown, selection, and

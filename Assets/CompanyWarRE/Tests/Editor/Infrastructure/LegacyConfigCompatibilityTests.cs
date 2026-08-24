@@ -33,7 +33,7 @@ namespace CompanyWarRE.Infrastructure.Tests
                 .Load("units", "enemies", "settings", "schedules", "level");
 
             Assert.That(result.Succeeded, Is.True, JoinIssues(result));
-            Assert.That(result.Configuration.Columns, Is.EqualTo(9));
+            Assert.That(result.Configuration.Columns, Is.EqualTo(15));
             Assert.That(result.Configuration.Rows, Is.EqualTo(9));
             Assert.That(result.Configuration.ControlledRows, Is.EqualTo(6));
             Assert.That(result.Configuration.InitialResources, Is.EqualTo(10));
@@ -55,10 +55,12 @@ namespace CompanyWarRE.Infrastructure.Tests
             Assert.That(result.Configuration.EnemyWaveStages[0].WaveIntervalSeconds, Is.EqualTo(10d));
             Assert.That(result.Configuration.EnemyWaveStages[1].EnemiesPerWave, Is.EqualTo(2));
             Assert.That(result.Configuration.EnemyCombatants.Keys, Does.Contain("E05"));
-            Assert.That(result.Configuration.EnemySpawnColumns.Count, Is.EqualTo(9));
-            Assert.That(result.Configuration.EnemyBuildings.Count, Is.EqualTo(2));
+            Assert.That(result.Configuration.EnemySpawnColumns.Count, Is.EqualTo(15));
+            Assert.That(result.Configuration.EnemyBuildings.Count, Is.EqualTo(3));
             Assert.That(result.Configuration.EnemyBuildings.Select(item => item.TemplateId),
-                Is.EqualTo(new[] { "E06", "E07" }));
+                Is.EqualTo(new[] { "E06", "E07", "E06" }));
+            Assert.That(result.Configuration.EnemyBuildings.Select(item => item.Position.Column),
+                Is.EqualTo(new[] { 2, 8, 14 }));
             Assert.That(result.Configuration.RequiredAssaultScore, Is.EqualTo(8));
             Assert.That(result.Configuration.VictoryByEnemyBuildings, Is.True);
         }
@@ -198,6 +200,32 @@ namespace CompanyWarRE.Infrastructure.Tests
 
             Assert.That(result.Succeeded, Is.False);
             Assert.That(result.Issues.Any(issue => issue.Code == "CFG_REFERENCE"), Is.True);
+        }
+
+        [Test]
+        public void LevelValidator_RejectsOverlappingAndOutOfBoundsThreeCellFootprints()
+        {
+            const string units =
+                "{\"Units\":[{\"Id\":\"U01\",\"Type\":\"Staff\",\"Durability\":1," +
+                "\"Attack\":1,\"Speed\":1,\"AttackInterval\":1,\"Range\":1," +
+                "\"ResourceCost\":1,\"DeployCooldown\":3}]}";
+            const string level =
+                "{\"Id\":\"invalid\",\"Columns\":6,\"Rows\":6,\"EnemyBuildings\":[" +
+                "{\"Type\":\"E06\",\"Col\":2,\"Row\":6}," +
+                "{\"Type\":\"E07\",\"Col\":3,\"Row\":6}," +
+                "{\"Type\":\"E06\",\"Col\":6,\"Row\":6}]}";
+            var provider = CreateProvider(
+                units,
+                ValidSettingsJson(),
+                File.ReadAllText(EnemiesPath),
+                null,
+                level);
+
+            var result = provider.Load("units", "enemies", "settings", null, "level");
+
+            Assert.That(result.Succeeded, Is.False);
+            Assert.That(result.Issues.Any(issue => issue.Code == "CFG_DUPLICATE"), Is.True);
+            Assert.That(result.Issues.Any(issue => issue.Code == "CFG_RANGE"), Is.True);
         }
 
         private static LegacyBattleSliceConfigurationProvider CreateProvider(

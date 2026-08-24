@@ -12,6 +12,7 @@ namespace CompanyWarRE.Presentation
         private static readonly Color HealthColor = new Color(0.25f, 0.95f, 0.35f);
         private Material _bodyMaterial;
         private Material _healthMaterial;
+        private Transform _body;
         private Transform _healthFill;
 
         public string ActorId { get; private set; }
@@ -24,6 +25,7 @@ namespace CompanyWarRE.Presentation
             body.transform.SetParent(transform, false);
             body.transform.localPosition = new Vector3(0f, 0.75f, 0f);
             body.transform.localScale = new Vector3(0.42f, 0.55f, 0.42f);
+            _body = body.transform;
             _bodyMaterial = CreateMaterial(Color.white);
             body.GetComponent<Renderer>().sharedMaterial = _bodyMaterial;
 
@@ -55,20 +57,24 @@ namespace CompanyWarRE.Presentation
                 0.12f,
                 (float)snapshot.LanePosition - 1f);
             _bodyMaterial.color = snapshot.Team == Team.Ally ? AllyColor : EnemyColor;
-            if (snapshot.IsBuilding)
-            {
-                _bodyMaterial.color = EnemyBuildingColor;
-                transform.localScale = new Vector3(1.35f, 1.35f, 1.35f);
-            }
-            else
-            {
-                transform.localScale = Vector3.one;
-            }
             var ratio = snapshot.MaximumHitPoints <= 0d
                 ? 0f
                 : Mathf.Clamp01((float)(snapshot.HitPoints / snapshot.MaximumHitPoints));
-            _healthFill.localScale = new Vector3(0.7f * ratio, 0.08f, 0.08f);
-            _healthFill.localPosition = new Vector3(-0.35f * (1f - ratio), 1.55f, 0f);
+            if (snapshot.IsBuilding)
+            {
+                _bodyMaterial.color = EnemyBuildingColor;
+                _body.localPosition = new Vector3(0f, 0.65f, 0f);
+                _body.localScale = new Vector3(2.75f, 0.75f, 0.8f);
+                _healthFill.localScale = new Vector3(2.4f * ratio, 0.08f, 0.08f);
+                _healthFill.localPosition = new Vector3(-1.2f * (1f - ratio), 1.55f, 0f);
+            }
+            else
+            {
+                _body.localPosition = new Vector3(0f, 0.75f, 0f);
+                _body.localScale = new Vector3(0.42f, 0.55f, 0.42f);
+                _healthFill.localScale = new Vector3(0.7f * ratio, 0.08f, 0.08f);
+                _healthFill.localPosition = new Vector3(-0.35f * (1f - ratio), 1.55f, 0f);
+            }
         }
 
         private static Material CreateMaterial(Color color)

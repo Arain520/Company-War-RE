@@ -18,6 +18,8 @@ namespace CompanyWarRE.Domain
         public GridPosition ControlBlock { get; }
         public bool IsOwned { get; internal set; }
         public bool IsPolluted { get; internal set; }
+        public string BuildingId { get; internal set; }
+        public bool IsBlockedByBuilding => !string.IsNullOrEmpty(BuildingId);
         public IReadOnlyList<string> Occupants => _occupants;
         public int OccupantCount => _occupants.Count;
 
@@ -213,7 +215,75 @@ namespace CompanyWarRE.Domain
         public bool CanDeployStandardUnit(GridPosition position)
         {
             var cell = GetCell(position);
-            return cell != null && cell.IsOwned && !cell.IsPolluted && cell.OccupantCount < 1;
+            return cell != null && cell.IsOwned && !cell.IsPolluted &&
+                   !cell.IsBlockedByBuilding && cell.OccupantCount < 1;
+        }
+
+        public bool TryOccupyHorizontalBuildingFootprint(
+            GridPosition center,
+            string buildingId,
+            int footprintColumns = ControlBlockSize)
+        {
+            if (string.IsNullOrWhiteSpace(buildingId) || footprintColumns <= 0 || footprintColumns % 2 == 0 ||
+                !IsInside(center))
+            {
+                return false;
+            }
+
+            var half = footprintColumns / 2;
+            var startColumn = center.Column - half;
+            var endColumn = center.Column + half;
+            if (startColumn < 1 || endColumn > Columns)
+            {
+                return false;
+            }
+
+            var cells = new List<GridCell>();
+            for (var column = startColumn; column <= endColumn; column++)
+            {
+                var cell = GetCell(new GridPosition(column, center.Row));
+                if (cell == null || cell.IsBlockedByBuilding || cell.OccupantCount > 0)
+                {
+                    return false;
+                }
+
+                cells.Add(cell);
+            }
+
+            foreach (var cell in cells)
+            {
+                cell.BuildingId = buildingId;
+                cell.AddOccupant(buildingId, MaximumOccupantsPerCell);
+            }
+
+            return true;
+        }
+
+        public int ClearBuildingFootprint(string buildingId)
+        {
+            if (string.IsNullOrWhiteSpace(buildingId))
+            {
+                return 0;
+            }
+
+            var cleared = 0;
+            for (var column = 1; column <= Columns; column++)
+            {
+                for (var row = 1; row <= Rows; row++)
+                {
+                    var cell = _cells[column - 1, row - 1];
+                    if (!string.Equals(cell.BuildingId, buildingId, StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    cell.BuildingId = null;
+                    cell.RemoveOccupant(buildingId);
+                    cleared++;
+                }
+            }
+
+            return cleared;
         }
 
         public bool TryAddOccupant(GridPosition position, string actorId, int maximumOccupants = MaximumOccupantsPerCell)
@@ -236,7 +306,7 @@ namespace CompanyWarRE.Domain
                 for (var row = 1; row <= Rows; row++)
                 {
                     var cell = _cells[column - 1, row - 1];
-                    if (cell.IsOwned && !cell.IsPolluted)
+                    if (cell.IsOwned && !cell.IsPolluted && !cell.IsBlockedByBuilding)
                     {
                         result.Add(cell);
                     }

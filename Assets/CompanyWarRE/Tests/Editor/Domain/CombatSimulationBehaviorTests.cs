@@ -263,6 +263,29 @@ namespace CompanyWarRE.Domain.Tests
                 Is.EqualTo(1));
         }
 
+        [Test]
+        public void ThreeColumnBuilding_CanBeFocusedFromEitherFootprintEdge()
+        {
+            var simulation = new CombatSimulation(9, 9);
+            var ally = new CombatantDefinition("U01", "Staff", 5, 1d, 1d, 1d, 1);
+            var building = new CombatantDefinition("E06", "Building", 2, 0d, 0d, 0d, 0, 1);
+            simulation.TryAddActor("ally-left", Team.Ally, ally, 4, 8.88d);
+            simulation.TryAddActor("ally-right", Team.Ally, ally, 6, 8.88d);
+            simulation.TryAddActor("building", Team.Enemy, building, 5, 9d);
+
+            simulation.Advance(1d);
+
+            var buildingSnapshot = simulation.CreateSnapshot().Single(item => item.ActorId == "building");
+            Assert.That(buildingSnapshot.IsAlive, Is.False);
+            Assert.That(buildingSnapshot.FootprintStartColumn, Is.EqualTo(4));
+            Assert.That(buildingSnapshot.FootprintEndColumn, Is.EqualTo(6));
+            Assert.That(
+                simulation.Events
+                    .Where(item => item.Type == CombatEventType.Attack && item.TargetActorId == "building")
+                    .Select(item => item.ActorId),
+                Is.EquivalentTo(new[] { "ally-left", "ally-right" }));
+        }
+
         private static CombatSimulation CreateDuel(double allyLane, double enemyLane)
         {
             var simulation = new CombatSimulation(9, 9);

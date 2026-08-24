@@ -283,7 +283,7 @@ namespace CompanyWarRE.Domain
             for (var row = 1; row <= grid.Rows; row++)
             {
                 var cell = grid.GetCell(new GridPosition(column, row));
-                if (cell != null && cell.IsOwned && !cell.IsPolluted)
+                if (cell != null && cell.IsOwned && !cell.IsPolluted && !cell.IsBlockedByBuilding)
                 {
                     return true;
                 }

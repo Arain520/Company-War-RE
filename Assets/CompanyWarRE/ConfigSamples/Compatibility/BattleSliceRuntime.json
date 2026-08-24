@@ -1,6 +1,6 @@
 {
   "SchemaVersion": 1,
-  "Columns": 9,
+  "Columns": 15,
   "Rows": 9,
   "ControlledRows": 6,
   "InitialResources": 10,
@@ -13,6 +13,6 @@
   "TestEnemyId": "E01",
   "EnemySpawnColumn": 3,
   "EnemySpawnRow": 9,
-  "EnemySpawnColumns": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+  "EnemySpawnColumns": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
   "EnemyWaveRandomSeed": 17
 }
