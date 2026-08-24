@@ -17,6 +17,8 @@ namespace CompanyWarRE.Infrastructure.Tests
             "Assets/CompanyWarRE/ConfigSamples/Compatibility/BattleSliceRuntime.json";
         private const string SpawnSchedulesPath =
             "Assets/CompanyWarRE/ConfigSamples/Compatibility/LegacySpawnSchedules.json";
+        private const string LevelPath =
+            "Assets/CompanyWarRE/ConfigSamples/Compatibility/LegacyLevel.BattleSlice.json";
 
         [Test]
         public void CompatibilitySamples_MapLegacyU01AndObservedRuntimeDefaults()
@@ -25,9 +27,10 @@ namespace CompanyWarRE.Infrastructure.Tests
             var enemies = File.ReadAllText(EnemiesPath);
             var settings = File.ReadAllText(SettingsPath);
             var schedules = File.ReadAllText(SpawnSchedulesPath);
+            var level = File.ReadAllText(LevelPath);
 
-            var result = CreateProvider(units, settings, enemies, schedules)
-                .Load("units", "enemies", "settings", "schedules");
+            var result = CreateProvider(units, settings, enemies, schedules, level)
+                .Load("units", "enemies", "settings", "schedules", "level");
 
             Assert.That(result.Succeeded, Is.True, JoinIssues(result));
             Assert.That(result.Configuration.Columns, Is.EqualTo(9));
@@ -53,6 +56,11 @@ namespace CompanyWarRE.Infrastructure.Tests
             Assert.That(result.Configuration.EnemyWaveStages[1].EnemiesPerWave, Is.EqualTo(2));
             Assert.That(result.Configuration.EnemyCombatants.Keys, Does.Contain("E05"));
             Assert.That(result.Configuration.EnemySpawnColumns.Count, Is.EqualTo(9));
+            Assert.That(result.Configuration.EnemyBuildings.Count, Is.EqualTo(2));
+            Assert.That(result.Configuration.EnemyBuildings.Select(item => item.TemplateId),
+                Is.EqualTo(new[] { "E06", "E07" }));
+            Assert.That(result.Configuration.RequiredAssaultScore, Is.EqualTo(8));
+            Assert.That(result.Configuration.VictoryByEnemyBuildings, Is.True);
         }
 
         [Test]
@@ -196,7 +204,8 @@ namespace CompanyWarRE.Infrastructure.Tests
             string units,
             string settings,
             string enemies = null,
-            string schedules = null)
+            string schedules = null,
+            string level = null)
         {
             var documents = new Dictionary<string, string>
             {
@@ -207,6 +216,11 @@ namespace CompanyWarRE.Infrastructure.Tests
             if (schedules != null)
             {
                 documents["schedules"] = schedules;
+            }
+
+            if (level != null)
+            {
+                documents["level"] = level;
             }
 
             return new LegacyBattleSliceConfigurationProvider(new DictionaryConfigurationTextSource(documents));

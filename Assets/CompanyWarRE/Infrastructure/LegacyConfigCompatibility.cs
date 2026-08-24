@@ -169,6 +169,36 @@ namespace CompanyWarRE.Infrastructure.Configuration
         public int Weight;
     }
 
+    [Serializable]
+    [DataContract]
+    public sealed class LegacyLevelDto
+    {
+        [DataMember(Name = "Id")]
+        public string Id;
+        [DataMember(Name = "Columns")]
+        public int Columns;
+        [DataMember(Name = "Rows")]
+        public int Rows;
+        [DataMember(Name = "RequiredAssaultScore")]
+        public int RequiredAssaultScore;
+        [DataMember(Name = "Stages")]
+        public List<string> Stages;
+        [DataMember(Name = "EnemyBuildings")]
+        public List<LegacyBuildingPlacementDto> EnemyBuildings;
+    }
+
+    [Serializable]
+    [DataContract]
+    public sealed class LegacyBuildingPlacementDto
+    {
+        [DataMember(Name = "Type")]
+        public string Type;
+        [DataMember(Name = "Col")]
+        public int Column;
+        [DataMember(Name = "Row")]
+        public int Row;
+    }
+
     public interface IConfigurationTextSource
     {
         bool TryRead(string key, out string text, out string error);
@@ -252,7 +282,8 @@ namespace CompanyWarRE.Infrastructure.Configuration
             string unitsKey,
             string enemiesKey,
             string settingsKey,
-            string spawnSchedulesKey = null)
+            string spawnSchedulesKey = null,
+            string levelKey = null)
         {
             var issues = new List<ConfigurationIssue>();
             if (!_source.TryRead(unitsKey, out var unitsJson, out var unitsReadError))
@@ -277,6 +308,13 @@ namespace CompanyWarRE.Infrastructure.Configuration
                 issues.Add(new ConfigurationIssue("CFG_SOURCE", spawnSchedulesKey, spawnSchedulesReadError));
             }
 
+            string levelJson = null;
+            if (!string.IsNullOrWhiteSpace(levelKey) &&
+                !_source.TryRead(levelKey, out levelJson, out var levelReadError))
+            {
+                issues.Add(new ConfigurationIssue("CFG_SOURCE", levelKey, levelReadError));
+            }
+
             if (issues.Count > 0)
             {
                 return new BattleSliceConfigurationLoadResult(null, issues);
@@ -288,8 +326,12 @@ namespace CompanyWarRE.Infrastructure.Configuration
             var spawnSchedules = string.IsNullOrWhiteSpace(spawnSchedulesKey)
                 ? null
                 : Parse<LegacySpawnSchedulesDto>(spawnSchedulesJson, spawnSchedulesKey, issues);
+            var level = string.IsNullOrWhiteSpace(levelKey)
+                ? null
+                : Parse<LegacyLevelDto>(levelJson, levelKey, issues);
             if (units == null || enemies == null || settings == null ||
-                (!string.IsNullOrWhiteSpace(spawnSchedulesKey) && spawnSchedules == null))
+                (!string.IsNullOrWhiteSpace(spawnSchedulesKey) && spawnSchedules == null) ||
+                (!string.IsNullOrWhiteSpace(levelKey) && level == null))
             {
                 return new BattleSliceConfigurationLoadResult(null, issues);
             }
@@ -306,6 +348,9 @@ namespace CompanyWarRE.Infrastructure.Configuration
             var enemyWaveStages = spawnSchedules == null
                 ? null
                 : MapSpawnStages(spawnSchedules, spawnSchedulesKey, enemyDefinitions, issues);
+            var enemyBuildings = level == null
+                ? Array.Empty<EnemyBuildingPlacement>()
+                : MapEnemyBuildings(level, levelKey, settings, enemyDefinitions, issues);
             if (issues.Count > 0 || selectedUnit == null || selectedEnemy == null)
             {
                 return new BattleSliceConfigurationLoadResult(null, issues);
@@ -350,8 +395,87 @@ namespace CompanyWarRE.Infrastructure.Configuration
                 enemyWaveStages,
                 enemyDefinitions,
                 settings.EnemySpawnColumns,
-                settings.EnemyWaveRandomSeed == 0 ? 17 : settings.EnemyWaveRandomSeed);
+                settings.EnemyWaveRandomSeed == 0 ? 17 : settings.EnemyWaveRandomSeed,
+                enemyBuildings,
+                level?.RequiredAssaultScore ?? 0,
+                level != null,
+                level != null);
             return new BattleSliceConfigurationLoadResult(configuration, issues);
+        }
+
+        private static IReadOnlyList<EnemyBuildingPlacement> MapEnemyBuildings(
+            LegacyLevelDto level,
+            string path,
+            BattleSliceSettingsDto settings,
+            IReadOnlyCollection<CombatantDefinition> enemies,
+            ICollection<ConfigurationIssue> issues)
+        {
+            var result = new List<EnemyBuildingPlacement>();
+            if (level.Columns != settings.Columns || level.Rows != settings.Rows)
+            {
+                issues.Add(new ConfigurationIssue(
+                    "CFG_CONFLICT",
+                    path,
+                    "Level and battle-slice grid dimensions must match."));
+            }
+
+            if (level.RequiredAssaultScore < 0)
+            {
+                issues.Add(new ConfigurationIssue(
+                    "CFG_RANGE",
+                    path + ".RequiredAssaultScore",
+                    "RequiredAssaultScore cannot be negative."));
+            }
+
+            if (level.EnemyBuildings == null || level.EnemyBuildings.Count == 0)
+            {
+                issues.Add(new ConfigurationIssue(
+                    "CFG_REQUIRED",
+                    path + ".EnemyBuildings",
+                    "Building-victory levels require at least one enemy building."));
+                return result;
+            }
+
+            var definitions = enemies
+                .GroupBy(item => item.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+            var occupied = new HashSet<GridPosition>();
+            for (var index = 0; index < level.EnemyBuildings.Count; index++)
+            {
+                var building = level.EnemyBuildings[index];
+                var buildingPath = $"{path}.EnemyBuildings[{index}]";
+                if (building == null || string.IsNullOrWhiteSpace(building.Type))
+                {
+                    issues.Add(new ConfigurationIssue("CFG_REQUIRED", buildingPath + ".Type", "Building type is required."));
+                    continue;
+                }
+
+                if (!definitions.TryGetValue(building.Type, out var definition) || !definition.IsBuilding)
+                {
+                    issues.Add(new ConfigurationIssue(
+                        "CFG_REFERENCE",
+                        buildingPath + ".Type",
+                        "Enemy building definition was not found: " + building.Type + "."));
+                }
+
+                var position = new GridPosition(building.Column, building.Row);
+                if (building.Column < 1 || building.Column > settings.Columns ||
+                    building.Row < 1 || building.Row > settings.Rows)
+                {
+                    issues.Add(new ConfigurationIssue("CFG_RANGE", buildingPath, "Building position must be inside the grid."));
+                    continue;
+                }
+
+                if (!occupied.Add(position))
+                {
+                    issues.Add(new ConfigurationIssue("CFG_DUPLICATE", buildingPath, "Building positions must be unique."));
+                    continue;
+                }
+
+                result.Add(new EnemyBuildingPlacement(building.Type, position));
+            }
+
+            return result;
         }
 
         private static CombatantDefinition MapEnemyCombatant(LegacyEnemyDto enemy)
@@ -715,8 +839,11 @@ namespace CompanyWarRE.Infrastructure.Configuration
                     issues.Add(new ConfigurationIssue("CFG_DUPLICATE", enemyPath + ".Id", $"Duplicate enemy ID: {enemy.Id}."));
                 }
 
+                var isBuilding = !string.IsNullOrWhiteSpace(enemy.Type) &&
+                                 enemy.Type.IndexOf("build", StringComparison.OrdinalIgnoreCase) >= 0;
                 if (enemy.Durability <= 0 || enemy.Attack < 0f || enemy.Speed < 0f ||
-                    enemy.AttackInterval <= 0f || enemy.Range <= 0 || enemy.AssaultScoreReward < 0)
+                    (!isBuilding && (enemy.AttackInterval <= 0f || enemy.Range <= 0)) ||
+                    enemy.AssaultScoreReward < 0)
                 {
                     issues.Add(new ConfigurationIssue(
                         "CFG_RANGE",

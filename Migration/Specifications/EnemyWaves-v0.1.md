@@ -47,8 +47,9 @@ code and records the conflict rather than silently mixing both coordinate models
 
 ## Deferred
 
-- registering and destroying real enemy-building actors through Application;
 - endless-loop stages and endless damage scaling;
-- assault-score rewards and final victory/defeat orchestration;
 - save/load of scheduler time, stage, RNG, wave index, and spawned actors;
 - final spawn VFX, animation, audio, pooling, and production asset loading.
+
+Enemy-building registration, destruction, assault-score rewards, and base outcome
+orchestration are implemented in `BattleLoop-v0.1.md`.

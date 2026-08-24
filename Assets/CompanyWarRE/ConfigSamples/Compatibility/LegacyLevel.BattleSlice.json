@@ -1,0 +1,15 @@
+{
+  "Id": "L01-BattleSlice",
+  "Columns": 9,
+  "Rows": 9,
+  "RequiredAssaultScore": 8,
+  "Stages": [
+    "Stage1",
+    "Stage2",
+    "Finale"
+  ],
+  "EnemyBuildings": [
+    { "Type": "E06", "Col": 3, "Row": 9 },
+    { "Type": "E07", "Col": 7, "Row": 9 }
+  ]
+}

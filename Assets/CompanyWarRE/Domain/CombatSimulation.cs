@@ -39,6 +39,8 @@ namespace CompanyWarRE.Domain
         public double AttackIntervalSeconds { get; }
         public int Range { get; }
         public int AssaultScoreReward { get; }
+        public bool IsBuilding =>
+            Type.IndexOf("build", StringComparison.OrdinalIgnoreCase) >= 0;
         public bool IsMovingMelee =>
             Speed > 0d && Range <= 1 && string.Equals(Type, "Staff", StringComparison.OrdinalIgnoreCase);
     }
@@ -100,6 +102,8 @@ namespace CompanyWarRE.Domain
             MaximumHitPoints = actor.Definition.Durability;
             AttackProgress = actor.AttackProgress;
             IsAlive = actor.IsAlive;
+            IsBuilding = actor.Definition.IsBuilding;
+            AssaultScoreReward = actor.Definition.AssaultScoreReward;
         }
 
         public string ActorId { get; }
@@ -111,6 +115,8 @@ namespace CompanyWarRE.Domain
         public double MaximumHitPoints { get; }
         public double AttackProgress { get; }
         public bool IsAlive { get; }
+        public bool IsBuilding { get; }
+        public int AssaultScoreReward { get; }
     }
 
     internal sealed class CombatActor
@@ -509,7 +515,7 @@ namespace CompanyWarRE.Domain
         private void ResolveAttacks(double deltaSeconds)
         {
             var pendingDamage = new Dictionary<CombatActor, double>();
-            foreach (var actor in _actors.Where(candidate => candidate.IsAlive))
+            foreach (var actor in _actors.Where(candidate => candidate.IsAlive && candidate.Definition.Attack > 0d))
             {
                 var target = FindAttackTarget(actor);
                 if (target == null)
@@ -557,7 +563,10 @@ namespace CompanyWarRE.Domain
                 return;
             }
 
-            foreach (var enemy in _actors.Where(actor => actor.IsAlive && actor.Team == Team.Enemy).ToList())
+            foreach (var enemy in _actors.Where(actor =>
+                         actor.IsAlive &&
+                         actor.Team == Team.Enemy &&
+                         !actor.Definition.IsBuilding).ToList())
             {
                 var position = ToDiscretePosition(enemy);
                 var cell = grid.GetCell(position);

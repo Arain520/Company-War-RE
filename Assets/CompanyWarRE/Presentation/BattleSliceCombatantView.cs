@@ -8,6 +8,7 @@ namespace CompanyWarRE.Presentation
     {
         private static readonly Color AllyColor = new Color(0.12f, 0.75f, 0.9f);
         private static readonly Color EnemyColor = new Color(0.9f, 0.2f, 0.18f);
+        private static readonly Color EnemyBuildingColor = new Color(0.7f, 0.12f, 0.45f);
         private static readonly Color HealthColor = new Color(0.25f, 0.95f, 0.35f);
         private Material _bodyMaterial;
         private Material _healthMaterial;
@@ -54,6 +55,15 @@ namespace CompanyWarRE.Presentation
                 0.12f,
                 (float)snapshot.LanePosition - 1f);
             _bodyMaterial.color = snapshot.Team == Team.Ally ? AllyColor : EnemyColor;
+            if (snapshot.IsBuilding)
+            {
+                _bodyMaterial.color = EnemyBuildingColor;
+                transform.localScale = new Vector3(1.35f, 1.35f, 1.35f);
+            }
+            else
+            {
+                transform.localScale = Vector3.one;
+            }
             var ratio = snapshot.MaximumHitPoints <= 0d
                 ? 0f
                 : Mathf.Clamp01((float)(snapshot.HitPoints / snapshot.MaximumHitPoints));

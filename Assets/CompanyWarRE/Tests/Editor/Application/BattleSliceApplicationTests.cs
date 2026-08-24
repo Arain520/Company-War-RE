@@ -132,6 +132,46 @@ namespace CompanyWarRE.Application.Tests
             Assert.That(snapshot.Combatants.Count, Is.EqualTo(2));
         }
 
+        [Test]
+        public void DestroyingLastEnemyBuilding_UpdatesSpawnPointScoreAndVictory()
+        {
+            _architecture.SendCommand(new ConfigureBattleSliceCommand(CreateBuildingConfiguration()));
+            var initial = _architecture.SendQuery(new GetBattleSliceSnapshotQuery());
+            Assert.That(initial.EnemyBuildingCount, Is.EqualTo(1));
+            Assert.That(initial.Combatants.Single(item => item.IsBuilding).LanePosition, Is.EqualTo(6d));
+            Assert.That(initial.ValidSpawnPointCount, Is.EqualTo(1));
+
+            var deployment = _architecture.SendCommand(new DeployBattleSliceUnitCommand(
+                new GridPosition(3, 3),
+                "building-attacker"));
+            Assert.That(deployment.Succeeded, Is.True);
+            _architecture.SendCommand(new AdvanceBattleSliceTimeCommand(3d));
+            var completed = _architecture.SendQuery(new GetBattleSliceSnapshotQuery());
+
+            Assert.That(completed.EnemyBuildingCount, Is.Zero);
+            Assert.That(completed.AssaultScore, Is.EqualTo(2));
+            Assert.That(completed.BattleState, Is.EqualTo(BattleState.Victory));
+            Assert.That(completed.CurrentWaveStage, Is.Empty);
+            Assert.That(completed.Combatants.Single(item => item.IsBuilding).IsAlive, Is.False);
+            Assert.That(
+                _architecture.SendCommand(new DeployBattleSliceUnitCommand(
+                    new GridPosition(4, 1),
+                    "after-victory")).Failure,
+                Is.EqualTo(DeploymentFailure.BattleEnded));
+            _architecture.SendCommand(new AdvanceBattleSliceTimeCommand(10d));
+            var stopped = _architecture.SendQuery(new GetBattleSliceSnapshotQuery());
+            Assert.That(stopped.ElapsedSeconds, Is.EqualTo(completed.ElapsedSeconds));
+            Assert.That(stopped.WaveIndex, Is.EqualTo(completed.WaveIndex));
+
+            _architecture.SendCommand(new ResetBattleSliceCommand());
+            var reset = _architecture.SendQuery(new GetBattleSliceSnapshotQuery());
+            Assert.That(reset.BattleState, Is.EqualTo(BattleState.Running));
+            Assert.That(reset.EnemyBuildingCount, Is.EqualTo(1));
+            Assert.That(reset.AssaultScore, Is.Zero);
+            Assert.That(reset.WaveIndex, Is.Zero);
+            Assert.That(reset.Combatants.Single(item => item.IsBuilding).IsAlive, Is.True);
+        }
+
         private static BattleSliceConfiguration CreateConfiguration()
         {
             return new BattleSliceConfiguration(
@@ -176,6 +216,40 @@ namespace CompanyWarRE.Application.Tests
                 null,
                 new[] { 1, 4 },
                 17);
+        }
+
+        private static BattleSliceConfiguration CreateBuildingConfiguration()
+        {
+            var building = new CombatantDefinition("E06", "Building", 1, 0d, 0d, 0d, 0, 2);
+            return new BattleSliceConfiguration(
+                6,
+                6,
+                3,
+                10,
+                5d,
+                3d,
+                new GridPosition(2, 2),
+                1,
+                new UnitDefinition("U01", 1, 3d),
+                new CombatantDefinition("U01", "Staff", 5, 1d, 1d, 1d, 1),
+                new CombatantDefinition("E01", "Staff", 1, 1d, 1d, 1d, 1, 1),
+                new GridPosition(3, 6),
+                new[]
+                {
+                    new EnemyWaveStage(
+                        "DeferredWave",
+                        200d,
+                        100d,
+                        1,
+                        new[] { new EnemySpawnWeight("E01", 1) })
+                },
+                new[] { building },
+                new[] { 3 },
+                17,
+                new[] { new EnemyBuildingPlacement("E06", new GridPosition(3, 6)) },
+                8,
+                true,
+                true);
         }
     }
 }

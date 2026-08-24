@@ -43,8 +43,10 @@ All evidence is read from Cow and pinned in `SourceEvidenceHashes.csv`.
 - ranged cross-block targeting/projectiles and non-moving combatants beyond the
   already characterized same-column compatibility path;
 - stealth and visibility rules;
-- buildings, blocked control blocks, support effects, healing, conversion,
-  execution, knockback, buffs, and unit-specific mechanics;
+- building control-block occupation and special behavior, blocked control blocks,
+  support effects, healing, conversion, execution, knockback, buffs, and
+  unit-specific mechanics; basic stationary building combat is covered by
+  `BattleLoop-v0.1.md`;
 - final VFX/animation/audio for battlefield start, attack, death, and pollution;
-- assault score, victory/defeat integration, and save data. Enemy waves are now
-  covered by `EnemyWaves-v0.1.md`.
+- save data. Enemy waves are covered by `EnemyWaves-v0.1.md`; base score and
+  victory/defeat integration are covered by `BattleLoop-v0.1.md`.

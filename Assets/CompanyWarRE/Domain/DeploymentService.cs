@@ -16,7 +16,8 @@ namespace CompanyWarRE.Domain
         InsufficientResources,
         CooldownActive,
         OccupancyRejected,
-        CombatRegistrationRejected
+        CombatRegistrationRejected,
+        BattleEnded
     }
 
     public sealed class DeploymentResult

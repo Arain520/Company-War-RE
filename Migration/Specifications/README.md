@@ -8,6 +8,7 @@ game-resource migration.
 - `CombatBehavior-v0.1.md` records the initial U01-versus-E01 combat boundary.
 - `CombatBehavior-v0.2.md` is the current 3×3 melee encounter contract.
 - `EnemyWaves-v0.1.md` is the current staged enemy generation contract.
+- `BattleLoop-v0.1.md` is the current enemy-building, score, and outcome contract.
 - `LegacyBehaviorTraceability.csv` maps each behavior to Cow evidence and target tests.
 - `SourceEvidenceHashes.csv` pins the audited Cow source files without modifying Cow.
 

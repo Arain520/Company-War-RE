@@ -242,6 +242,27 @@ namespace CompanyWarRE.Domain.Tests
                 Is.EqualTo(1d));
         }
 
+        [Test]
+        public void MovingAlly_ApproachesAndDestroysStationaryEnemyBuilding()
+        {
+            var simulation = new CombatSimulation(3, 9);
+            var ally = new CombatantDefinition("U01", "Staff", 5, 2d, 1d, 1d, 1);
+            var building = new CombatantDefinition("E06", "Building", 4, 0d, 0d, 0d, 0, 1);
+            simulation.TryAddActor("ally", Team.Ally, ally, 2, 6d);
+            simulation.TryAddActor("building", Team.Enemy, building, 2, 9d);
+
+            simulation.Advance(3d);
+            simulation.Advance(2d);
+
+            var snapshot = simulation.CreateSnapshot();
+            Assert.That(snapshot.Single(item => item.ActorId == "building").IsAlive, Is.False);
+            Assert.That(snapshot.Single(item => item.ActorId == "building").IsBuilding, Is.True);
+            Assert.That(snapshot.Single(item => item.ActorId == "building").AssaultScoreReward, Is.EqualTo(1));
+            Assert.That(
+                simulation.Events.Count(item => item.Type == CombatEventType.Death && item.ActorId == "building"),
+                Is.EqualTo(1));
+        }
+
         private static CombatSimulation CreateDuel(double allyLane, double enemyLane)
         {
             var simulation = new CombatSimulation(9, 9);

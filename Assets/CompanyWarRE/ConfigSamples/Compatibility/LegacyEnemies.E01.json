@@ -54,6 +54,28 @@
       "AttackInterval": 1.0,
       "Range": 1,
       "AssaultScoreReward": 1
+    },
+    {
+      "Id": "E06",
+      "Name": "污秽之地",
+      "Type": "Building",
+      "Durability": 7,
+      "Attack": 0,
+      "Speed": 0.0,
+      "AttackInterval": 0.0,
+      "Range": 0,
+      "AssaultScoreReward": 1
+    },
+    {
+      "Id": "E07",
+      "Name": "污秽巢穴",
+      "Type": "Building",
+      "Durability": 12,
+      "Attack": 0,
+      "Speed": 0.0,
+      "AttackInterval": 0.0,
+      "Range": 0,
+      "AssaultScoreReward": 2
     }
   ]
 }

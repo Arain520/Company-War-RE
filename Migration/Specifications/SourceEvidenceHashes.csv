@@ -23,3 +23,5 @@
 "Assets/_Game/Tests/Cases/CW_Core_06_StageScheduleTimingTests.cs","c1a917a1fd0af011a6d974b5bb32e5b828a7dd1867ef809a2a9c754fe1994bc3","3211","Stage timing characterization"
 "Assets/_Game/Tests/Cases/CW_Core_07_SpawnPointColumnLossTests.cs","bde25787e000b2690b0b4c4936fbdb8c13d7eca2542cc670892e9e97b3c06f2f","4984","Lost controlled column excludes its spawn point"
 "Assets/_Game/Scripts/Systems/SpawnSystem.cs","f7bb790a6b4a4565d341dbf3432a8b1af32c286997c45c7f8ac21c4dafb1ce4f","1603","QFramework spawn lifecycle boundary evidence"
+"Assets/StreamingAssets/CompanyWar/Configs/Levels/L01.json","92dfc23f7a3da223abcfd67015265f2e80eb7b68799a8ba2ea805e5514519ae5","445","Legacy level dimensions, stage list, building placements, and assault target"
+"Assets/_Game/Tests/Cases/CW_Core_08_VictoryByPointsTests.cs","126e6b52ab3347ecd3983bacdadf035c0557ddad75abb26ce4cbef2eaf1c88df","3191","Evidence that building victory supersedes the obsolete point-victory assertion"

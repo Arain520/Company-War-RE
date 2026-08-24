@@ -47,6 +47,7 @@ namespace CompanyWarRE.Application
             HitPoints = actor.HitPoints;
             MaximumHitPoints = actor.MaximumHitPoints;
             IsAlive = actor.IsAlive;
+            IsBuilding = actor.IsBuilding;
         }
 
         public string ActorId { get; }
@@ -57,6 +58,7 @@ namespace CompanyWarRE.Application
         public double HitPoints { get; }
         public double MaximumHitPoints { get; }
         public bool IsAlive { get; }
+        public bool IsBuilding { get; }
     }
 
     public sealed class BattleSliceSnapshot
@@ -74,7 +76,12 @@ namespace CompanyWarRE.Application
             IReadOnlyList<CombatEvent> combatEvents,
             string currentWaveStage,
             int waveIndex,
-            IReadOnlyList<EnemyWaveSpawn> enemySpawns)
+            IReadOnlyList<EnemyWaveSpawn> enemySpawns,
+            BattleState battleState,
+            int assaultScore,
+            int requiredAssaultScore,
+            int enemyBuildingCount,
+            int validSpawnPointCount)
         {
             Columns = columns;
             Rows = rows;
@@ -89,6 +96,11 @@ namespace CompanyWarRE.Application
             CurrentWaveStage = currentWaveStage ?? string.Empty;
             WaveIndex = waveIndex;
             EnemySpawns = enemySpawns ?? throw new ArgumentNullException(nameof(enemySpawns));
+            BattleState = battleState;
+            AssaultScore = assaultScore;
+            RequiredAssaultScore = requiredAssaultScore;
+            EnemyBuildingCount = enemyBuildingCount;
+            ValidSpawnPointCount = validSpawnPointCount;
         }
 
         public int Columns { get; }
@@ -104,6 +116,11 @@ namespace CompanyWarRE.Application
         public string CurrentWaveStage { get; }
         public int WaveIndex { get; }
         public IReadOnlyList<EnemyWaveSpawn> EnemySpawns { get; }
+        public BattleState BattleState { get; }
+        public int AssaultScore { get; }
+        public int RequiredAssaultScore { get; }
+        public int EnemyBuildingCount { get; }
+        public int ValidSpawnPointCount { get; }
     }
 
     public sealed class BattleSliceDeploymentResponse
@@ -136,7 +153,11 @@ namespace CompanyWarRE.Application
             IReadOnlyList<EnemyWaveStage> enemyWaveStages = null,
             IReadOnlyList<CombatantDefinition> enemyCombatants = null,
             IReadOnlyList<int> enemySpawnColumns = null,
-            int enemyWaveRandomSeed = 17)
+            int enemyWaveRandomSeed = 17,
+            IReadOnlyList<EnemyBuildingPlacement> enemyBuildings = null,
+            int requiredAssaultScore = 0,
+            bool victoryByEnemyBuildings = false,
+            bool enableBattleOutcomes = false)
         {
             if (columns <= 0)
             {
@@ -223,6 +244,31 @@ namespace CompanyWarRE.Application
             }
 
             EnemyWaveRandomSeed = enemyWaveRandomSeed;
+            EnemyBuildings = enemyBuildings == null
+                ? Array.Empty<EnemyBuildingPlacement>()
+                : enemyBuildings.ToArray();
+            foreach (var building in EnemyBuildings)
+            {
+                if (building == null ||
+                    building.Position.Column < 1 || building.Position.Column > columns ||
+                    building.Position.Row < 1 || building.Position.Row > rows)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(enemyBuildings));
+                }
+
+                if (!EnemyCombatants.TryGetValue(building.TemplateId, out var buildingDefinition) ||
+                    !buildingDefinition.IsBuilding)
+                {
+                    throw new ArgumentException(
+                        "Enemy building placement references a missing or non-building definition: " +
+                        building.TemplateId,
+                        nameof(enemyBuildings));
+                }
+            }
+
+            RequiredAssaultScore = Math.Max(0, requiredAssaultScore);
+            VictoryByEnemyBuildings = victoryByEnemyBuildings;
+            EnableBattleOutcomes = enableBattleOutcomes;
         }
 
         public int Columns { get; }
@@ -241,6 +287,10 @@ namespace CompanyWarRE.Application
         public IReadOnlyDictionary<string, CombatantDefinition> EnemyCombatants { get; }
         public IReadOnlyList<int> EnemySpawnColumns { get; }
         public int EnemyWaveRandomSeed { get; }
+        public IReadOnlyList<EnemyBuildingPlacement> EnemyBuildings { get; }
+        public int RequiredAssaultScore { get; }
+        public bool VictoryByEnemyBuildings { get; }
+        public bool EnableBattleOutcomes { get; }
     }
 
     public sealed class ConfigureBattleSliceCommand : AbstractCommand
@@ -333,6 +383,7 @@ namespace CompanyWarRE.Application
         private EnemyWaveScheduler _enemyWaves;
         private readonly List<EnemyWaveSpawn> _enemySpawnHistory = new List<EnemyWaveSpawn>();
         private int _enemyActorSequence;
+        private BattleProgression _progression;
         private readonly Dictionary<string, GridPosition> _deploymentPositions =
             new Dictionary<string, GridPosition>(StringComparer.Ordinal);
 
@@ -383,10 +434,36 @@ namespace CompanyWarRE.Application
                 _configuration.EnemySpawnPosition.Row);
             _enemySpawnHistory.Clear();
             _enemyActorSequence = 0;
+            _progression = new BattleProgression(
+                _configuration.RequiredAssaultScore,
+                _configuration.VictoryByEnemyBuildings);
+            for (var index = 0; index < _configuration.EnemyBuildings.Count; index++)
+            {
+                var placement = _configuration.EnemyBuildings[index];
+                var definition = _configuration.EnemyCombatants[placement.TemplateId];
+                var actorId = $"building-{placement.TemplateId}-{index + 1:00}";
+                if (!_combat.TryAddActor(
+                        actorId,
+                        Team.Enemy,
+                        definition,
+                        placement.Position.Column,
+                        placement.Position.Row))
+                {
+                    throw new InvalidOperationException("Enemy building combat registration failed: " + actorId);
+                }
+
+                _progression.RegisterEnemy(actorId, definition.AssaultScoreReward, true);
+                _enemyWaves.RegisterEnemyBuilding(placement.Position);
+            }
         }
 
         public void Advance(double deltaSeconds)
         {
+            if (_progression.State != BattleState.Running)
+            {
+                return;
+            }
+
             _economy.Advance(deltaSeconds);
             foreach (var spawn in _enemyWaves.Advance(deltaSeconds, _grid))
             {
@@ -405,6 +482,7 @@ namespace CompanyWarRE.Application
                         spawn.Position.Row))
                 {
                     _enemySpawnHistory.Add(spawn);
+                    _progression.RegisterEnemy(actorId, definition.AssaultScoreReward, false);
                 }
             }
 
@@ -417,10 +495,17 @@ namespace CompanyWarRE.Application
                     _deploymentPositions.Remove(actor.ActorId);
                 }
             }
+
+            ProcessEnemyDeathsAndOutcome();
         }
 
         public DeploymentResult Deploy(GridPosition position, string actorId)
         {
+            if (_progression.State != BattleState.Running)
+            {
+                return DeploymentResult.Reject(DeploymentFailure.BattleEnded);
+            }
+
             if (_combat.ContainsActor(actorId))
             {
                 return DeploymentResult.Reject(DeploymentFailure.DuplicateActorId);
@@ -484,7 +569,43 @@ namespace CompanyWarRE.Application
                 _combat.Events.ToArray(),
                 _enemyWaves.CurrentStageName,
                 _enemyWaves.WaveIndex,
-                _enemySpawnHistory.ToArray());
+                _enemySpawnHistory.ToArray(),
+                _progression.State,
+                _progression.AssaultScore,
+                _progression.RequiredAssaultScore,
+                _progression.EnemyBuildingCount,
+                _enemyWaves.CountValidSpawnPoints(_grid));
+        }
+
+        private void ProcessEnemyDeathsAndOutcome()
+        {
+            var actors = _combat.CreateSnapshot().ToDictionary(actor => actor.ActorId, StringComparer.Ordinal);
+            foreach (var death in _combat.Events.Where(item => item.Type == CombatEventType.Death))
+            {
+                if (!actors.TryGetValue(death.ActorId, out var actor) || actor.Team != Team.Enemy ||
+                    !_progression.RecordEnemyDeath(actor.ActorId))
+                {
+                    continue;
+                }
+
+                if (actor.IsBuilding)
+                {
+                    _enemyWaves.DestroyEnemyBuilding(new GridPosition(
+                        actor.Column,
+                        (int)Math.Round(actor.LanePosition)));
+                }
+            }
+
+            if (!_configuration.EnableBattleOutcomes)
+            {
+                return;
+            }
+
+            var state = _progression.Evaluate(_grid, _enemyWaves.HasAnyValidSpawnPoint(_grid));
+            if (state != BattleState.Running)
+            {
+                _enemyWaves.Stop();
+            }
         }
 
         private void EnsureConfigured()

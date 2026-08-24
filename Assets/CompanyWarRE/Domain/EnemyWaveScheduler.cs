@@ -96,6 +96,7 @@ namespace CompanyWarRE.Domain
         private int _waveIndex;
         private double _stageElapsedSeconds;
         private double _waveElapsedSeconds;
+        private bool _externallyStopped;
 
         public EnemyWaveScheduler(
             int columns,
@@ -137,7 +138,29 @@ namespace CompanyWarRE.Domain
         public IReadOnlyList<EnemySpawnPoint> SpawnPoints => _spawnPoints;
         public string CurrentStageName => IsStopped ? string.Empty : _stages[_stageIndex].Name;
         public int WaveIndex => _waveIndex;
-        public bool IsStopped => _stageIndex >= _stages.Count;
+        public bool IsStopped => _externallyStopped || _stageIndex >= _stages.Count;
+
+        public int CountValidSpawnPoints(BattleGrid grid)
+        {
+            if (grid == null)
+            {
+                throw new ArgumentNullException(nameof(grid));
+            }
+
+            return _spawnPoints.Count(point =>
+                _enabledColumns.Contains(point.Column) &&
+                HasControlledTerritory(grid, point.Column));
+        }
+
+        public bool HasAnyValidSpawnPoint(BattleGrid grid)
+        {
+            return CountValidSpawnPoints(grid) > 0;
+        }
+
+        public void Stop()
+        {
+            _externallyStopped = true;
+        }
 
         public void RegisterEnemyBuilding(GridPosition position)
         {

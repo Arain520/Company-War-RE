@@ -13,6 +13,7 @@ namespace CompanyWarRE.Presentation
         [SerializeField] private TextAsset legacyEnemiesJson;
         [SerializeField] private TextAsset sliceSettingsJson;
         [SerializeField] private TextAsset legacySpawnSchedulesJson;
+        [SerializeField] private TextAsset legacyLevelJson;
 
         private readonly Dictionary<GridPosition, BattleSliceCellView> _cellViews =
             new Dictionary<GridPosition, BattleSliceCellView>();
@@ -92,13 +93,19 @@ namespace CompanyWarRE.Presentation
                 documents["legacy-spawn-schedules"] = legacySpawnSchedulesJson.text;
             }
 
+            if (legacyLevelJson != null)
+            {
+                documents["legacy-level"] = legacyLevelJson.text;
+            }
+
             var provider = new LegacyBattleSliceConfigurationProvider(
                 new DictionaryConfigurationTextSource(documents));
             var result = provider.Load(
                 "legacy-units",
                 "legacy-enemies",
                 "slice-settings",
-                "legacy-spawn-schedules");
+                "legacy-spawn-schedules",
+                "legacy-level");
             if (!result.Succeeded)
             {
                 _configurationError = string.Join("\n", result.Issues);
@@ -284,7 +291,7 @@ namespace CompanyWarRE.Presentation
                 return;
             }
 
-            GUILayout.BeginArea(new Rect(16f, 16f, 470f, 245f), GUI.skin.box);
+            GUILayout.BeginArea(new Rect(16f, 16f, 540f, 270f), GUI.skin.box);
             GUILayout.Label("Company War-RE | U01 vs E01 combat slice");
             GUILayout.Label($"Resources: {_snapshot.Resources}    Time: {_snapshot.ElapsedSeconds:0.0}s");
             GUILayout.Label(
@@ -316,6 +323,10 @@ namespace CompanyWarRE.Presentation
             GUILayout.Label(
                 $"Wave: {_snapshot.WaveIndex} / {_snapshot.CurrentWaveStage}    " +
                 $"Alive: ally {aliveAllies} / enemy {aliveEnemies}    Spawned: {_snapshot.EnemySpawns.Count}");
+            GUILayout.Label(
+                $"State: {_snapshot.BattleState}    Buildings: {_snapshot.EnemyBuildingCount}    " +
+                $"Assault: {_snapshot.AssaultScore}/{_snapshot.RequiredAssaultScore}    " +
+                $"Spawn columns: {_snapshot.ValidSpawnPointCount}");
             if (_snapshot.CombatEvents.Count > 0)
             {
                 GUILayout.Label(Describe(_snapshot.CombatEvents[_snapshot.CombatEvents.Count - 1]));
@@ -345,6 +356,8 @@ namespace CompanyWarRE.Presentation
                     return "duplicate actor id";
                 case DeploymentFailure.CombatRegistrationRejected:
                     return "combat registration rejected";
+                case DeploymentFailure.BattleEnded:
+                    return "battle ended";
                 default:
                     return failure.ToString();
             }
