@@ -21,6 +21,7 @@ namespace CompanyWarRE.Presentation
         [SerializeField] private bool useFormalLevelConfiguration;
         [SerializeField] private string formalLevelId = "L02";
         [SerializeField] private TextAsset[] formalLevelJsonDocuments;
+        [SerializeField] private BattleSliceVisualCatalog visualCatalog;
 
         private readonly Dictionary<GridPosition, BattleSliceCellView> _cellViews =
             new Dictionary<GridPosition, BattleSliceCellView>();
@@ -50,6 +51,11 @@ namespace CompanyWarRE.Presentation
         private void Awake()
         {
             _architecture = GetArchitecture();
+            if (visualCatalog == null)
+            {
+                visualCatalog = GetComponent<BattleSliceVisualCatalog>();
+            }
+
             if (!TryConfigureSlice())
             {
                 return;
@@ -366,7 +372,7 @@ namespace CompanyWarRE.Presentation
                     var actorObject = new GameObject("Combatant_" + combatant.ActorId);
                     actorObject.transform.SetParent(_combatantRoot, false);
                     view = actorObject.AddComponent<BattleSliceCombatantView>();
-                    view.Initialize(combatant.ActorId);
+                    view.Initialize(combatant.ActorId, visualCatalog);
                     _combatantViews.Add(combatant.ActorId, view);
                 }
 

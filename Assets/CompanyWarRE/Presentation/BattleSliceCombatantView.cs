@@ -26,6 +26,11 @@ namespace CompanyWarRE.Presentation
         private Transform _healthFill;
         private Transform _healthBackground;
         private Transform _abilityIndicator;
+        private Transform _importedBody;
+        private Renderer[] _importedRenderers = Array.Empty<Renderer>();
+        private MaterialPropertyBlock _importedPropertyBlock;
+        private BattleSliceVisualCatalog _visualCatalog;
+        private string _resolvedTemplateId;
         private TextMesh _statusLabel;
         private double _previousHitPoints = double.NaN;
         private float _healPulseRemaining;
@@ -34,9 +39,10 @@ namespace CompanyWarRE.Presentation
 
         public string ActorId { get; private set; }
 
-        public void Initialize(string actorId)
+        public void Initialize(string actorId, BattleSliceVisualCatalog visualCatalog = null)
         {
             ActorId = actorId;
+            _visualCatalog = visualCatalog;
             _bodyMaterial = CreateMaterial(Color.white);
 
             var unitBody = GameObject.CreatePrimitive(PrimitiveType.Capsule);
@@ -115,8 +121,9 @@ namespace CompanyWarRE.Presentation
             }
 
             transform.localPosition = BattleSliceController.GetCombatantWorldPosition(snapshot);
-            _unitBody.gameObject.SetActive(!snapshot.IsBuilding);
-            _buildingBody.gameObject.SetActive(snapshot.IsBuilding);
+            var hasImportedBody = EnsureImportedBody(snapshot.TemplateId);
+            _unitBody.gameObject.SetActive(!hasImportedBody && !snapshot.IsBuilding);
+            _buildingBody.gameObject.SetActive(!hasImportedBody && snapshot.IsBuilding);
 
             var ratio = snapshot.MaximumHitPoints <= 0d
                 ? 0f
@@ -147,11 +154,15 @@ namespace CompanyWarRE.Presentation
 
             _healPulseRemaining = Mathf.Max(0f, _healPulseRemaining - Time.unscaledDeltaTime);
             _damagePulseRemaining = Mathf.Max(0f, _damagePulseRemaining - Time.unscaledDeltaTime);
-            _bodyMaterial.color = _healPulseRemaining > 0f
+            var feedbackColor = _healPulseRemaining > 0f
                 ? HealColor
                 : _damagePulseRemaining > 0f
                     ? (_curseDamage ? CurseColor : DamageColor)
                     : baseColor;
+            _bodyMaterial.color = feedbackColor;
+            RenderImportedFeedback(
+                _healPulseRemaining > 0f || _damagePulseRemaining > 0f,
+                feedbackColor);
 
             RenderAbilityIndicator(snapshot);
             RenderStatusLabel(snapshot);
@@ -223,6 +234,87 @@ namespace CompanyWarRE.Presentation
             return string.Equals(templateId, "E15", StringComparison.OrdinalIgnoreCase)
                 ? ExecutionColor
                 : EnemyBuildingColor;
+        }
+
+        private bool EnsureImportedBody(string templateId)
+        {
+            if (_importedBody != null && string.Equals(
+                    _resolvedTemplateId,
+                    templateId,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (_visualCatalog == null || !_visualCatalog.TryResolve(templateId, out var resolved))
+            {
+                return false;
+            }
+
+            if (_importedBody != null)
+            {
+                Destroy(_importedBody.gameObject);
+            }
+
+            var instance = Instantiate(resolved.Prefab, transform, false);
+            instance.name = "ImportedVisual_" + templateId;
+            instance.transform.localPosition = resolved.LocalPosition;
+            instance.transform.localRotation = resolved.LocalRotation;
+            instance.transform.localScale = resolved.LocalScale;
+            foreach (var collider in instance.GetComponentsInChildren<Collider>(true))
+            {
+                collider.enabled = false;
+            }
+            foreach (var camera in instance.GetComponentsInChildren<Camera>(true))
+            {
+                camera.enabled = false;
+            }
+            foreach (var light in instance.GetComponentsInChildren<Light>(true))
+            {
+                light.enabled = false;
+            }
+
+            _importedBody = instance.transform;
+            _importedRenderers = instance.GetComponentsInChildren<Renderer>(true);
+            if (resolved.MaterialOverride != null)
+            {
+                foreach (var renderer in _importedRenderers)
+                {
+                    var materials = renderer.sharedMaterials;
+                    for (var index = 0; index < materials.Length; index++)
+                    {
+                        materials[index] = resolved.MaterialOverride;
+                    }
+                    renderer.sharedMaterials = materials;
+                }
+            }
+
+            _resolvedTemplateId = templateId;
+            return true;
+        }
+
+        private void RenderImportedFeedback(bool active, Color color)
+        {
+            if (_importedRenderers.Length == 0)
+            {
+                return;
+            }
+
+            if (_importedPropertyBlock == null)
+            {
+                _importedPropertyBlock = new MaterialPropertyBlock();
+            }
+            _importedPropertyBlock.Clear();
+            if (active)
+            {
+                _importedPropertyBlock.SetColor("_BaseColor", color);
+                _importedPropertyBlock.SetColor("_Color", color);
+            }
+
+            foreach (var renderer in _importedRenderers)
+            {
+                renderer.SetPropertyBlock(_importedPropertyBlock);
+            }
         }
 
         private static void DisableCollider(GameObject target)

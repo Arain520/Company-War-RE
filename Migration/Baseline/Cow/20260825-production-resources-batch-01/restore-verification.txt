@@ -1,0 +1,7 @@
+Cow selected resource snapshot verification: PASS
+SnapshotId: 20260825-production-resources-batch-01
+SourceRoot: D:\UNITY2\Cow
+SourceWasReadOnlyByPolicy: true
+FileCount: 26
+ArchiveRestoreVerified: true
+ArchiveSHA256: d34b617c590f77ca045740f16abd2e45032dbb6ec374962fecbfee3d6cb036d7
