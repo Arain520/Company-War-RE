@@ -43,9 +43,9 @@ All evidence is read from Cow and pinned in `SourceEvidenceHashes.csv`.
 - ranged cross-block targeting/projectiles and non-moving combatants beyond the
   already characterized same-column compatibility path;
 - stealth and visibility rules;
-- remaining E15 building ability, support effects, healing, conversion,
-  execution, knockback, buffs, and other unit-specific mechanics; building
-  occupation plus E13/E14 abilities are covered by `BattleLoop-v0.1.md` and
+- support effects, healing, conversion, knockback, buffs, and other unit-specific
+  mechanics; building occupation plus E13-E15 abilities are covered by
+  `BattleLoop-v0.1.md` and
   `EnemyBuildings-v0.1.md`;
 - final VFX/animation/audio for battlefield start, attack, death, and pollution;
 - save data. Enemy waves are covered by `EnemyWaves-v0.1.md`; base score and

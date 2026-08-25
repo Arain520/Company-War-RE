@@ -1,6 +1,6 @@
 # Enemy building behavior v0.1
 
-Status: E06/E07/E12 baseline plus E13/E14 abilities implemented; E15 special slice deferred
+Status: E06/E07/E12 baseline plus E13-E15 abilities implemented in Domain/Application
 
 ## Evidence
 
@@ -21,7 +21,7 @@ in `SourceEvidenceHashes.csv`.
 | E12 虚伪皮层 | HP 15, attack 0, speed 0, raw interval 0, raw range 0, reward 2 | Static nine-cell building with no ID-specific branch. | Configuration and Domain characterization implemented; executable scene coverage is deferred. |
 | E13 恶魔 | HP 18, attack 1, speed 0, interval 0.5 s, range 3 blocks, reward 5 | Performs normal attacks and applies a persistent curse before movement and attack phases. | Persistent curse implemented in Domain and verified through Application; dedicated VFX is deferred. |
 | E14 巨兽 | HP 20, attack 1, speed 0, interval 1 s, range 1 block, reward 5 | Performs normal attacks and heals 1 HP for every target it kills. | Kill healing implemented in Domain and verified through Application; dedicated VFX is deferred. |
-| E15 咒灭术师 | HP 15, attack 0, speed 0, interval 12 s, range 99 blocks, reward 5 | Uses an ID-specific execution cast rather than the zero-attack generic path. | Deferred. |
+| E15 咒灭术师 | HP 15, attack 0, speed 0, interval 12 s, range 99 blocks, reward 5 | Uses an ID-specific execution cast rather than the zero-attack generic path. | Execution implemented in Domain and verified through Application; dedicated VFX is deferred. |
 
 ## E13 persistent curse contract
 
@@ -49,8 +49,10 @@ in `SourceEvidenceHashes.csv`.
 
 ## E15 execution contract
 
-- Attack progress accumulates continuously. Every completed 12-second interval
-  produces one cast; a large tick may produce multiple casts and retains remainder.
+- E15 starts with attack progress `12 - 15 = -3`, producing a 15-second initial
+  delay. After the first cast, every completed 12-second interval produces one cast;
+  a large tick may produce multiple casts and retains remainder.
+- Every completed interval is consumed even when no eligible target remains.
 - Eligible targets are living opponents that are not buildings. When E15 is an
   enemy, U30/U31 stealth actors are also excluded.
 - Range uses Manhattan control-block distance.
@@ -58,6 +60,9 @@ in `SourceEvidenceHashes.csv`.
   small-cell Manhattan distance. Stable actor order resolves any remaining tie.
 - The cast records an attack event for the target's current HP and immediately sets
   that target to zero HP.
+- Execution happens while attacks are collected, before ordinary pending damage is
+  applied. An ally processed earlier keeps its already-registered attack even when
+  E15 executes it in the same cycle.
 
 ## Cross-cutting building rules
 
@@ -80,19 +85,25 @@ in `SourceEvidenceHashes.csv`.
 - `CombatSimulationBehaviorTests.E14KillHeal_RequiresE14ToLandTheKillingDamage`
 - `CombatSimulationBehaviorTests.E14PendingKillHeal_CanReviveItBeforeDeathReporting`
 - `BattleSliceApplicationTests.E14KillHeal_FlowsThroughApplicationSnapshot`
+- `CombatSimulationBehaviorTests.E15Execution_WaitsForFifteenSecondInitialDelayAndRetainsRemainder`
+- `CombatSimulationBehaviorTests.E15Execution_ExcludesBuildingsAndEnemyVisibleStealthActors`
+- `CombatSimulationBehaviorTests.E15Execution_UsesHpThenControlBlockThenSmallCellDistance`
+- `CombatSimulationBehaviorTests.E15Execution_LargeTickCastsMultipleTimesAndConsumesEmptyCycles`
+- `CombatSimulationBehaviorTests.E15Execution_KeepsPreviouslyRegisteredAllyAttackPending`
+- `BattleSliceApplicationTests.E15Execution_FlowsThroughApplicationSnapshot`
 
 ## Next implementation order
 
-1. Add E15 execution tests for target exclusions, deterministic priority, large
-   ticks, and interval remainder.
-2. Add Presentation feedback for persistent curse, healing, and execution only
-   after the Domain contracts are stable.
+1. Add Presentation feedback for persistent curse, healing, and execution using
+   the stable Domain events and Application attack-progress snapshot.
+2. Compose E12-E15 into the executable scene without changing their locked Domain
+   behavior.
 
 ## Risks and open evidence gaps
 
 - Cow has no dedicated test case for E13-E15; these contracts are observed directly
-  from the pinned `BattleEngine.cs`. Target characterization tests now lock E13
-  and E14; E15 still requires equivalent tests before scene integration.
+  from the pinned `BattleEngine.cs`. Target characterization tests now lock all
+  three abilities before scene integration.
 - Special behavior is selected by hard-coded template IDs rather than a data-driven
   ability field. The compatibility layer must preserve IDs exactly.
 - Cow clamps raw zero range/interval when creating runtime actors. E06/E07/E12 stay

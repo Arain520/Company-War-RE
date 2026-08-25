@@ -447,6 +447,187 @@ namespace CompanyWarRE.Domain.Tests
                 Is.False);
         }
 
+        [Test]
+        public void E15Execution_WaitsForFifteenSecondInitialDelayAndRetainsRemainder()
+        {
+            var simulation = new CombatSimulation(9, 9);
+            var e15 = new CombatantDefinition("E15", "Building", 15, 0d, 0d, 12d, 99, 5);
+            var target = new CombatantDefinition("U-Target", "Support", 3, 0d, 0d, 1d, 1);
+            simulation.TryAddActor("e15", Team.Enemy, e15, 2, 9d);
+            simulation.TryAddActor("target", Team.Ally, target, 5, 6d);
+
+            simulation.Advance(14.9d);
+
+            var waiting = simulation.CreateSnapshot();
+            Assert.That(waiting.Single(actor => actor.ActorId == "target").IsAlive, Is.True);
+            Assert.That(
+                waiting.Single(actor => actor.ActorId == "e15").AttackProgress,
+                Is.EqualTo(11.9d).Within(0.0001d));
+
+            simulation.Advance(0.2d);
+
+            var completed = simulation.CreateSnapshot();
+            Assert.That(completed.Single(actor => actor.ActorId == "target").IsAlive, Is.False);
+            Assert.That(
+                completed.Single(actor => actor.ActorId == "e15").AttackProgress,
+                Is.EqualTo(0.1d).Within(0.0001d));
+            var execution = simulation.Events.Single(item =>
+                item.Type == CombatEventType.Attack && item.ActorId == "e15");
+            Assert.That(execution.TargetActorId, Is.EqualTo("target"));
+            Assert.That(execution.Amount, Is.EqualTo(3d));
+        }
+
+        [Test]
+        public void E15Execution_ExcludesBuildingsAndEnemyVisibleStealthActors()
+        {
+            var simulation = new CombatSimulation(15, 12);
+            var e15 = new CombatantDefinition("E15", "Building", 15, 0d, 0d, 12d, 99, 5);
+            var excludedBuilding = new CombatantDefinition("U08", "Building", 1, 0d, 0d, 1d, 1);
+            var stealthU30 = new CombatantDefinition("U30", "Support", 1, 0d, 0d, 1d, 1);
+            var stealthU31 = new CombatantDefinition("U31", "Support", 1, 0d, 0d, 1d, 1);
+            var eligible = new CombatantDefinition("U01", "Support", 2, 0d, 0d, 1d, 1);
+            simulation.TryAddActor("e15", Team.Enemy, e15, 2, 11d);
+            simulation.TryAddActor("building", Team.Ally, excludedBuilding, 5, 8d);
+            simulation.TryAddActor("u30", Team.Ally, stealthU30, 8, 8d);
+            simulation.TryAddActor("u31", Team.Ally, stealthU31, 11, 8d);
+            simulation.TryAddActor("eligible", Team.Ally, eligible, 14, 8d);
+
+            simulation.Advance(15d);
+
+            var snapshot = simulation.CreateSnapshot();
+            Assert.That(snapshot.Single(actor => actor.ActorId == "building").IsAlive, Is.True);
+            Assert.That(snapshot.Single(actor => actor.ActorId == "u30").IsAlive, Is.True);
+            Assert.That(snapshot.Single(actor => actor.ActorId == "u31").IsAlive, Is.True);
+            Assert.That(snapshot.Single(actor => actor.ActorId == "eligible").IsAlive, Is.False);
+            Assert.That(
+                simulation.Events.Single(item =>
+                    item.Type == CombatEventType.Attack && item.ActorId == "e15").TargetActorId,
+                Is.EqualTo("eligible"));
+        }
+
+        [Test]
+        public void E15Execution_UsesHpThenControlBlockThenSmallCellDistance()
+        {
+            var e15 = new CombatantDefinition("E15", "Building", 15, 0d, 0d, 12d, 99, 5);
+
+            var hpPriority = new CombatSimulation(15, 12);
+            hpPriority.TryAddActor("e15", Team.Enemy, e15, 2, 11d);
+            hpPriority.TryAddActor(
+                "low-hp-far",
+                Team.Ally,
+                new CombatantDefinition("U-Low", "Support", 1, 0d, 0d, 1d, 1),
+                14,
+                2d);
+            hpPriority.TryAddActor(
+                "high-hp-near",
+                Team.Ally,
+                new CombatantDefinition("U-High", "Support", 2, 0d, 0d, 1d, 1),
+                2,
+                8d);
+            hpPriority.Advance(15d);
+            Assert.That(
+                hpPriority.Events.Single(item => item.Type == CombatEventType.Attack).TargetActorId,
+                Is.EqualTo("low-hp-far"));
+
+            var blockPriority = new CombatSimulation(15, 12);
+            blockPriority.TryAddActor("e15", Team.Enemy, e15, 2, 11d);
+            blockPriority.TryAddActor(
+                "far-block",
+                Team.Ally,
+                new CombatantDefinition("U-Far", "Support", 1, 0d, 0d, 1d, 1),
+                14,
+                2d);
+            blockPriority.TryAddActor(
+                "near-block",
+                Team.Ally,
+                new CombatantDefinition("U-Near", "Support", 1, 0d, 0d, 1d, 1),
+                2,
+                8d);
+            blockPriority.Advance(15d);
+            Assert.That(
+                blockPriority.Events.Single(item => item.Type == CombatEventType.Attack).TargetActorId,
+                Is.EqualTo("near-block"));
+
+            var cellPriority = new CombatSimulation(15, 12);
+            cellPriority.TryAddActor("e15", Team.Enemy, e15, 2, 11d);
+            cellPriority.TryAddActor(
+                "far-cell",
+                Team.Ally,
+                new CombatantDefinition("U-FarCell", "Support", 1, 0d, 0d, 1d, 1),
+                6,
+                7d);
+            cellPriority.TryAddActor(
+                "near-cell",
+                Team.Ally,
+                new CombatantDefinition("U-NearCell", "Support", 1, 0d, 0d, 1d, 1),
+                4,
+                9d);
+            cellPriority.Advance(15d);
+            Assert.That(
+                cellPriority.Events.Single(item => item.Type == CombatEventType.Attack).TargetActorId,
+                Is.EqualTo("near-cell"));
+        }
+
+        [Test]
+        public void E15Execution_LargeTickCastsMultipleTimesAndConsumesEmptyCycles()
+        {
+            var simulation = new CombatSimulation(15, 12);
+            var e15 = new CombatantDefinition("E15", "Building", 15, 0d, 0d, 12d, 99, 5);
+            var target = new CombatantDefinition("U-Target", "Support", 1, 0d, 0d, 1d, 1);
+            simulation.TryAddActor("e15", Team.Enemy, e15, 2, 11d);
+            simulation.TryAddActor("first", Team.Ally, target, 5, 8d);
+            simulation.TryAddActor("second", Team.Ally, target, 8, 8d);
+
+            simulation.Advance(28d);
+
+            Assert.That(
+                simulation.Events.Count(item => item.Type == CombatEventType.Attack && item.ActorId == "e15"),
+                Is.EqualTo(2));
+            Assert.That(
+                simulation.CreateSnapshot().Single(actor => actor.ActorId == "e15").AttackProgress,
+                Is.EqualTo(1d).Within(0.0001d));
+
+            simulation.Advance(24d);
+            Assert.That(
+                simulation.CreateSnapshot().Single(actor => actor.ActorId == "e15").AttackProgress,
+                Is.EqualTo(1d).Within(0.0001d));
+            simulation.TryAddActor("late", Team.Ally, target, 11, 8d);
+            simulation.Advance(10.9d);
+            Assert.That(
+                simulation.CreateSnapshot().Single(actor => actor.ActorId == "late").IsAlive,
+                Is.True);
+            simulation.Advance(0.1d);
+            Assert.That(
+                simulation.CreateSnapshot().Single(actor => actor.ActorId == "late").IsAlive,
+                Is.False);
+        }
+
+        [Test]
+        public void E15Execution_KeepsPreviouslyRegisteredAllyAttackPending()
+        {
+            var simulation = new CombatSimulation(9, 9);
+            var ally = new CombatantDefinition("U-Duelist", "Support", 1, 15d, 0d, 12d, 1);
+            var e15 = new CombatantDefinition("E15", "Building", 15, 0d, 0d, 12d, 99, 5);
+            simulation.TryAddActor("ally", Team.Ally, ally, 2, 8.5d);
+            simulation.TryAddActor("e15", Team.Enemy, e15, 2, 9d);
+
+            simulation.Advance(15d);
+
+            Assert.That(simulation.CreateSnapshot().All(actor => !actor.IsAlive), Is.True);
+            Assert.That(
+                simulation.Events.Any(item =>
+                    item.Type == CombatEventType.Attack &&
+                    item.ActorId == "ally" &&
+                    item.TargetActorId == "e15"),
+                Is.True);
+            Assert.That(
+                simulation.Events.Any(item =>
+                    item.Type == CombatEventType.Attack &&
+                    item.ActorId == "e15" &&
+                    item.TargetActorId == "ally"),
+                Is.True);
+        }
+
         private static CombatSimulation CreateDuel(double allyLane, double enemyLane)
         {
             var simulation = new CombatSimulation(9, 9);

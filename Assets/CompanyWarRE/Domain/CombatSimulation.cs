@@ -45,6 +45,8 @@ namespace CompanyWarRE.Domain
             string.Equals(Id, "E13", StringComparison.OrdinalIgnoreCase);
         public bool HasKillHeal =>
             string.Equals(Id, "E14", StringComparison.OrdinalIgnoreCase);
+        public bool HasExecutionCast =>
+            string.Equals(Id, "E15", StringComparison.OrdinalIgnoreCase);
         public int FootprintColumns => IsBuilding ? BattleGrid.ControlBlockSize : 1;
         public int FootprintRows => IsBuilding ? BattleGrid.ControlBlockSize : 1;
         public bool IsMovingMelee =>
@@ -155,6 +157,8 @@ namespace CompanyWarRE.Domain
 
     internal sealed class CombatActor
     {
+        private const double ExecutionCasterInitialDelaySeconds = 15d;
+
         public CombatActor(
             string actorId,
             Team team,
@@ -168,6 +172,10 @@ namespace CompanyWarRE.Domain
             Column = column;
             LanePosition = lanePosition;
             HitPoints = definition.Durability;
+            if (definition.HasExecutionCast)
+            {
+                AttackProgress = definition.AttackIntervalSeconds - ExecutionCasterInitialDelaySeconds;
+            }
         }
 
         public string ActorId { get; }
@@ -607,13 +615,21 @@ namespace CompanyWarRE.Domain
         {
             var pendingAttacks = new List<PendingAttack>();
             foreach (var actor in _actors
-                         .Where(candidate => candidate.IsAlive && candidate.Definition.Attack > 0d)
+                         .Where(candidate =>
+                             candidate.IsAlive &&
+                             (candidate.Definition.Attack > 0d || candidate.Definition.HasExecutionCast))
                          .OrderBy(candidate => candidate.Team == Team.Enemy ? 1 : 0)
                          .ThenBy(candidate => candidate.Team == Team.Ally
                              ? -candidate.LanePosition
                              : candidate.LanePosition)
                          .ThenBy(candidate => candidate.Column))
             {
+                if (actor.Definition.HasExecutionCast)
+                {
+                    ResolveExecutionCasts(actor, deltaSeconds);
+                    continue;
+                }
+
                 var target = FindAttackTarget(actor);
                 if (target == null)
                 {
@@ -661,6 +677,56 @@ namespace CompanyWarRE.Domain
                     pending.Attacker.HitPoints += 1d;
                 }
             }
+        }
+
+        private void ResolveExecutionCasts(CombatActor caster, double deltaSeconds)
+        {
+            caster.AttackProgress += deltaSeconds;
+            var interval = Math.Max(0.1d, caster.Definition.AttackIntervalSeconds);
+            var castCount = (int)Math.Floor(caster.AttackProgress / interval);
+            if (castCount <= 0)
+            {
+                return;
+            }
+
+            for (var index = 0; index < castCount; index++)
+            {
+                var target = _actors
+                    .Where(candidate =>
+                        candidate.IsAlive &&
+                        candidate.Team != caster.Team &&
+                        !candidate.Definition.IsBuilding &&
+                        !(caster.Team == Team.Enemy && IsStealthActor(candidate)) &&
+                        ControlBlockDistance(caster, candidate) <= Math.Max(1, caster.Definition.Range))
+                    .OrderBy(candidate => candidate.HitPoints)
+                    .ThenBy(candidate => ControlBlockDistance(caster, candidate))
+                    .ThenBy(candidate =>
+                        Math.Abs(candidate.Column - caster.Column) +
+                        Math.Abs(candidate.LanePosition - caster.LanePosition))
+                    .FirstOrDefault();
+                if (target == null)
+                {
+                    break;
+                }
+
+                var executedHitPoints = target.HitPoints;
+                _events.Add(new CombatEvent(
+                    _nextEventSequence++,
+                    CombatEventType.Attack,
+                    caster.ActorId,
+                    target.ActorId,
+                    executedHitPoints));
+                target.HitPoints = 0d;
+            }
+
+            caster.AttackProgress = Math.Max(0d, caster.AttackProgress - castCount * interval);
+        }
+
+        private static bool IsStealthActor(CombatActor actor)
+        {
+            return actor != null &&
+                   (string.Equals(actor.Definition.Id, "U30", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(actor.Definition.Id, "U31", StringComparison.OrdinalIgnoreCase));
         }
 
         private void ResolveEnemyTerritoryBreaches(BattleGrid grid)

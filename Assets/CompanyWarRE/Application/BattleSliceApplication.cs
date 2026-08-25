@@ -53,6 +53,7 @@ namespace CompanyWarRE.Application
             LanePosition = actor.LanePosition;
             HitPoints = actor.HitPoints;
             MaximumHitPoints = actor.MaximumHitPoints;
+            AttackProgress = actor.AttackProgress;
             IsAlive = actor.IsAlive;
             IsBuilding = actor.IsBuilding;
             FootprintColumns = actor.FootprintColumns;
@@ -70,6 +71,7 @@ namespace CompanyWarRE.Application
         public double LanePosition { get; }
         public double HitPoints { get; }
         public double MaximumHitPoints { get; }
+        public double AttackProgress { get; }
         public bool IsAlive { get; }
         public bool IsBuilding { get; }
         public int FootprintColumns { get; }

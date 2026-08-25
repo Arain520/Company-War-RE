@@ -216,6 +216,32 @@ namespace CompanyWarRE.Application.Tests
             Assert.That(e14.MaximumHitPoints, Is.EqualTo(20d));
         }
 
+        [Test]
+        public void E15Execution_FlowsThroughApplicationSnapshot()
+        {
+            _architecture.SendCommand(new ConfigureBattleSliceCommand(CreateExecutionBuildingConfiguration()));
+            var deployment = _architecture.SendCommand(new DeployBattleSliceUnitCommand(
+                new GridPosition(5, 6),
+                "execution-target"));
+            Assert.That(deployment.Succeeded, Is.True);
+
+            _architecture.SendCommand(new AdvanceBattleSliceTimeCommand(14.9d));
+            var waiting = _architecture.SendQuery(new GetBattleSliceSnapshotQuery());
+            Assert.That(waiting.Combatants.Single(item => item.ActorId == "execution-target").IsAlive, Is.True);
+            Assert.That(
+                waiting.Combatants.Single(item => item.TemplateId == "E15").AttackProgress,
+                Is.EqualTo(11.9d).Within(0.0001d));
+
+            _architecture.SendCommand(new AdvanceBattleSliceTimeCommand(0.1d));
+            var completed = _architecture.SendQuery(new GetBattleSliceSnapshotQuery());
+
+            Assert.That(completed.Combatants.Single(item => item.ActorId == "execution-target").IsAlive, Is.False);
+            var execution = completed.CombatEvents.Single(item =>
+                item.Type == CombatEventType.Attack && item.ActorId.StartsWith("building-E15-"));
+            Assert.That(execution.TargetActorId, Is.EqualTo("execution-target"));
+            Assert.That(execution.Amount, Is.EqualTo(1d));
+        }
+
         private static BattleSliceConfiguration CreateConfiguration()
         {
             return new BattleSliceConfiguration(
@@ -359,6 +385,40 @@ namespace CompanyWarRE.Application.Tests
                 new[] { 3 },
                 17,
                 new[] { new EnemyBuildingPlacement("E14", new GridPosition(2, 9)) },
+                5,
+                true,
+                true);
+        }
+
+        private static BattleSliceConfiguration CreateExecutionBuildingConfiguration()
+        {
+            var e15 = new CombatantDefinition("E15", "Building", 15, 0d, 0d, 12d, 99, 5);
+            return new BattleSliceConfiguration(
+                9,
+                9,
+                6,
+                10,
+                5d,
+                3d,
+                new GridPosition(2, 2),
+                1,
+                new UnitDefinition("U01", 1, 3d),
+                new CombatantDefinition("U01", "Support", 1, 0d, 0d, 1d, 1),
+                new CombatantDefinition("E01", "Staff", 1, 1d, 1d, 1d, 1, 1),
+                new GridPosition(3, 9),
+                new[]
+                {
+                    new EnemyWaveStage(
+                        "DeferredWave",
+                        200d,
+                        100d,
+                        1,
+                        new[] { new EnemySpawnWeight("E01", 1) })
+                },
+                new[] { e15 },
+                new[] { 3 },
+                17,
+                new[] { new EnemyBuildingPlacement("E15", new GridPosition(2, 9)) },
                 5,
                 true,
                 true);
