@@ -1,0 +1,41 @@
+{
+  "SchemaVersion": 1,
+  "Id": "L03",
+  "CoordinateSpace": "MacroControlBlock3x3",
+  "Columns": 8,
+  "Rows": 12,
+  "InitialControlledRows": 2,
+  "InitialResources": 10,
+  "FixedProductionIntervalSeconds": 5.0,
+  "TransmitterProductionIntervalSeconds": 3.0,
+  "TestUnitId": "U01",
+  "TestEnemyId": "E01",
+  "EnemyWaveRandomSeed": 20,
+  "Stages": ["Stage1", "Stage2", "Stage3", "Finale"],
+  "Objective": {
+    "Mode": "DestroyEnemyBuildings",
+    "RequiredAssaultScore": 14,
+    "VictoryByEnemyBuildings": true
+  },
+  "EnemyBuildings": [
+    { "Type": "E06", "Col": 1, "Row": 10 },
+    { "Type": "E06", "Col": 2, "Row": 10 },
+    { "Type": "E06", "Col": 3, "Row": 10 },
+    { "Type": "E06", "Col": 6, "Row": 8 },
+    { "Type": "E06", "Col": 6, "Row": 10 },
+    { "Type": "E06", "Col": 7, "Row": 9 },
+    { "Type": "E07", "Col": 4, "Row": 11 },
+    { "Type": "E07", "Col": 5, "Row": 11 },
+    { "Type": "E07", "Col": 6, "Row": 11 },
+    { "Type": "E07", "Col": 8, "Row": 10 }
+  ],
+  "Environment": {
+    "EnvironmentId": "Cow.DefaultIndustrial",
+    "DecorRing": 5,
+    "OuterGroundSize": 0.0,
+    "SkylineDistance": 0.0,
+    "SkylineDensity": 0.65,
+    "Seed": 1001,
+    "SceneProps": []
+  }
+}

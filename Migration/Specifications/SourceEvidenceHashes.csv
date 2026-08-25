@@ -30,3 +30,8 @@
 "Assets/_Game/Scripts/Prototype3D/BattleCameraController.cs","31e8ff37b31dc0681672cd42228f3ea36c4256a6997bbd529bc34561a11dcee1","6795","Pivot orbit input, pitch clamp, UI exclusion, zoom, and smoothing"
 "Assets/_Game/Scripts/Logic/Core/Domain/DeployUnitCommand.cs","baf675721c7aceafb6b63e8eebe7b60f5555413c78f740139c74c6e65e3c6361","9901","Support effects, deployment echoes, terrain build, and special-building registration"
 "Assets/_Game/Scripts/Commands/DeployUnitCommand.cs","91e00b714fd4f5de6975a88e1069312a16cde12e2348387c808140d28b1cdac3","1647","Cow application command boundary for deployment"
+"Assets/StreamingAssets/CompanyWar/Configs/Levels/L02.json","8e21c91c3302ac54409e8fc0a44510456c3f250c47adcdacc06bec2b62231b90","548","L02 dimensions, stage sequence, buildings, and objective"
+"Assets/StreamingAssets/CompanyWar/Configs/Levels/L03.json","b0740ded5545745c73ddbd57717bb41b5d418d6dea2c70c4d77eb726f6391236","640","L03 dimensions, stage sequence, buildings, and objective"
+"Assets/StreamingAssets/CompanyWar/Configs/Levels/L04.json","b625f47a8705c8ecadcc55f56d186e604b628e0ea09183ed7647c3cb6dc9daeb","741","L04 dimensions, stage sequence, buildings, and objective"
+"Assets/StreamingAssets/CompanyWar/Configs/Levels/L05.json","665e00eeabd3adadb7e02b9c1f6bb4b3cebbc93713230aa279b7196cdabbc6a2","882","L05 dimensions, stage sequence, buildings, and objective"
+"Assets/_Game/Scripts/Prototype3D/CompanyWarEnvironmentRingRenderer.cs","518d55928ab21383f7c49087523ae7cb365870676c57195f0888b1989921b6cb","44782","Default formal-level environment values and auto-sizing behavior"
