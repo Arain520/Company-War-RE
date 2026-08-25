@@ -306,6 +306,7 @@ namespace CompanyWarRE.Presentation
                 return;
             }
 
+            var intendedAnchor = _importedBody.localPosition;
             var scale = CalculateFootprintScale(bounds.size, isBuilding);
             _importedBody.localScale *= scale;
 
@@ -314,12 +315,12 @@ namespace CompanyWarRE.Presentation
                 return;
             }
 
-            var bottomInViewSpace = transform.InverseTransformPoint(new Vector3(
+            var boundsAnchorInViewSpace = transform.InverseTransformPoint(new Vector3(
                 bounds.center.x,
                 bounds.min.y,
                 bounds.center.z));
             var position = _importedBody.localPosition;
-            position.y -= bottomInViewSpace.y;
+            position += intendedAnchor - boundsAnchorInViewSpace;
             _importedBody.localPosition = position;
         }
 

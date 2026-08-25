@@ -244,6 +244,14 @@ namespace CompanyWarRE.Migration.Tests
                     bounds.min.y - host.transform.position.y,
                     Is.EqualTo(0f).Within(0.01f),
                     prefabPath + " should rest on the battlefield plane.");
+                Assert.That(
+                    bounds.center.x - host.transform.position.x,
+                    Is.EqualTo(0f).Within(0.01f),
+                    prefabPath + " should be centered on the cell X coordinate.");
+                Assert.That(
+                    bounds.center.z - host.transform.position.z,
+                    Is.EqualTo(0f).Within(0.01f),
+                    prefabPath + " should be centered on the cell Z coordinate.");
             }
             finally
             {
