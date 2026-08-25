@@ -1,9 +1,11 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using CompanyWarRE.Application;
 using CompanyWarRE.Domain;
 using CompanyWarRE.Infrastructure.Configuration;
 using NUnit.Framework;
+using QFramework;
 
 namespace CompanyWarRE.Infrastructure.Tests
 {
@@ -19,6 +21,10 @@ namespace CompanyWarRE.Infrastructure.Tests
             "Assets/CompanyWarRE/ConfigSamples/Compatibility/LegacySpawnSchedules.json";
         private const string LevelPath =
             "Assets/CompanyWarRE/ConfigSamples/Compatibility/LegacyLevel.BattleSlice.json";
+        private const string CowL01SettingsPath =
+            "Assets/CompanyWarRE/ConfigSamples/Compatibility/BattleSliceRuntime.L01.json";
+        private const string CowL01LevelPath =
+            "Assets/CompanyWarRE/ConfigSamples/Compatibility/LegacyLevel.L01.json";
 
         [Test]
         public void CompatibilitySamples_MapLegacyU01AndObservedRuntimeDefaults()
@@ -51,7 +57,10 @@ namespace CompanyWarRE.Infrastructure.Tests
             Assert.That(result.Configuration.EnemyCombatant.Durability, Is.EqualTo(1));
             Assert.That(result.Configuration.EnemyCombatant.AssaultScoreReward, Is.EqualTo(1));
             Assert.That(result.Configuration.EnemySpawnPosition, Is.EqualTo(new GridPosition(3, 9)));
-            Assert.That(result.Configuration.EnemyWaveStages.Count, Is.EqualTo(5));
+            Assert.That(result.Configuration.EnemyWaveStages.Count, Is.EqualTo(3));
+            Assert.That(
+                result.Configuration.EnemyWaveStages.Select(item => item.Name),
+                Is.EqualTo(new[] { "Stage1", "Stage2", "Finale" }));
             Assert.That(result.Configuration.EnemyWaveStages[0].WaveIntervalSeconds, Is.EqualTo(10d));
             Assert.That(result.Configuration.EnemyWaveStages[1].EnemiesPerWave, Is.EqualTo(2));
             Assert.That(result.Configuration.EnemyCombatants.Keys, Does.Contain("E05"));
@@ -85,6 +94,76 @@ namespace CompanyWarRE.Infrastructure.Tests
                 Is.EqualTo(new[] { 2, 8, 14 }));
             Assert.That(result.Configuration.RequiredAssaultScore, Is.EqualTo(8));
             Assert.That(result.Configuration.VictoryByEnemyBuildings, Is.True);
+        }
+
+        [Test]
+        public void CowL01_ExpandsMacroCoordinatesAndSelectsConfiguredStages()
+        {
+            var result = CreateProvider(
+                    File.ReadAllText(UnitsPath),
+                    File.ReadAllText(CowL01SettingsPath),
+                    File.ReadAllText(EnemiesPath),
+                    File.ReadAllText(SpawnSchedulesPath),
+                    File.ReadAllText(CowL01LevelPath))
+                .Load("units", "enemies", "settings", "schedules", "level");
+
+            Assert.That(result.Succeeded, Is.True, JoinIssues(result));
+            Assert.That(result.Configuration.Columns, Is.EqualTo(18));
+            Assert.That(result.Configuration.Rows, Is.EqualTo(30));
+            Assert.That(result.Configuration.ControlledRows, Is.EqualTo(6));
+            Assert.That(result.Configuration.RequiredAssaultScore, Is.EqualTo(8));
+            Assert.That(
+                result.Configuration.EnemyWaveStages.Select(item => item.Name),
+                Is.EqualTo(new[] { "Stage1", "Stage2", "Finale" }));
+            Assert.That(
+                result.Configuration.EnemyBuildings.Select(item => item.TemplateId),
+                Is.EqualTo(new[] { "E06", "E06", "E06", "E06", "E07", "E07" }));
+            Assert.That(
+                result.Configuration.EnemyBuildings.Select(item => item.Position.Column),
+                Is.EqualTo(new[] { 2, 5, 14, 17, 8, 11 }));
+            Assert.That(
+                result.Configuration.EnemyBuildings.Select(item => item.Position.Row),
+                Is.EqualTo(new[] { 29, 29, 29, 29, 29, 23 }));
+        }
+
+        [Test]
+        public void CowL01_InitializesApplicationGridBuildingsAndFirstWave()
+        {
+            var result = CreateProvider(
+                    File.ReadAllText(UnitsPath),
+                    File.ReadAllText(CowL01SettingsPath),
+                    File.ReadAllText(EnemiesPath),
+                    File.ReadAllText(SpawnSchedulesPath),
+                    File.ReadAllText(CowL01LevelPath))
+                .Load("units", "enemies", "settings", "schedules", "level");
+            Assert.That(result.Succeeded, Is.True, JoinIssues(result));
+
+            IArchitecture architecture = BattleSliceArchitecture.Interface;
+            try
+            {
+                architecture.SendCommand(new ConfigureBattleSliceCommand(result.Configuration));
+                var initial = architecture.SendQuery(new GetBattleSliceSnapshotQuery());
+
+                Assert.That(initial.Cells.Count, Is.EqualTo(18 * 30));
+                Assert.That(initial.Cells.Count(item => item.IsOwned), Is.EqualTo(18 * 6));
+                Assert.That(initial.Cells.Count(item => item.IsBlockedByBuilding), Is.EqualTo(6 * 9));
+                Assert.That(initial.EnemyBuildingCount, Is.EqualTo(6));
+                Assert.That(initial.ValidSpawnPointCount, Is.EqualTo(18));
+                Assert.That(initial.CurrentWaveStage, Is.EqualTo("Stage1"));
+
+                architecture.SendCommand(new AdvanceBattleSliceTimeCommand(10d));
+                var advanced = architecture.SendQuery(new GetBattleSliceSnapshotQuery());
+                var spawn = advanced.EnemySpawns.Single();
+                var expectedRow = spawn.Position.Column >= 10 && spawn.Position.Column <= 12
+                    ? 21
+                    : 27;
+                Assert.That(spawn.Position.Row, Is.EqualTo(expectedRow));
+                Assert.That(spawn.StageName, Is.EqualTo("Stage1"));
+            }
+            finally
+            {
+                architecture.Deinit();
+            }
         }
 
         [Test]

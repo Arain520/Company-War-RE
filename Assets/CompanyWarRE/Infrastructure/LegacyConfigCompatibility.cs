@@ -347,7 +347,12 @@ namespace CompanyWarRE.Infrastructure.Configuration
                     .ToList();
             var enemyWaveStages = spawnSchedules == null
                 ? null
-                : MapSpawnStages(spawnSchedules, spawnSchedulesKey, enemyDefinitions, issues);
+                : MapSpawnStages(
+                    spawnSchedules,
+                    spawnSchedulesKey,
+                    enemyDefinitions,
+                    issues,
+                    level?.Stages);
             var enemyBuildings = level == null
                 ? Array.Empty<EnemyBuildingPlacement>()
                 : MapEnemyBuildings(level, levelKey, settings, enemyDefinitions, issues);
@@ -411,12 +416,13 @@ namespace CompanyWarRE.Infrastructure.Configuration
             ICollection<ConfigurationIssue> issues)
         {
             var result = new List<EnemyBuildingPlacement>();
-            if (level.Columns != settings.Columns || level.Rows != settings.Rows)
+            var coordinateScale = ResolveLevelCoordinateScale(level, settings);
+            if (coordinateScale == 0)
             {
                 issues.Add(new ConfigurationIssue(
                     "CFG_CONFLICT",
                     path,
-                    "Level and battle-slice grid dimensions must match."));
+                    "Level dimensions must either match the small-cell grid or expand to it by the 3x3 control-block scale."));
             }
 
             if (level.RequiredAssaultScore < 0)
@@ -459,16 +465,27 @@ namespace CompanyWarRE.Infrastructure.Configuration
                     continue;
                 }
 
-                var position = new GridPosition(building.Column, building.Row);
-                if (building.Column < 1 || building.Column > settings.Columns ||
-                    building.Row < 1 || building.Row > settings.Rows)
+                if (building.Column < 1 || building.Column > level.Columns ||
+                    building.Row < 1 || building.Row > level.Rows)
                 {
-                    issues.Add(new ConfigurationIssue("CFG_RANGE", buildingPath, "Building position must be inside the grid."));
+                    issues.Add(new ConfigurationIssue(
+                        "CFG_RANGE",
+                        buildingPath,
+                        "Building position must be inside the source level grid."));
                     continue;
                 }
 
-                var startColumn = GetControlBlockStart(building.Column);
-                var startRow = GetControlBlockStart(building.Row);
+                if (coordinateScale == 0)
+                {
+                    continue;
+                }
+
+                var position = new GridPosition(
+                    MapLevelCoordinate(building.Column, coordinateScale),
+                    MapLevelCoordinate(building.Row, coordinateScale));
+
+                var startColumn = GetControlBlockStart(position.Column);
+                var startRow = GetControlBlockStart(position.Row);
                 if (startColumn + BattleGrid.ControlBlockSize - 1 > settings.Columns ||
                     startRow + BattleGrid.ControlBlockSize - 1 > settings.Rows)
                 {
@@ -500,6 +517,30 @@ namespace CompanyWarRE.Infrastructure.Configuration
             return result;
         }
 
+        private static int ResolveLevelCoordinateScale(
+            LegacyLevelDto level,
+            BattleSliceSettingsDto settings)
+        {
+            if (level.Columns == settings.Columns && level.Rows == settings.Rows)
+            {
+                return 1;
+            }
+
+            return level.Columns > 0 && level.Rows > 0 &&
+                   level.Columns * BattleGrid.ControlBlockSize == settings.Columns &&
+                   level.Rows * BattleGrid.ControlBlockSize == settings.Rows
+                ? BattleGrid.ControlBlockSize
+                : 0;
+        }
+
+        private static int MapLevelCoordinate(int sourceCoordinate, int coordinateScale)
+        {
+            return coordinateScale == 1
+                ? sourceCoordinate
+                : ((Math.Max(1, sourceCoordinate) - 1) * coordinateScale) +
+                  (coordinateScale / 2) + 1;
+        }
+
         private static int GetControlBlockStart(int cellIndex)
         {
             return ((Math.Max(1, cellIndex) - 1) / BattleGrid.ControlBlockSize) *
@@ -523,7 +564,8 @@ namespace CompanyWarRE.Infrastructure.Configuration
             LegacySpawnSchedulesDto document,
             string path,
             IReadOnlyCollection<CombatantDefinition> enemies,
-            ICollection<ConfigurationIssue> issues)
+            ICollection<ConfigurationIssue> issues,
+            IReadOnlyList<string> selectedStageNames = null)
         {
             var result = new List<EnemyWaveStage>();
             if (document.Stages == null || document.Stages.Count == 0)
@@ -532,10 +574,11 @@ namespace CompanyWarRE.Infrastructure.Configuration
                 return result;
             }
 
+            var configuredStages = SelectLevelStages(document.Stages, selectedStageNames, path, issues);
             var enemyIds = new HashSet<string>(enemies.Select(item => item.Id), StringComparer.OrdinalIgnoreCase);
-            for (var index = 0; index < document.Stages.Count; index++)
+            for (var index = 0; index < configuredStages.Count; index++)
             {
-                var stage = document.Stages[index];
+                var stage = configuredStages[index];
                 var stagePath = $"{path}.Stages[{index}]";
                 if (stage == null || string.IsNullOrWhiteSpace(stage.Name))
                 {
@@ -593,6 +636,46 @@ namespace CompanyWarRE.Infrastructure.Configuration
                         stage.PerWave > 0 ? stage.PerWave : Math.Max(1, rateNumerator),
                         weights));
                 }
+            }
+
+            return result;
+        }
+
+        private static IReadOnlyList<LegacySpawnStageDto> SelectLevelStages(
+            IReadOnlyList<LegacySpawnStageDto> allStages,
+            IReadOnlyList<string> selectedStageNames,
+            string path,
+            ICollection<ConfigurationIssue> issues)
+        {
+            if (selectedStageNames == null || selectedStageNames.Count == 0)
+            {
+                return allStages.ToArray();
+            }
+
+            var byName = allStages
+                .Where(stage => stage != null && !string.IsNullOrWhiteSpace(stage.Name))
+                .GroupBy(stage => stage.Name, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+            var result = new List<LegacySpawnStageDto>();
+            var selected = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (var index = 0; index < selectedStageNames.Count; index++)
+            {
+                var stageName = selectedStageNames[index];
+                if (string.IsNullOrWhiteSpace(stageName) || !selected.Add(stageName))
+                {
+                    continue;
+                }
+
+                if (!byName.TryGetValue(stageName, out var stage))
+                {
+                    issues.Add(new ConfigurationIssue(
+                        "CFG_REFERENCE",
+                        path + ".Stages",
+                        "Level stage was not found in spawn schedules: " + stageName + "."));
+                    continue;
+                }
+
+                result.Add(stage);
             }
 
             return result;

@@ -51,10 +51,15 @@ remain open-ended; loading a legacy level enables full outcome evaluation.
 
 ## Test-scene composition
 
-The target-owned slice is widened from 9x9 to 15x9. It places building centers at
-`(2,9)`, `(8,9)`, and `(14,9)`, producing non-overlapping 3x3 footprints at columns
-`1-3`, `7-9`, and `13-15`, all across rows `7-9`. This remains a small, traceable
-composition rather than a wholesale copy of Cow's level directory.
+The executable scene now imports Cow L01's specific `6x10` macro-grid configuration
+through the compatibility adapter. It expands to an `18x30` small-cell grid. The six
+source building coordinates map, in source order, to centers `(2,29)`, `(5,29)`,
+`(14,29)`, `(17,29)`, `(8,29)`, and `(11,23)`, each occupying its own 3x3 footprint.
+Only L01's declared `Stage1`, `Stage2`, and `Finale` schedules are selected.
+
+The previous 15x9 target-owned characterization fixture remains available for fast
+tests but is no longer referenced by the executable scene. This is still a bounded
+single-level import rather than a wholesale copy of Cow's level directory.
 
 ## Deferred
 

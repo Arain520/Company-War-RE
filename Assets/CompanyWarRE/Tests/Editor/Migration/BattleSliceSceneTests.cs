@@ -75,13 +75,13 @@ namespace CompanyWarRE.Migration.Tests
             var unitsGuid = AssetDatabase.AssetPathToGUID(
                 "Assets/CompanyWarRE/ConfigSamples/Compatibility/LegacyUnits.U01.json");
             var settingsGuid = AssetDatabase.AssetPathToGUID(
-                "Assets/CompanyWarRE/ConfigSamples/Compatibility/BattleSliceRuntime.json");
+                "Assets/CompanyWarRE/ConfigSamples/Compatibility/BattleSliceRuntime.L01.json");
             var enemiesGuid = AssetDatabase.AssetPathToGUID(
                 "Assets/CompanyWarRE/ConfigSamples/Compatibility/LegacyEnemies.E01.json");
             var spawnSchedulesGuid = AssetDatabase.AssetPathToGUID(
                 "Assets/CompanyWarRE/ConfigSamples/Compatibility/LegacySpawnSchedules.json");
             var levelGuid = AssetDatabase.AssetPathToGUID(
-                "Assets/CompanyWarRE/ConfigSamples/Compatibility/LegacyLevel.BattleSlice.json");
+                "Assets/CompanyWarRE/ConfigSamples/Compatibility/LegacyLevel.L01.json");
             var yaml = File.ReadAllText(ScenePath);
 
             StringAssert.Contains("guid: " + controllerGuid, yaml);

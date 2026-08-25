@@ -46,15 +46,29 @@ can replace this without changing DTO validation or Domain mapping.
   map to `SupportEffect`.
 - Missing footprint values retain the legacy default `SmallCell` behavior.
 - Unknown JSON fields are tolerated for forward compatibility.
+- A level whose dimensions already match the target grid uses small-cell coordinates
+  unchanged. A Cow level whose dimensions expand to the target by exactly `3x` is
+  treated as a macro/control-block grid: dimensions are multiplied by three and
+  every building coordinate maps to `((source - 1) * 3) + 2`.
+- When a level supplies `Stages`, only those names are selected from the shared spawn
+  schedule document, in the level's declared order. Missing names are reference
+  errors.
 - Unsupported schema versions, enum values, references, and ranges return stable
   issues instead of constructing a partial Domain configuration.
 
 ## Current sample versus full migration
 
-`LegacyUnits.U01.json` and `LegacyEnemies.E01.json` are traceable one-record
-compatibility samples, not complete migrated configuration files. U02-U36, E02-E15,
-authorization, levels, and spawn schedules remain later batches.
+`LegacyUnits.U01.json` remains a one-record unit sample. `LegacyEnemies.E01.json`
+currently contains the combatants needed by the test slices, including E01-E07 and
+E12-E15, but is not yet the complete enemy catalog. Remaining units, enemies,
+authorization, and later levels remain later batches.
 
-`BattleSliceRuntime.json` is target-owned test composition. It is versioned with
-`SchemaVersion: 1` and may be replaced when production configuration ownership and
-resource update requirements are approved.
+`LegacyLevel.L01.json` is the first concrete imported Cow level. Its source values
+remain at the legacy `6x10` macro-grid scale; `BattleSliceRuntime.L01.json` is the
+target-owned adapter composition that declares the resulting `18x30` small-cell
+grid, six controlled small rows, and existing runtime defaults. The executable test
+scene references this pair. Storage and resource-update strategy remain replaceable.
+
+The older `BattleSliceRuntime.json` and `LegacyLevel.BattleSlice.json` remain as a
+small target-owned characterization fixture and are no longer the executable scene
+composition.

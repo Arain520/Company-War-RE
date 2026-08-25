@@ -1,0 +1,18 @@
+{
+  "SchemaVersion": 1,
+  "Columns": 18,
+  "Rows": 30,
+  "ControlledRows": 6,
+  "InitialResources": 10,
+  "FixedProductionIntervalSeconds": 5.0,
+  "TransmitterProductionIntervalSeconds": 3.0,
+  "TransmitterColumn": 2,
+  "TransmitterRow": 2,
+  "TransmitterAmount": 1,
+  "TestUnitId": "U01",
+  "TestEnemyId": "E01",
+  "EnemySpawnColumn": 2,
+  "EnemySpawnRow": 30,
+  "EnemySpawnColumns": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
+  "EnemyWaveRandomSeed": 17
+}
