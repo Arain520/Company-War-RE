@@ -58,7 +58,9 @@ composition rather than a wholesale copy of Cow's level directory.
 
 ## Deferred
 
-- E07/E12-E15 special production, attack, and aura behavior;
+- E12 executable-scene coverage and E13-E15 special behavior; the Cow audit found
+  no E06/E07 ID-specific production, spawning, or aura branch (see
+  `EnemyBuildings-v0.1.md`);
 - death-animation delay before score/removal;
 - authorization-choice UI and final settlement rewards;
 - persistence of battle state, scheduler RNG, score, and living actors;

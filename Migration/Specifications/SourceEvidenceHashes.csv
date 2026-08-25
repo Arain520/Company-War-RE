@@ -11,6 +11,7 @@
 "Assets/_Game/Tests/Cases/CW0403_BoundaryAndErrorHandling.cs","3248cc1ee28f59e41afe349021ca2a609aa1d3ceeff42f2f9c005cbee9dac050","13494","Boundary behavior"
 "Assets/StreamingAssets/CompanyWar/Configs/Units.json","8c156a406d6e54e551745ebd6bd2451efd38bfc575120d7c9d641b0cd3a696db","6516","Legacy unit configuration schema and U01 values"
 "Assets/StreamingAssets/CompanyWar/Configs/Enemies.json","d30c6e03f6a9c2418680577a47c4693cdeeef598b43d1df14716bf7d9267ebee","2485","Legacy enemy configuration schema and E01 values"
+"Assets/_Game/Configs/Enemies.json","d30c6e03f6a9c2418680577a47c4693cdeeef598b43d1df14716bf7d9267ebee","2485","Enemy building E06/E07/E12-E15 values used by the runtime audit"
 "Assets/_Game/Tests/Cases/CW_Core_04_CombatRotationAndDeathTests.cs","ade54f90e504aa677c72d7d1f2d62a6bad22401c16cc6418ab0af3f5a7ff80ce","5190","Combat targeting, attack, rotation, and death characterization"
 "Assets/_Game/Tests/Cases/CW_UNIT_0109_ControlBlockEncounter.cs","785d3f2caa82db5e1f160eec0ad25d70b74b0b019847a2ba69eeedc7c8249145","11508","Control-block encounter and movement characterization"
 "Assets/_Game/Tests/Cases/CW_TEST_U01_VS_E02_Detailed.cs","ed12d3161f6b56516071d2426d9214cb06f13fbd5dfb3b4ffc7cfc7c9dbbd372","4830","U01 attrition evidence"
