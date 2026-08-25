@@ -17,8 +17,11 @@ Application commands.
   nine-cell control block is visually identifiable. Alternating block tint adds a
   second cue, and building footprints use a deep-red blocked-cell color.
 - An angled orthographic camera calculates its home framing from the expanded grid.
-  `WASD`/arrow keys and middle-mouse drag pan, the mouse wheel zooms, and `F` or
-  `Home` restores the full-map view.
+  Following Cow's camera behavior, right-drag orbits around the current focus with
+  a 25-75 degree pitch clamp, the mouse wheel zooms toward the pointer, and motion
+  is smoothed using unscaled time while pointer input over UI is ignored.
+  `WASD`/arrow keys and middle-mouse drag pan within battlefield bounds, `Shift`
+  accelerates keyboard movement, and `F` or `Home` restores the full-map view.
 - Units and buildings use separate procedural silhouettes. Every living combatant
   has a template/HP label and a proportional health bar; buildings span the visual
   center of their complete 3x3 footprint.

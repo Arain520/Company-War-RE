@@ -145,5 +145,49 @@ namespace CompanyWarRE.Migration.Tests
             Assert.That(feedbackGuid, Is.Not.Empty);
             Assert.That(cameraGuid, Is.Not.EqualTo(feedbackGuid));
         }
+
+        [Test]
+        public void CowStyleCameraControl_ClampsZoomPitchAndBattlefieldFocus()
+        {
+            var cameraRigType = Type.GetType(
+                "CompanyWarRE.Presentation.BattleSliceCameraRig, CompanyWarRE.Presentation",
+                true);
+            var calculateZoomSize = cameraRigType.GetMethod(
+                "CalculateZoomSize",
+                BindingFlags.Static | BindingFlags.Public);
+            var clampFocus = cameraRigType.GetMethod(
+                "ClampFocusToBounds",
+                BindingFlags.Static | BindingFlags.Public);
+            var clampOrbitPitch = cameraRigType.GetMethod(
+                "ClampOrbitPitch",
+                BindingFlags.Static | BindingFlags.Public);
+
+            Assert.That(calculateZoomSize, Is.Not.Null);
+            Assert.That(clampFocus, Is.Not.Null);
+            Assert.That(clampOrbitPitch, Is.Not.Null);
+
+            var zoomedIn = (float)calculateZoomSize.Invoke(
+                null,
+                new object[] { 20f, 1f, 5f, 36f, 0.1f });
+            var minimumZoom = (float)calculateZoomSize.Invoke(
+                null,
+                new object[] { 5f, 10f, 5f, 36f, 0.1f });
+            var maximumZoom = (float)calculateZoomSize.Invoke(
+                null,
+                new object[] { 36f, -10f, 5f, 36f, 0.1f });
+            Assert.That(zoomedIn, Is.EqualTo(18f).Within(0.001f));
+            Assert.That(minimumZoom, Is.EqualTo(5f).Within(0.001f));
+            Assert.That(maximumZoom, Is.EqualTo(36f).Within(0.001f));
+
+            var clamped = (Vector3)clampFocus.Invoke(
+                null,
+                new object[] { new Vector3(-4f, 9f, 45f), Vector2.zero, new Vector2(22f, 38f) });
+            Assert.That(clamped, Is.EqualTo(new Vector3(0f, 0f, 38f)));
+
+            var minimumPitch = (float)clampOrbitPitch.Invoke(null, new object[] { 10f, 25f, 75f });
+            var maximumPitch = (float)clampOrbitPitch.Invoke(null, new object[] { 90f, 25f, 75f });
+            Assert.That(minimumPitch, Is.EqualTo(25f));
+            Assert.That(maximumPitch, Is.EqualTo(75f));
+        }
     }
 }

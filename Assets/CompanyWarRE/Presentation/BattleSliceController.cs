@@ -161,7 +161,7 @@ namespace CompanyWarRE.Presentation
 
         private void ProcessPointerInput()
         {
-            if (!Input.GetMouseButtonDown(0) && !Input.GetMouseButtonDown(1))
+            if (!Input.GetMouseButtonDown(0))
             {
                 return;
             }
@@ -180,10 +180,6 @@ namespace CompanyWarRE.Presentation
 
             _selected = cellView.Position;
             _lastAction = $"Selected {_selected}";
-            if (Input.GetMouseButtonDown(1))
-            {
-                DeploySelected();
-            }
         }
 
         private void ProcessKeyboardInput()
@@ -432,6 +428,28 @@ namespace CompanyWarRE.Presentation
             return new Vector3(worldX, 0.12f, worldZ);
         }
 
+        internal bool IsPointerOverRuntimeHud(Vector2 screenPosition)
+        {
+            var guiPosition = new Vector2(screenPosition.x, Screen.height - screenPosition.y);
+            if (new Rect(16f, 16f, 570f, 294f).Contains(guiPosition))
+            {
+                return true;
+            }
+
+            if (_snapshot == null || _snapshot.BattleState == BattleState.Running)
+            {
+                return false;
+            }
+
+            const float resultWidth = 420f;
+            const float resultHeight = 170f;
+            return new Rect(
+                (Screen.width - resultWidth) * 0.5f,
+                (Screen.height - resultHeight) * 0.5f,
+                resultWidth,
+                resultHeight).Contains(guiPosition);
+        }
+
         private void OnGUI()
         {
             if (_snapshot == null)
@@ -453,8 +471,8 @@ namespace CompanyWarRE.Presentation
                 $"{_snapshot.UnitId} 消耗: {_snapshot.UnitResourceCost}    " +
                 $"冷却: {_snapshot.RemainingCooldown:0.0}s    选中: {_selected}");
             GUILayout.Space(6f);
-            GUILayout.Label($"左键选择 | 右键 / D / 空格部署 {_snapshot.UnitId}");
-            GUILayout.Label("WASD/方向键移动镜头 | 滚轮缩放 | F/Home 回到全图 | R 重置");
+            GUILayout.Label($"左键选择 | D / 空格部署 {_snapshot.UnitId} | 右键拖动旋转镜头");
+            GUILayout.Label("WASD/方向键平移 | Shift 加速 | 中键拖动 | 滚轮缩放 | F/Home 复位");
             GUILayout.Label("绿色我方 | 灰色敌方 | 紫色污染 | 深红为建筑占用 | 每3行/列分组");
             var aliveAllies = 0;
             var aliveEnemies = 0;

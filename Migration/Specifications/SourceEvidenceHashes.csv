@@ -27,3 +27,4 @@
 "Assets/StreamingAssets/CompanyWar/Configs/Levels/L01.json","92dfc23f7a3da223abcfd67015265f2e80eb7b68799a8ba2ea805e5514519ae5","445","Legacy level dimensions, stage list, building placements, and assault target"
 "Assets/_Game/Tests/Cases/CW_Core_08_VictoryByPointsTests.cs","126e6b52ab3347ecd3983bacdadf035c0557ddad75abb26ce4cbef2eaf1c88df","3191","Evidence that building victory supersedes the obsolete point-victory assertion"
 "Assets/_Game/Scripts/Prototype3D/CompanyWarPrototype3DRuntime.cs","fb75493f71c03a7c3733bd2f142b11980de3fa8186125f1d04bac59cf21bab0b","160811","L01 macro-grid to 3x small-cell expansion and declared stage selection"
+"Assets/_Game/Scripts/Prototype3D/BattleCameraController.cs","31e8ff37b31dc0681672cd42228f3ea36c4256a6997bbd529bc34561a11dcee1","6795","Pivot orbit input, pitch clamp, UI exclusion, zoom, and smoothing"

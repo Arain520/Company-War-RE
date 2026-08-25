@@ -24,9 +24,11 @@ placeholders are test visualization, not migrated production art.
 1. Open `BattleSliceTest.unity` in Unity 2022.3.62f3.
 2. Enter Play Mode.
 3. Left-click a cell to select it.
-4. Right-click, press `D`, or press `Space` to deploy U01.
-5. Use `WASD`/arrow keys or middle-mouse drag to pan, the wheel to zoom, and `F` or
-   `Home` to restore the full-map camera.
+4. Press `D` or `Space` to deploy U01. Right-click is reserved for camera orbit.
+5. Hold the right mouse button and drag to rotate around the current focus. Use
+   `WASD`/arrow keys or middle-mouse drag to pan, hold `Shift` for faster keyboard
+   movement, use the wheel to zoom toward the pointer, and press `F` or `Home` to
+   restore the full-map camera.
 6. Press `P` to toggle pollution for the selected 3 x 3 control block.
 7. Press `R` to reset the slice.
 
@@ -44,8 +46,9 @@ placeholders are test visualization, not migrated production art.
   its 3x3 control block.
 - Wider gaps after every third row and column, alternating block tint, and deep-red
   occupied cells make each nine-cell control block and building footprint distinct.
-- The angled orthographic camera initially fits the full battlefield and supports
-  pan, zoom, and one-key refit.
+- The angled orthographic camera initially fits the full battlefield. Cow-style
+  right-drag orbit clamps pitch to 25-75 degrees; movement and zoom remain inside
+  battlefield bounds, ignore pointer input over UI, and transition smoothly.
 - Staged waves begin after ten seconds. Enemies are generated from valid columns;
   buildings move their control-block columns' spawn points forward.
 - A successful deployment displays a cyan U01. Same-column U01/E01 actors advance,
