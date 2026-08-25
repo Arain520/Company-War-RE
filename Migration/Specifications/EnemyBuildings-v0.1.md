@@ -1,6 +1,6 @@
 # Enemy building behavior v0.1
 
-Status: Cow audit complete; E06/E07 generic behavior implemented; E12-E15 special slice deferred
+Status: E06/E07/E12 baseline and E13 curse implemented; E14-E15 special slice deferred
 
 ## Evidence
 
@@ -18,8 +18,8 @@ in `SourceEvidenceHashes.csv`.
 | --- | --- | --- | --- |
 | E06 污秽之地 | HP 7, attack 0, speed 0, raw interval 0, raw range 0, reward 1 | Static nine-cell building. No ID-specific production, attack, aura, or spawn branch was found. | Implemented through generic stationary-building rules. |
 | E07 污秽巢穴 | HP 12, attack 0, speed 0, raw interval 0, raw range 0, reward 2 | Static nine-cell building. Despite its name, no ID-specific production or spawning branch was found. | Implemented through generic stationary-building rules. |
-| E12 虚伪皮层 | HP 15, attack 0, speed 0, raw interval 0, raw range 0, reward 2 | Static nine-cell building with no ID-specific branch. | Configuration is mapped; executable scene coverage is deferred. |
-| E13 恶魔 | HP 18, attack 1, speed 0, interval 0.5 s, range 3 blocks, reward 5 | Performs normal attacks and applies a persistent curse before movement and attack phases. | Deferred. |
+| E12 虚伪皮层 | HP 15, attack 0, speed 0, raw interval 0, raw range 0, reward 2 | Static nine-cell building with no ID-specific branch. | Configuration and Domain characterization implemented; executable scene coverage is deferred. |
+| E13 恶魔 | HP 18, attack 1, speed 0, interval 0.5 s, range 3 blocks, reward 5 | Performs normal attacks and applies a persistent curse before movement and attack phases. | Persistent curse implemented in Domain and verified through Application; dedicated VFX is deferred. |
 | E14 巨兽 | HP 20, attack 1, speed 0, interval 1 s, range 1 block, reward 5 | Performs normal attacks and heals 1 HP for every target it kills. | Deferred. |
 | E15 咒灭术师 | HP 15, attack 0, speed 0, interval 12 s, range 99 blocks, reward 5 | Uses an ID-specific execution cast rather than the zero-attack generic path. | Deferred. |
 
@@ -64,20 +64,27 @@ in `SourceEvidenceHashes.csv`.
 - Death clears the occupied block, updates enemy-building count and spawn points,
   awards score once, and then participates in outcome evaluation.
 
-## Implementation order
+## Implemented tests
 
-1. Add target characterization tests for the E06/E07/E12 data-only distinction.
-2. Add E13 curse tests for fractional accumulation, stacking, range, and phase order.
-3. Add E14 kill-heal tests, including over-healing beyond initial durability.
-4. Add E15 execution tests for target exclusions, deterministic priority, large
+- `CombatSimulationBehaviorTests.E06E07AndE12_AreStationaryDataOnlyBuildings`
+- `CombatSimulationBehaviorTests.E13Curse_AccumulatesFractionalDamageAndStacksLivingSources`
+- `CombatSimulationBehaviorTests.E13Curse_UsesControlBlockRangeAndIncludesAlliedBuildings`
+- `CombatSimulationBehaviorTests.E13Curse_ResolvesBeforeMovementAndAttackPhases`
+- `BattleSliceApplicationTests.E13Curse_FlowsThroughApplicationSnapshotBeforeUnitAction`
+
+## Next implementation order
+
+1. Add E14 kill-heal tests, including over-healing beyond initial durability.
+2. Add E15 execution tests for target exclusions, deterministic priority, large
    ticks, and interval remainder.
-5. Integrate the abilities into pure-C# Domain code before adding Presentation VFX.
+3. Add Presentation feedback for persistent curse, healing, and execution only
+   after the Domain contracts are stable.
 
 ## Risks and open evidence gaps
 
 - Cow has no dedicated test case for E13-E15; these contracts are observed directly
-  from the pinned `BattleEngine.cs`, so target characterization tests are required
-  before scene integration.
+  from the pinned `BattleEngine.cs`. Target characterization tests now lock E13;
+  E14/E15 still require equivalent tests before scene integration.
 - Special behavior is selected by hard-coded template IDs rather than a data-driven
   ability field. The compatibility layer must preserve IDs exactly.
 - Cow clamps raw zero range/interval when creating runtime actors. E06/E07/E12 stay

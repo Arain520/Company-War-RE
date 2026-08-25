@@ -291,6 +291,103 @@ namespace CompanyWarRE.Domain.Tests
                 Is.EquivalentTo(new[] { "ally-left", "ally-right" }));
         }
 
+        [Test]
+        public void E06E07AndE12_AreStationaryDataOnlyBuildings()
+        {
+            var simulation = new CombatSimulation(9, 9);
+            var observer = new CombatantDefinition("observer", "Support", 20, 0d, 0d, 1d, 1);
+            var buildings = new[]
+            {
+                new CombatantDefinition("E06", "Building", 7, 0d, 0d, 0d, 0, 1),
+                new CombatantDefinition("E07", "Building", 12, 0d, 0d, 0d, 0, 2),
+                new CombatantDefinition("E12", "Building", 15, 0d, 0d, 0d, 0, 2)
+            };
+
+            for (var index = 0; index < buildings.Length; index++)
+            {
+                var column = 2 + index * 3;
+                Assert.That(
+                    simulation.TryAddActor("building-" + buildings[index].Id, Team.Enemy, buildings[index], column, 9d),
+                    Is.True);
+                Assert.That(
+                    simulation.TryAddActor("observer-" + index, Team.Ally, observer, column, 8.5d),
+                    Is.True);
+            }
+
+            simulation.Advance(30d);
+
+            var snapshot = simulation.CreateSnapshot();
+            Assert.That(
+                snapshot.Where(actor => actor.IsBuilding).All(actor => actor.LanePosition == 9d),
+                Is.True);
+            Assert.That(
+                snapshot.Where(actor => actor.Team == Team.Ally).All(actor => actor.HitPoints == 20d),
+                Is.True);
+            Assert.That(simulation.Events.Any(item => item.Type == CombatEventType.Attack), Is.False);
+        }
+
+        [Test]
+        public void E13Curse_AccumulatesFractionalDamageAndStacksLivingSources()
+        {
+            var simulation = new CombatSimulation(15, 12);
+            var e13 = new CombatantDefinition("E13", "Building", 18, 1d, 0d, 0.5d, 3, 5);
+            var ally = new CombatantDefinition("U-Target", "Support", 5, 0d, 0d, 1d, 1);
+            Assert.That(simulation.TryAddActor("curse-a", Team.Enemy, e13, 2, 11d), Is.True);
+            Assert.That(simulation.TryAddActor("curse-b", Team.Enemy, e13, 8, 11d), Is.True);
+            Assert.That(simulation.TryAddActor("ally", Team.Ally, ally, 5, 8d), Is.True);
+
+            simulation.Advance(4.9d);
+            Assert.That(
+                simulation.CreateSnapshot().Single(actor => actor.ActorId == "ally").HitPoints,
+                Is.EqualTo(5d));
+
+            simulation.Advance(0.1d);
+            Assert.That(
+                simulation.CreateSnapshot().Single(actor => actor.ActorId == "ally").HitPoints,
+                Is.EqualTo(4d));
+            Assert.That(simulation.Events.Any(item => item.Type == CombatEventType.Attack), Is.False);
+        }
+
+        [Test]
+        public void E13Curse_UsesControlBlockRangeAndIncludesAlliedBuildings()
+        {
+            var simulation = new CombatSimulation(12, 12);
+            var e13 = new CombatantDefinition("E13", "Building", 18, 1d, 0d, 0.5d, 3, 5);
+            var ally = new CombatantDefinition("U-Target", "Support", 5, 0d, 0d, 1d, 1);
+            var alliedBuilding = new CombatantDefinition("U08", "Building", 5, 0d, 0d, 1d, 1);
+            simulation.TryAddActor("curse", Team.Enemy, e13, 2, 11d);
+            simulation.TryAddActor("inside", Team.Ally, ally, 8, 8d);
+            simulation.TryAddActor("outside", Team.Ally, ally, 11, 2d);
+            simulation.TryAddActor("allied-building", Team.Ally, alliedBuilding, 5, 5d);
+
+            simulation.Advance(10d);
+
+            var snapshot = simulation.CreateSnapshot();
+            Assert.That(snapshot.Single(actor => actor.ActorId == "inside").HitPoints, Is.EqualTo(4d));
+            Assert.That(snapshot.Single(actor => actor.ActorId == "allied-building").HitPoints, Is.EqualTo(4d));
+            Assert.That(snapshot.Single(actor => actor.ActorId == "outside").HitPoints, Is.EqualTo(5d));
+        }
+
+        [Test]
+        public void E13Curse_ResolvesBeforeMovementAndAttackPhases()
+        {
+            var simulation = new CombatSimulation(9, 9);
+            var e13 = new CombatantDefinition("E13", "Building", 18, 1d, 0d, 0.5d, 3, 5);
+            var fragileAttacker = new CombatantDefinition("U-Fragile", "Support", 1, 20d, 0d, 0.1d, 99);
+            simulation.TryAddActor("curse", Team.Enemy, e13, 2, 9d);
+            simulation.TryAddActor("fragile", Team.Ally, fragileAttacker, 2, 6d);
+
+            simulation.Advance(10d);
+
+            var snapshot = simulation.CreateSnapshot();
+            Assert.That(snapshot.Single(actor => actor.ActorId == "fragile").IsAlive, Is.False);
+            Assert.That(snapshot.Single(actor => actor.ActorId == "curse").HitPoints, Is.EqualTo(18d));
+            Assert.That(
+                simulation.Events.Any(item =>
+                    item.Type == CombatEventType.Attack && item.ActorId == "fragile"),
+                Is.False);
+        }
+
         private static CombatSimulation CreateDuel(double allyLane, double enemyLane)
         {
             var simulation = new CombatSimulation(9, 9);

@@ -41,6 +41,8 @@ namespace CompanyWarRE.Domain
         public int AssaultScoreReward { get; }
         public bool IsBuilding =>
             Type.IndexOf("build", StringComparison.OrdinalIgnoreCase) >= 0;
+        public bool HasPersistentEnemyCurse =>
+            string.Equals(Id, "E13", StringComparison.OrdinalIgnoreCase);
         public int FootprintColumns => IsBuilding ? BattleGrid.ControlBlockSize : 1;
         public int FootprintRows => IsBuilding ? BattleGrid.ControlBlockSize : 1;
         public bool IsMovingMelee =>
@@ -173,6 +175,7 @@ namespace CompanyWarRE.Domain
         public double LanePosition { get; set; }
         public double HitPoints { get; set; }
         public double AttackProgress { get; set; }
+        public double DamageCarry { get; set; }
         public bool DeathReported { get; set; }
         public bool IsAlive => HitPoints > 0d;
     }
@@ -191,6 +194,7 @@ namespace CompanyWarRE.Domain
     {
         public const double ContactDistance = 0.12d;
         public const double ContactEpsilon = 0.02d;
+        public const double E13CurseDamagePerSecond = 0.1d;
 
         private readonly int _columns;
         private readonly int _rows;
@@ -263,6 +267,7 @@ namespace CompanyWarRE.Domain
             }
 
             var delta = Math.Max(0.0001d, deltaSeconds);
+            ApplyPersistentEnemyBuildingEffects(delta);
             RefreshMeleeEngagements();
             MoveActors(delta);
             ResolveEnemyTerritoryBreaches(grid);
@@ -279,6 +284,40 @@ namespace CompanyWarRE.Domain
                 .OrderBy(actor => actor.ActorId, StringComparer.Ordinal)
                 .Select(actor => new CombatActorSnapshot(actor, _columns, _rows))
                 .ToArray();
+        }
+
+        private void ApplyPersistentEnemyBuildingEffects(double deltaSeconds)
+        {
+            var curseSources = _actors
+                .Where(actor =>
+                    actor.IsAlive &&
+                    actor.Team == Team.Enemy &&
+                    actor.Definition.HasPersistentEnemyCurse)
+                .ToList();
+            if (curseSources.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var ally in _actors.Where(actor => actor.IsAlive && actor.Team == Team.Ally).ToList())
+            {
+                var affectingSources = curseSources.Count(source =>
+                    ControlBlockDistance(source, ally) <= Math.Max(1, source.Definition.Range));
+                if (affectingSources == 0)
+                {
+                    continue;
+                }
+
+                ally.DamageCarry += E13CurseDamagePerSecond * affectingSources * deltaSeconds;
+                var completedDamage = (int)Math.Floor(ally.DamageCarry + 0.0001d);
+                if (completedDamage <= 0)
+                {
+                    continue;
+                }
+
+                ally.HitPoints -= completedDamage;
+                ally.DamageCarry = Math.Max(0d, ally.DamageCarry - completedDamage);
+            }
         }
 
         private void MoveActors(double deltaSeconds)
@@ -727,6 +766,21 @@ namespace CompanyWarRE.Domain
         {
             return ((Math.Max(1, cellIndex) - 1) / BattleGrid.ControlBlockSize) *
                    BattleGrid.ControlBlockSize + 1;
+        }
+
+        private int ControlBlockDistance(CombatActor first, CombatActor second)
+        {
+            if (first == null || second == null)
+            {
+                return int.MaxValue;
+            }
+
+            var firstPosition = ToDiscretePosition(first);
+            var secondPosition = ToDiscretePosition(second);
+            return Math.Abs(GetControlBlockColumn(firstPosition.Column) -
+                            GetControlBlockColumn(secondPosition.Column)) +
+                   Math.Abs(GetControlBlockRow(firstPosition.Row) -
+                            GetControlBlockRow(secondPosition.Row));
         }
 
         private double ClampLane(double lanePosition)

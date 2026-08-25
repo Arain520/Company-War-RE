@@ -55,6 +55,28 @@ namespace CompanyWarRE.Infrastructure.Tests
             Assert.That(result.Configuration.EnemyWaveStages[0].WaveIntervalSeconds, Is.EqualTo(10d));
             Assert.That(result.Configuration.EnemyWaveStages[1].EnemiesPerWave, Is.EqualTo(2));
             Assert.That(result.Configuration.EnemyCombatants.Keys, Does.Contain("E05"));
+            var e06 = result.Configuration.EnemyCombatants["E06"];
+            var e07 = result.Configuration.EnemyCombatants["E07"];
+            var e12 = result.Configuration.EnemyCombatants["E12"];
+            var e13 = result.Configuration.EnemyCombatants["E13"];
+            var e14 = result.Configuration.EnemyCombatants["E14"];
+            var e15 = result.Configuration.EnemyCombatants["E15"];
+            Assert.That(
+                new[] { e06.Durability, e07.Durability, e12.Durability },
+                Is.EqualTo(new[] { 7, 12, 15 }));
+            Assert.That(new[] { e06.Attack, e07.Attack, e12.Attack }, Is.All.Zero);
+            Assert.That(
+                new[] { e06.AssaultScoreReward, e07.AssaultScoreReward, e12.AssaultScoreReward },
+                Is.EqualTo(new[] { 1, 2, 2 }));
+            Assert.That(e13.HasPersistentEnemyCurse, Is.True);
+            Assert.That(
+                new[] { e13.Durability, e14.Durability, e15.Durability },
+                Is.EqualTo(new[] { 18, 20, 15 }));
+            Assert.That(new[] { e13.Attack, e14.Attack, e15.Attack }, Is.EqualTo(new[] { 1d, 1d, 0d }));
+            Assert.That(
+                new[] { e13.AttackIntervalSeconds, e14.AttackIntervalSeconds, e15.AttackIntervalSeconds },
+                Is.EqualTo(new[] { 0.5d, 1d, 12d }));
+            Assert.That(new[] { e13.Range, e14.Range, e15.Range }, Is.EqualTo(new[] { 3, 1, 99 }));
             Assert.That(result.Configuration.EnemySpawnColumns.Count, Is.EqualTo(15));
             Assert.That(result.Configuration.EnemyBuildings.Count, Is.EqualTo(3));
             Assert.That(result.Configuration.EnemyBuildings.Select(item => item.TemplateId),

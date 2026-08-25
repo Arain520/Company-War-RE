@@ -76,6 +76,50 @@
       "AttackInterval": 0.0,
       "Range": 0,
       "AssaultScoreReward": 2
+    },
+    {
+      "Id": "E12",
+      "Name": "虚伪皮层",
+      "Type": "Building",
+      "Durability": 15,
+      "Attack": 0,
+      "Speed": 0.0,
+      "AttackInterval": 0.0,
+      "Range": 0,
+      "AssaultScoreReward": 2
+    },
+    {
+      "Id": "E13",
+      "Name": "恶魔",
+      "Type": "Building",
+      "Durability": 18,
+      "Attack": 1,
+      "Speed": 0.0,
+      "AttackInterval": 0.5,
+      "Range": 3,
+      "AssaultScoreReward": 5
+    },
+    {
+      "Id": "E14",
+      "Name": "巨兽",
+      "Type": "Building",
+      "Durability": 20,
+      "Attack": 1,
+      "Speed": 0.0,
+      "AttackInterval": 1.0,
+      "Range": 1,
+      "AssaultScoreReward": 5
+    },
+    {
+      "Id": "E15",
+      "Name": "咒灭术师",
+      "Type": "Building",
+      "Durability": 15,
+      "Attack": 0,
+      "Speed": 0.0,
+      "AttackInterval": 12.0,
+      "Range": 99,
+      "AssaultScoreReward": 5
     }
   ]
 }

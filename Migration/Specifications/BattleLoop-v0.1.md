@@ -58,7 +58,7 @@ composition rather than a wholesale copy of Cow's level directory.
 
 ## Deferred
 
-- E12 executable-scene coverage and E13-E15 special behavior; the Cow audit found
+- E12/E13 executable-scene presentation and E14-E15 special behavior; the Cow audit found
   no E06/E07 ID-specific production, spawning, or aura branch (see
   `EnemyBuildings-v0.1.md`);
 - death-animation delay before score/removal;

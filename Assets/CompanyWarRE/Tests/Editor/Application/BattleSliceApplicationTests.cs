@@ -178,6 +178,26 @@ namespace CompanyWarRE.Application.Tests
             Assert.That(reset.Combatants.Single(item => item.IsBuilding).IsAlive, Is.True);
         }
 
+        [Test]
+        public void E13Curse_FlowsThroughApplicationSnapshotBeforeUnitAction()
+        {
+            _architecture.SendCommand(new ConfigureBattleSliceCommand(CreateCurseBuildingConfiguration()));
+            var deployment = _architecture.SendCommand(new DeployBattleSliceUnitCommand(
+                new GridPosition(2, 6),
+                "curse-target"));
+            Assert.That(deployment.Succeeded, Is.True);
+
+            _architecture.SendCommand(new AdvanceBattleSliceTimeCommand(10d));
+
+            var snapshot = _architecture.SendQuery(new GetBattleSliceSnapshotQuery());
+            Assert.That(snapshot.Combatants.Single(item => item.ActorId == "curse-target").IsAlive, Is.False);
+            Assert.That(snapshot.Combatants.Single(item => item.TemplateId == "E13").HitPoints, Is.EqualTo(18d));
+            Assert.That(
+                snapshot.CombatEvents.Any(item =>
+                    item.Type == CombatEventType.Attack && item.ActorId == "curse-target"),
+                Is.False);
+        }
+
         private static BattleSliceConfiguration CreateConfiguration()
         {
             return new BattleSliceConfiguration(
@@ -254,6 +274,40 @@ namespace CompanyWarRE.Application.Tests
                 17,
                 new[] { new EnemyBuildingPlacement("E06", new GridPosition(3, 6)) },
                 8,
+                true,
+                true);
+        }
+
+        private static BattleSliceConfiguration CreateCurseBuildingConfiguration()
+        {
+            var e13 = new CombatantDefinition("E13", "Building", 18, 1d, 0d, 0.5d, 3, 5);
+            return new BattleSliceConfiguration(
+                9,
+                9,
+                6,
+                10,
+                5d,
+                3d,
+                new GridPosition(2, 2),
+                1,
+                new UnitDefinition("U01", 1, 3d),
+                new CombatantDefinition("U01", "Support", 1, 20d, 0d, 0.1d, 99),
+                new CombatantDefinition("E01", "Staff", 1, 1d, 1d, 1d, 1, 1),
+                new GridPosition(3, 9),
+                new[]
+                {
+                    new EnemyWaveStage(
+                        "DeferredWave",
+                        200d,
+                        100d,
+                        1,
+                        new[] { new EnemySpawnWeight("E01", 1) })
+                },
+                new[] { e13 },
+                new[] { 3 },
+                17,
+                new[] { new EnemyBuildingPlacement("E13", new GridPosition(2, 9)) },
+                5,
                 true,
                 true);
         }
