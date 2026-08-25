@@ -198,6 +198,24 @@ namespace CompanyWarRE.Application.Tests
                 Is.False);
         }
 
+        [Test]
+        public void E14KillHeal_FlowsThroughApplicationSnapshot()
+        {
+            _architecture.SendCommand(new ConfigureBattleSliceCommand(CreateKillHealBuildingConfiguration()));
+            var deployment = _architecture.SendCommand(new DeployBattleSliceUnitCommand(
+                new GridPosition(2, 6),
+                "kill-heal-target"));
+            Assert.That(deployment.Succeeded, Is.True);
+
+            _architecture.SendCommand(new AdvanceBattleSliceTimeCommand(1d));
+
+            var snapshot = _architecture.SendQuery(new GetBattleSliceSnapshotQuery());
+            Assert.That(snapshot.Combatants.Single(item => item.ActorId == "kill-heal-target").IsAlive, Is.False);
+            var e14 = snapshot.Combatants.Single(item => item.TemplateId == "E14");
+            Assert.That(e14.HitPoints, Is.EqualTo(21d));
+            Assert.That(e14.MaximumHitPoints, Is.EqualTo(20d));
+        }
+
         private static BattleSliceConfiguration CreateConfiguration()
         {
             return new BattleSliceConfiguration(
@@ -307,6 +325,40 @@ namespace CompanyWarRE.Application.Tests
                 new[] { 3 },
                 17,
                 new[] { new EnemyBuildingPlacement("E13", new GridPosition(2, 9)) },
+                5,
+                true,
+                true);
+        }
+
+        private static BattleSliceConfiguration CreateKillHealBuildingConfiguration()
+        {
+            var e14 = new CombatantDefinition("E14", "Building", 20, 1d, 0d, 1d, 1, 5);
+            return new BattleSliceConfiguration(
+                9,
+                9,
+                6,
+                10,
+                5d,
+                3d,
+                new GridPosition(2, 2),
+                1,
+                new UnitDefinition("U01", 1, 3d),
+                new CombatantDefinition("U01", "Staff", 1, 0d, 3d, 1d, 1),
+                new CombatantDefinition("E01", "Staff", 1, 1d, 1d, 1d, 1, 1),
+                new GridPosition(3, 9),
+                new[]
+                {
+                    new EnemyWaveStage(
+                        "DeferredWave",
+                        200d,
+                        100d,
+                        1,
+                        new[] { new EnemySpawnWeight("E01", 1) })
+                },
+                new[] { e14 },
+                new[] { 3 },
+                17,
+                new[] { new EnemyBuildingPlacement("E14", new GridPosition(2, 9)) },
                 5,
                 true,
                 true);

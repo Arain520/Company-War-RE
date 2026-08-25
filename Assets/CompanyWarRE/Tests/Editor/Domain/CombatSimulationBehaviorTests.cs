@@ -388,6 +388,65 @@ namespace CompanyWarRE.Domain.Tests
                 Is.False);
         }
 
+        [Test]
+        public void E14KillHeal_AddsOneHpAndCanExceedInitialDurability()
+        {
+            var simulation = new CombatSimulation(9, 9);
+            var e14 = new CombatantDefinition("E14", "Building", 20, 1d, 0d, 1d, 1, 5);
+            var target = new CombatantDefinition("U-Target", "Support", 1, 0d, 0d, 1d, 1);
+            simulation.TryAddActor("e14", Team.Enemy, e14, 2, 9d);
+            simulation.TryAddActor("target", Team.Ally, target, 2, 8.5d);
+
+            simulation.Advance(1d);
+
+            var snapshot = simulation.CreateSnapshot();
+            Assert.That(snapshot.Single(actor => actor.ActorId == "target").IsAlive, Is.False);
+            Assert.That(snapshot.Single(actor => actor.ActorId == "e14").HitPoints, Is.EqualTo(21d));
+            Assert.That(snapshot.Single(actor => actor.ActorId == "e14").MaximumHitPoints, Is.EqualTo(20d));
+        }
+
+        [Test]
+        public void E14KillHeal_RequiresE14ToLandTheKillingDamage()
+        {
+            var simulation = new CombatSimulation(9, 9);
+            var firstAttacker = new CombatantDefinition("E-First", "Support", 5, 1d, 0d, 1d, 1);
+            var e14 = new CombatantDefinition("E14", "Building", 20, 1d, 0d, 1d, 1, 5);
+            var target = new CombatantDefinition("U-Target", "Support", 1, 0d, 0d, 1d, 1);
+            simulation.TryAddActor("first", Team.Enemy, firstAttacker, 2, 9d);
+            simulation.TryAddActor("e14", Team.Enemy, e14, 2, 9d);
+            simulation.TryAddActor("target", Team.Ally, target, 2, 8.5d);
+
+            simulation.Advance(1d);
+
+            Assert.That(
+                simulation.CreateSnapshot().Single(actor => actor.ActorId == "e14").HitPoints,
+                Is.EqualTo(20d));
+            Assert.That(
+                simulation.Events.Count(item =>
+                    item.Type == CombatEventType.Attack && item.TargetActorId == "target"),
+                Is.EqualTo(2));
+        }
+
+        [Test]
+        public void E14PendingKillHeal_CanReviveItBeforeDeathReporting()
+        {
+            var simulation = new CombatSimulation(9, 9);
+            var ally = new CombatantDefinition("U-Duelist", "Support", 1, 1d, 0d, 1d, 1);
+            var e14 = new CombatantDefinition("E14", "Building", 1, 1d, 0d, 1d, 1, 5);
+            simulation.TryAddActor("ally", Team.Ally, ally, 2, 8.5d);
+            simulation.TryAddActor("e14", Team.Enemy, e14, 2, 9d);
+
+            simulation.Advance(1d);
+
+            var snapshot = simulation.CreateSnapshot();
+            Assert.That(snapshot.Single(actor => actor.ActorId == "ally").IsAlive, Is.False);
+            Assert.That(snapshot.Single(actor => actor.ActorId == "e14").HitPoints, Is.EqualTo(1d));
+            Assert.That(
+                simulation.Events.Any(item =>
+                    item.Type == CombatEventType.Death && item.ActorId == "e14"),
+                Is.False);
+        }
+
         private static CombatSimulation CreateDuel(double allyLane, double enemyLane)
         {
             var simulation = new CombatSimulation(9, 9);

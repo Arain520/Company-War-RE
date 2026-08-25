@@ -1,6 +1,6 @@
 # Enemy building behavior v0.1
 
-Status: E06/E07/E12 baseline and E13 curse implemented; E14-E15 special slice deferred
+Status: E06/E07/E12 baseline plus E13/E14 abilities implemented; E15 special slice deferred
 
 ## Evidence
 
@@ -20,7 +20,7 @@ in `SourceEvidenceHashes.csv`.
 | E07 污秽巢穴 | HP 12, attack 0, speed 0, raw interval 0, raw range 0, reward 2 | Static nine-cell building. Despite its name, no ID-specific production or spawning branch was found. | Implemented through generic stationary-building rules. |
 | E12 虚伪皮层 | HP 15, attack 0, speed 0, raw interval 0, raw range 0, reward 2 | Static nine-cell building with no ID-specific branch. | Configuration and Domain characterization implemented; executable scene coverage is deferred. |
 | E13 恶魔 | HP 18, attack 1, speed 0, interval 0.5 s, range 3 blocks, reward 5 | Performs normal attacks and applies a persistent curse before movement and attack phases. | Persistent curse implemented in Domain and verified through Application; dedicated VFX is deferred. |
-| E14 巨兽 | HP 20, attack 1, speed 0, interval 1 s, range 1 block, reward 5 | Performs normal attacks and heals 1 HP for every target it kills. | Deferred. |
+| E14 巨兽 | HP 20, attack 1, speed 0, interval 1 s, range 1 block, reward 5 | Performs normal attacks and heals 1 HP for every target it kills. | Kill healing implemented in Domain and verified through Application; dedicated VFX is deferred. |
 | E15 咒灭术师 | HP 15, attack 0, speed 0, interval 12 s, range 99 blocks, reward 5 | Uses an ID-specific execution cast rather than the zero-attack generic path. | Deferred. |
 
 ## E13 persistent curse contract
@@ -41,6 +41,11 @@ in `SourceEvidenceHashes.csv`.
 - For every living target changed to dead by E14's applied damage, E14 gains 1 HP.
 - Cow does not clamp this healing to initial durability.
 - E14 is not in the heavy-strike set, so one ordinary attack has one primary target.
+- Pending attacks retain their attacker. If E14 is reduced to zero by an earlier
+  pending attack, its already-registered attack still resolves. A kill can restore
+  E14 to 1 HP before death reporting, so it survives that resolution cycle.
+- Damage from another attacker that already killed the target does not grant E14
+  healing, even though E14's pending damage still resolves against that target.
 
 ## E15 execution contract
 
@@ -71,20 +76,23 @@ in `SourceEvidenceHashes.csv`.
 - `CombatSimulationBehaviorTests.E13Curse_UsesControlBlockRangeAndIncludesAlliedBuildings`
 - `CombatSimulationBehaviorTests.E13Curse_ResolvesBeforeMovementAndAttackPhases`
 - `BattleSliceApplicationTests.E13Curse_FlowsThroughApplicationSnapshotBeforeUnitAction`
+- `CombatSimulationBehaviorTests.E14KillHeal_AddsOneHpAndCanExceedInitialDurability`
+- `CombatSimulationBehaviorTests.E14KillHeal_RequiresE14ToLandTheKillingDamage`
+- `CombatSimulationBehaviorTests.E14PendingKillHeal_CanReviveItBeforeDeathReporting`
+- `BattleSliceApplicationTests.E14KillHeal_FlowsThroughApplicationSnapshot`
 
 ## Next implementation order
 
-1. Add E14 kill-heal tests, including over-healing beyond initial durability.
-2. Add E15 execution tests for target exclusions, deterministic priority, large
+1. Add E15 execution tests for target exclusions, deterministic priority, large
    ticks, and interval remainder.
-3. Add Presentation feedback for persistent curse, healing, and execution only
+2. Add Presentation feedback for persistent curse, healing, and execution only
    after the Domain contracts are stable.
 
 ## Risks and open evidence gaps
 
 - Cow has no dedicated test case for E13-E15; these contracts are observed directly
-  from the pinned `BattleEngine.cs`. Target characterization tests now lock E13;
-  E14/E15 still require equivalent tests before scene integration.
+  from the pinned `BattleEngine.cs`. Target characterization tests now lock E13
+  and E14; E15 still requires equivalent tests before scene integration.
 - Special behavior is selected by hard-coded template IDs rather than a data-driven
   ability field. The compatibility layer must preserve IDs exactly.
 - Cow clamps raw zero range/interval when creating runtime actors. E06/E07/E12 stay

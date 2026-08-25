@@ -43,6 +43,8 @@ namespace CompanyWarRE.Domain
             Type.IndexOf("build", StringComparison.OrdinalIgnoreCase) >= 0;
         public bool HasPersistentEnemyCurse =>
             string.Equals(Id, "E13", StringComparison.OrdinalIgnoreCase);
+        public bool HasKillHeal =>
+            string.Equals(Id, "E14", StringComparison.OrdinalIgnoreCase);
         public int FootprintColumns => IsBuilding ? BattleGrid.ControlBlockSize : 1;
         public int FootprintRows => IsBuilding ? BattleGrid.ControlBlockSize : 1;
         public bool IsMovingMelee =>
@@ -188,6 +190,13 @@ namespace CompanyWarRE.Domain
         public int ControlBlockRow;
         public double AllyStopLane;
         public double EnemyStopLane;
+    }
+
+    internal sealed class PendingAttack
+    {
+        public CombatActor Attacker;
+        public CombatActor Target;
+        public double Damage;
     }
 
     public sealed class CombatSimulation
@@ -596,8 +605,14 @@ namespace CompanyWarRE.Domain
 
         private void ResolveAttacks(double deltaSeconds)
         {
-            var pendingDamage = new Dictionary<CombatActor, double>();
-            foreach (var actor in _actors.Where(candidate => candidate.IsAlive && candidate.Definition.Attack > 0d))
+            var pendingAttacks = new List<PendingAttack>();
+            foreach (var actor in _actors
+                         .Where(candidate => candidate.IsAlive && candidate.Definition.Attack > 0d)
+                         .OrderBy(candidate => candidate.Team == Team.Enemy ? 1 : 0)
+                         .ThenBy(candidate => candidate.Team == Team.Ally
+                             ? -candidate.LanePosition
+                             : candidate.LanePosition)
+                         .ThenBy(candidate => candidate.Column))
             {
                 var target = FindAttackTarget(actor);
                 if (target == null)
@@ -615,12 +630,12 @@ namespace CompanyWarRE.Domain
 
                 actor.AttackProgress -= attackCount * actor.Definition.AttackIntervalSeconds;
                 var damage = attackCount * actor.Definition.Attack;
-                if (!pendingDamage.ContainsKey(target))
+                pendingAttacks.Add(new PendingAttack
                 {
-                    pendingDamage[target] = 0d;
-                }
-
-                pendingDamage[target] += damage;
+                    Attacker = actor,
+                    Target = target,
+                    Damage = damage
+                });
                 for (var index = 0; index < attackCount; index++)
                 {
                     _events.Add(new CombatEvent(
@@ -632,9 +647,19 @@ namespace CompanyWarRE.Domain
                 }
             }
 
-            foreach (var pair in pendingDamage)
+            foreach (var pending in pendingAttacks)
             {
-                pair.Key.HitPoints -= pair.Value;
+                if (pending.Attacker == null || pending.Target == null || pending.Damage <= 0d)
+                {
+                    continue;
+                }
+
+                var targetWasAlive = pending.Target.IsAlive;
+                pending.Target.HitPoints -= pending.Damage;
+                if (pending.Attacker.Definition.HasKillHeal && targetWasAlive && !pending.Target.IsAlive)
+                {
+                    pending.Attacker.HitPoints += 1d;
+                }
             }
         }
 
