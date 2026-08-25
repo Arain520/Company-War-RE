@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace CompanyWarRE.Domain
 {
@@ -138,6 +139,51 @@ namespace CompanyWarRE.Domain
 
             Resources += unit.ResourceCost;
             _lastDeploymentTime.Remove(unit.Id);
+        }
+    }
+
+    public sealed class AuthorizationScoreEconomy
+    {
+        private readonly Dictionary<GridPosition, double> _producers =
+            new Dictionary<GridPosition, double>();
+        private double _fractionalPoints;
+
+        public int Points { get; private set; }
+
+        public void Reset()
+        {
+            Points = 0;
+            _fractionalPoints = 0d;
+            _producers.Clear();
+        }
+
+        public void RegisterProducer(GridPosition position, double pointsPerSecond)
+        {
+            if (pointsPerSecond > 0d)
+            {
+                _producers[position] = pointsPerSecond;
+            }
+        }
+
+        public void UnregisterProducer(GridPosition position)
+        {
+            _producers.Remove(position);
+        }
+
+        public void Advance(double deltaSeconds)
+        {
+            if (_producers.Count == 0 || deltaSeconds <= 0d)
+            {
+                return;
+            }
+
+            _fractionalPoints += _producers.Values.Sum() * deltaSeconds;
+            var completedPoints = (int)Math.Floor(_fractionalPoints + 0.0001d);
+            if (completedPoints > 0)
+            {
+                Points += completedPoints;
+                _fractionalPoints -= completedPoints;
+            }
         }
     }
 }

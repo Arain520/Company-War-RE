@@ -14,7 +14,9 @@ namespace CompanyWarRE.Domain
             double speed,
             double attackIntervalSeconds,
             int range,
-            int assaultScoreReward = 0)
+            int assaultScoreReward = 0,
+            string effect = "",
+            string name = "")
         {
             if (string.IsNullOrWhiteSpace(id))
             {
@@ -29,6 +31,8 @@ namespace CompanyWarRE.Domain
             AttackIntervalSeconds = Math.Max(0.1d, attackIntervalSeconds);
             Range = Math.Max(1, range);
             AssaultScoreReward = Math.Max(0, assaultScoreReward);
+            Effect = effect ?? string.Empty;
+            Name = name ?? string.Empty;
         }
 
         public string Id { get; }
@@ -39,18 +43,43 @@ namespace CompanyWarRE.Domain
         public double AttackIntervalSeconds { get; }
         public int Range { get; }
         public int AssaultScoreReward { get; }
+        public string Effect { get; }
+        public string Name { get; }
+        public bool IsStealth =>
+            string.Equals(Effect, "Stealth", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(Id, "U30", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(Id, "U31", StringComparison.OrdinalIgnoreCase);
         public bool IsBuilding =>
-            Type.IndexOf("build", StringComparison.OrdinalIgnoreCase) >= 0;
+            !IsStealth && Type.IndexOf("build", StringComparison.OrdinalIgnoreCase) >= 0;
         public bool HasPersistentEnemyCurse =>
             string.Equals(Id, "E13", StringComparison.OrdinalIgnoreCase);
         public bool HasKillHeal =>
             string.Equals(Id, "E14", StringComparison.OrdinalIgnoreCase);
         public bool HasExecutionCast =>
             string.Equals(Id, "E15", StringComparison.OrdinalIgnoreCase);
+        public bool HasHealingAction =>
+            string.Equals(Id, "U21", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(Id, "U33", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(Effect, "HealLowest", StringComparison.OrdinalIgnoreCase);
+        public bool HasConversionAction =>
+            string.Equals(Id, "U32", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(Effect, "ConvertEnemy", StringComparison.OrdinalIgnoreCase);
+        public bool HasAuthorityPushback =>
+            string.Equals(Id, "U27", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(Effect, "AuthorityPushback", StringComparison.OrdinalIgnoreCase);
+        public bool HasHeavyStrike =>
+            string.Equals(Id, "U16", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(Id, "U19", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(Id, "U20", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(Id, "U22", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(Id, "U23", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(Id, "E09", StringComparison.OrdinalIgnoreCase);
         public int FootprintColumns => IsBuilding ? BattleGrid.ControlBlockSize : 1;
         public int FootprintRows => IsBuilding ? BattleGrid.ControlBlockSize : 1;
         public bool IsMovingMelee =>
-            Speed > 0d && Range <= 1 && string.Equals(Type, "Staff", StringComparison.OrdinalIgnoreCase);
+            Speed > 0d && Range <= 1 && !IsBuilding &&
+            string.Equals(Type, "Staff", StringComparison.OrdinalIgnoreCase);
+        public bool CanMove => Speed > 0d && !IsBuilding;
     }
 
     public enum CombatEventType
@@ -179,14 +208,16 @@ namespace CompanyWarRE.Domain
         }
 
         public string ActorId { get; }
-        public Team Team { get; }
+        public Team Team { get; set; }
         public CombatantDefinition Definition { get; }
-        public int Column { get; }
+        public int Column { get; set; }
         public double LanePosition { get; set; }
         public double HitPoints { get; set; }
         public double AttackProgress { get; set; }
         public double DamageCarry { get; set; }
         public bool DeathReported { get; set; }
+        public int DeathCleanupTicksRemaining { get; set; }
+        public bool DeathEchoSpawned { get; set; }
         public bool IsAlive => HitPoints > 0d;
     }
 
@@ -221,6 +252,10 @@ namespace CompanyWarRE.Domain
         private readonly HashSet<string> _activeMeleeBattlefields =
             new HashSet<string>(StringComparer.Ordinal);
         private long _nextEventSequence = 1;
+        private int _deathEchoSequence;
+        private int _enemyFreezeTicks;
+        private double _enemySpeedMultiplier = 1d;
+        private double _enemySpeedMultiplierRemainingSeconds;
 
         public CombatSimulation(int columns, int rows)
         {
@@ -234,6 +269,9 @@ namespace CompanyWarRE.Domain
         }
 
         public IReadOnlyList<CombatEvent> Events => _events;
+
+        public int EnemyFreezeTicksRemaining => _enemyFreezeTicks;
+        public double EnemySpeedMultiplier => _enemySpeedMultiplier;
 
         public bool ContainsActor(string actorId)
         {
@@ -284,15 +322,93 @@ namespace CompanyWarRE.Domain
             }
 
             var delta = Math.Max(0.0001d, deltaSeconds);
+            AdvanceDeathCleanupAndSpawnEchoes();
             ApplyPersistentEnemyBuildingEffects(delta);
+            TickNegativeActionLocks(delta);
             RefreshMeleeEngagements();
             MoveActors(delta);
             ResolveEnemyTerritoryBreaches(grid);
             RefreshMeleeBattlefieldEvents();
-            ResolveAttacks(delta);
+            ResolveAttacks(delta, grid);
             ReportDeaths();
             RefreshMeleeEngagements();
             RefreshMeleeBattlefieldEvents();
+            TickTimedEnemyMovementEffects(delta);
+        }
+
+        public void ApplyGlobalFreeze(int durationTicks)
+        {
+            _enemyFreezeTicks = Math.Max(_enemyFreezeTicks, Math.Max(0, durationTicks));
+        }
+
+        public void ApplyEnemySpeedMultiplier(double multiplier, double durationSeconds)
+        {
+            var normalizedMultiplier = Math.Max(0d, Math.Min(1d, multiplier));
+            if (durationSeconds <= 0d)
+            {
+                return;
+            }
+
+            _enemySpeedMultiplier = Math.Min(_enemySpeedMultiplier, normalizedMultiplier);
+            _enemySpeedMultiplierRemainingSeconds = Math.Max(
+                _enemySpeedMultiplierRemainingSeconds,
+                durationSeconds);
+        }
+
+        public int ApplySupportDamage(GridPosition target, int controlBlockRadius, double buildingDamage)
+        {
+            if (target.Column < 1 || target.Column > _columns || target.Row < 1 || target.Row > _rows)
+            {
+                return 0;
+            }
+
+            var targetBlockColumn = GetControlBlockColumn(target.Column);
+            var targetBlockRow = GetControlBlockRow(target.Row);
+            var radius = Math.Max(0, controlBlockRadius);
+            var affected = 0;
+            foreach (var actor in _actors.Where(candidate =>
+                         candidate.IsAlive &&
+                         candidate.Team == Team.Enemy &&
+                         Math.Abs(GetControlBlockColumn(candidate.Column) - targetBlockColumn) <= radius &&
+                         Math.Abs(GetControlBlockRow(ToDiscretePosition(candidate).Row) - targetBlockRow) <= radius)
+                     .ToList())
+            {
+                actor.HitPoints = actor.Definition.IsBuilding
+                    ? actor.HitPoints - Math.Min(actor.HitPoints, Math.Max(0d, buildingDamage))
+                    : 0d;
+                affected++;
+            }
+
+            ReportDeaths();
+            return affected;
+        }
+
+        public int ApplyLure(GridPosition target, int controlBlockRadius, double lockSeconds)
+        {
+            if (target.Column < 1 || target.Column > _columns || target.Row < 1 || target.Row > _rows)
+            {
+                return 0;
+            }
+
+            var targetBlockColumn = GetControlBlockColumn(target.Column);
+            var targetBlockRow = GetControlBlockRow(target.Row);
+            var targetColumn = GetControlBlockCenterColumn(targetBlockColumn);
+            var radius = Math.Max(0, controlBlockRadius);
+            var affected = 0;
+            foreach (var actor in _actors.Where(candidate =>
+                         candidate.IsAlive &&
+                         candidate.Team == Team.Enemy &&
+                         !candidate.Definition.IsBuilding &&
+                         Math.Abs(GetControlBlockColumn(candidate.Column) - targetBlockColumn) <= radius &&
+                         Math.Abs(GetControlBlockRow(ToDiscretePosition(candidate).Row) - targetBlockRow) <= radius)
+                     .ToList())
+            {
+                actor.Column = targetColumn;
+                actor.AttackProgress = -Math.Max(0d, lockSeconds);
+                affected++;
+            }
+
+            return affected;
         }
 
         public IReadOnlyList<CombatActorSnapshot> CreateSnapshot()
@@ -340,25 +456,45 @@ namespace CompanyWarRE.Domain
         private void MoveActors(double deltaSeconds)
         {
             var positions = _actors.ToDictionary(actor => actor.ActorId, actor => actor.LanePosition);
-            foreach (var actor in _actors.Where(candidate => candidate.IsAlive && candidate.Definition.IsMovingMelee))
+            foreach (var actor in _actors.Where(candidate => candidate.IsAlive && candidate.Definition.CanMove))
             {
-                var meleeTargetInBlock = FindNearestMeleeOpponentInSameBlock(actor, positions);
-                if (meleeTargetInBlock != null)
+                if (actor.AttackProgress < 0d)
                 {
-                    MoveActorTowardBattleLine(
-                        actor,
-                        GetControlBlockRow(ToDiscretePosition(actor).Row),
-                        actor.Definition.Speed * deltaSeconds);
                     continue;
                 }
 
-                var engagement = FindMeleeEngagement(actor);
-                if (engagement != null)
+                if (actor.Team == Team.Enemy && _enemyFreezeTicks > 0)
                 {
-                    MoveActorTowardBattleLine(
-                        actor,
-                        engagement.ControlBlockRow,
-                        actor.Definition.Speed * deltaSeconds);
+                    continue;
+                }
+
+                var movementSpeed = actor.Definition.Speed *
+                                    (actor.Team == Team.Enemy ? _enemySpeedMultiplier : 1d);
+                if (actor.Definition.IsMovingMelee)
+                {
+                    var meleeTargetInBlock = FindNearestMeleeOpponentInSameBlock(actor, positions);
+                    if (meleeTargetInBlock != null)
+                    {
+                        MoveActorTowardBattleLine(
+                            actor,
+                            GetControlBlockRow(ToDiscretePosition(actor).Row),
+                            movementSpeed * deltaSeconds);
+                        continue;
+                    }
+
+                    var engagement = FindMeleeEngagement(actor);
+                    if (engagement != null)
+                    {
+                        MoveActorTowardBattleLine(
+                            actor,
+                            engagement.ControlBlockRow,
+                            movementSpeed * deltaSeconds);
+                        continue;
+                    }
+                }
+
+                if (actor.Definition.Attack > 0d && FindAttackTarget(actor) != null)
+                {
                     continue;
                 }
 
@@ -366,7 +502,7 @@ namespace CompanyWarRE.Domain
                 if (target == null)
                 {
                     actor.LanePosition = ClampLane(
-                        actor.LanePosition + Direction(actor.Team) * actor.Definition.Speed * deltaSeconds);
+                        actor.LanePosition + Direction(actor.Team) * movementSpeed * deltaSeconds);
                     continue;
                 }
 
@@ -377,14 +513,37 @@ namespace CompanyWarRE.Domain
                     continue;
                 }
 
-                var targetSpeed = target.Definition.IsMovingMelee ? target.Definition.Speed : 0d;
-                var totalSpeed = actor.Definition.Speed + targetSpeed;
+                var targetSpeed = target.Definition.CanMove
+                    ? target.Definition.Speed * (target.Team == Team.Enemy ? _enemySpeedMultiplier : 1d)
+                    : 0d;
+                var totalSpeed = movementSpeed + targetSpeed;
                 var actorShare = totalSpeed <= 0d
                     ? 0d
-                    : remaining * actor.Definition.Speed / totalSpeed;
-                var movement = Math.Min(actor.Definition.Speed * deltaSeconds, actorShare);
+                    : remaining * movementSpeed / totalSpeed;
+                var movement = Math.Min(movementSpeed * deltaSeconds, actorShare);
                 actor.LanePosition = ClampLane(
                     actor.LanePosition + Direction(actor.Team) * movement);
+            }
+        }
+
+        private void TickTimedEnemyMovementEffects(double deltaSeconds)
+        {
+            if (_enemyFreezeTicks > 0)
+            {
+                _enemyFreezeTicks--;
+            }
+
+            if (_enemySpeedMultiplierRemainingSeconds <= 0d)
+            {
+                return;
+            }
+
+            _enemySpeedMultiplierRemainingSeconds = Math.Max(
+                0d,
+                _enemySpeedMultiplierRemainingSeconds - deltaSeconds);
+            if (_enemySpeedMultiplierRemainingSeconds <= 0d)
+            {
+                _enemySpeedMultiplier = 1d;
             }
         }
 
@@ -611,19 +770,50 @@ namespace CompanyWarRE.Domain
                    FindForwardTarget(actor, null, true);
         }
 
-        private void ResolveAttacks(double deltaSeconds)
+        private void ResolveAttacks(double deltaSeconds, BattleGrid grid)
         {
             var pendingAttacks = new List<PendingAttack>();
             foreach (var actor in _actors
                          .Where(candidate =>
                              candidate.IsAlive &&
-                             (candidate.Definition.Attack > 0d || candidate.Definition.HasExecutionCast))
+                             (candidate.Definition.Attack > 0d ||
+                              candidate.Definition.HasExecutionCast ||
+                              candidate.Definition.HasHealingAction ||
+                              candidate.Definition.HasConversionAction ||
+                              candidate.Definition.HasAuthorityPushback))
                          .OrderBy(candidate => candidate.Team == Team.Enemy ? 1 : 0)
                          .ThenBy(candidate => candidate.Team == Team.Ally
                              ? -candidate.LanePosition
                              : candidate.LanePosition)
                          .ThenBy(candidate => candidate.Column))
             {
+                if (actor.AttackProgress < 0d && !actor.Definition.HasExecutionCast)
+                {
+                    continue;
+                }
+
+                if (actor.Definition.HasHealingAction)
+                {
+                    var healCount = AdvanceActionCounter(actor, deltaSeconds);
+                    if (healCount > 0)
+                    {
+                        ApplyHealOperations(actor, healCount);
+                    }
+
+                    continue;
+                }
+
+                if (actor.Definition.HasConversionAction)
+                {
+                    var convertCount = AdvanceActionCounter(actor, deltaSeconds);
+                    if (convertCount > 0 && grid != null)
+                    {
+                        ApplyConvertOperations(actor, convertCount, grid);
+                    }
+
+                    continue;
+                }
+
                 if (actor.Definition.HasExecutionCast)
                 {
                     ResolveExecutionCasts(actor, deltaSeconds);
@@ -652,6 +842,10 @@ namespace CompanyWarRE.Domain
                     Target = target,
                     Damage = damage
                 });
+                if (actor.Definition.HasAuthorityPushback)
+                {
+                    ApplyAuthorityPushback(target, 3, 2d, false);
+                }
                 for (var index = 0; index < attackCount; index++)
                 {
                     _events.Add(new CombatEvent(
@@ -670,12 +864,170 @@ namespace CompanyWarRE.Domain
                     continue;
                 }
 
-                var targetWasAlive = pending.Target.IsAlive;
-                pending.Target.HitPoints -= pending.Damage;
-                if (pending.Attacker.Definition.HasKillHeal && targetWasAlive && !pending.Target.IsAlive)
+                if (pending.Attacker.Definition.HasHeavyStrike)
                 {
-                    pending.Attacker.HitPoints += 1d;
+                    foreach (var target in _actors.Where(candidate =>
+                                 candidate.IsAlive &&
+                                 candidate.Team != pending.Attacker.Team &&
+                                 SameControlBlock(candidate, pending.Target)).ToList())
+                    {
+                        ApplyPendingDamage(pending.Attacker, target, pending.Damage);
+                    }
                 }
+                else
+                {
+                    ApplyPendingDamage(pending.Attacker, pending.Target, pending.Damage);
+                }
+            }
+        }
+
+        private static int AdvanceActionCounter(CombatActor actor, double deltaSeconds)
+        {
+            actor.AttackProgress += deltaSeconds;
+            var count = (int)Math.Floor(actor.AttackProgress / actor.Definition.AttackIntervalSeconds);
+            if (count > 0)
+            {
+                actor.AttackProgress = Math.Max(
+                    0d,
+                    actor.AttackProgress - count * actor.Definition.AttackIntervalSeconds);
+            }
+
+            return count;
+        }
+
+        private void TickNegativeActionLocks(double deltaSeconds)
+        {
+            foreach (var actor in _actors.Where(candidate =>
+                         candidate.IsAlive &&
+                         candidate.AttackProgress < 0d &&
+                         !candidate.Definition.HasExecutionCast))
+            {
+                actor.AttackProgress = Math.Min(0d, actor.AttackProgress + deltaSeconds);
+            }
+        }
+
+        private void ApplyHealOperations(CombatActor healer, int healCount)
+        {
+            var blockRange = Math.Max(1, healer.Definition.Range) / 2;
+            for (var index = 0; index < healCount; index++)
+            {
+                var healerPosition = ToDiscretePosition(healer);
+                var target = _actors
+                    .Where(candidate =>
+                        candidate.IsAlive &&
+                        candidate.Team == healer.Team &&
+                        candidate != healer &&
+                        Math.Abs(GetControlBlockColumn(ToDiscretePosition(candidate).Column) -
+                                 GetControlBlockColumn(healerPosition.Column)) <= blockRange &&
+                        Math.Abs(GetControlBlockRow(ToDiscretePosition(candidate).Row) -
+                                 GetControlBlockRow(healerPosition.Row)) <= blockRange)
+                    .OrderBy(candidate => candidate.HitPoints)
+                    .ThenBy(candidate =>
+                        Math.Abs(candidate.Column - healer.Column) +
+                        Math.Abs(candidate.LanePosition - healer.LanePosition))
+                    .FirstOrDefault();
+                if (target == null)
+                {
+                    break;
+                }
+
+                target.HitPoints += 1d;
+            }
+        }
+
+        private void ApplyConvertOperations(
+            CombatActor converter,
+            int convertCount,
+            BattleGrid grid)
+        {
+            for (var index = 0; index < convertCount; index++)
+            {
+                var targets = _actors
+                    .Where(candidate =>
+                        candidate.IsAlive &&
+                        candidate.Team == Team.Enemy &&
+                        !candidate.Definition.IsBuilding)
+                    .OrderBy(candidate => DistanceToNearestControlledBlock(candidate, grid))
+                    .ThenBy(candidate =>
+                        Math.Abs(candidate.Column - converter.Column) +
+                        Math.Abs(candidate.LanePosition - converter.LanePosition))
+                    .Take(3)
+                    .ToList();
+                if (targets.Count == 0)
+                {
+                    break;
+                }
+
+                foreach (var target in targets)
+                {
+                    target.Team = Team.Ally;
+                }
+            }
+        }
+
+        private int DistanceToNearestControlledBlock(CombatActor actor, BattleGrid grid)
+        {
+            var position = ToDiscretePosition(actor);
+            var actorBlockColumn = GetControlBlockColumn(position.Column);
+            var actorBlockRow = GetControlBlockRow(position.Row);
+            var best = int.MaxValue;
+            for (var column = 1; column <= grid.ControlBlockColumns; column++)
+            {
+                for (var row = 1; row <= grid.ControlBlockRows; row++)
+                {
+                    var block = grid.GetControlBlock(new GridPosition(column, row));
+                    if (block == null || !block.IsControlled || block.IsPolluted)
+                    {
+                        continue;
+                    }
+
+                    best = Math.Min(best, Math.Abs(column - actorBlockColumn) + Math.Abs(row - actorBlockRow));
+                }
+            }
+
+            return best;
+        }
+
+        private void ApplyAuthorityPushback(
+            CombatActor target,
+            int controlBlocks,
+            double lockSeconds,
+            bool affectBuildings)
+        {
+            if (target == null || !target.IsAlive || (!affectBuildings && target.Definition.IsBuilding))
+            {
+                return;
+            }
+
+            var targetRow = ToDiscretePosition(target).Row;
+            var direction = target.Team == Team.Enemy ? 1 : -1;
+            var targetBlockRow = GetControlBlockRow(targetRow) + direction * Math.Max(1, controlBlocks);
+            targetBlockRow = Math.Max(1, Math.Min(GetControlBlockRow(_rows), targetBlockRow));
+            target.LanePosition = target.Team == Team.Enemy
+                ? GetControlBlockEndRow(targetBlockRow)
+                : GetControlBlockStartRow(targetBlockRow);
+            target.AttackProgress = -Math.Max(0d, lockSeconds);
+        }
+
+        private static void ApplyPendingDamage(CombatActor attacker, CombatActor target, double damage)
+        {
+            if (attacker == null || target == null || damage <= 0d)
+            {
+                return;
+            }
+
+            var targetWasAlive = target.IsAlive;
+            target.DamageCarry += damage;
+            var wholeDamage = (int)Math.Floor(target.DamageCarry + 0.0001d);
+            if (wholeDamage > 0)
+            {
+                target.HitPoints -= wholeDamage;
+                target.DamageCarry = Math.Max(0d, target.DamageCarry - wholeDamage);
+            }
+
+            if (attacker.Definition.HasKillHeal && targetWasAlive && !target.IsAlive)
+            {
+                attacker.HitPoints += 1d;
             }
         }
 
@@ -724,9 +1076,7 @@ namespace CompanyWarRE.Domain
 
         private static bool IsStealthActor(CombatActor actor)
         {
-            return actor != null &&
-                   (string.Equals(actor.Definition.Id, "U30", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(actor.Definition.Id, "U31", StringComparison.OrdinalIgnoreCase));
+            return actor != null && actor.Definition.IsStealth;
         }
 
         private void ResolveEnemyTerritoryBreaches(BattleGrid grid)
@@ -787,12 +1137,42 @@ namespace CompanyWarRE.Domain
             foreach (var actor in _actors.Where(candidate => !candidate.IsAlive && !candidate.DeathReported))
             {
                 actor.DeathReported = true;
+                actor.DeathCleanupTicksRemaining = 2;
                 _events.Add(new CombatEvent(
                     _nextEventSequence++,
                     CombatEventType.Death,
                     actor.ActorId,
                     string.Empty,
                     0d));
+            }
+        }
+
+        private void AdvanceDeathCleanupAndSpawnEchoes()
+        {
+            var echoSources = new List<CombatActor>();
+            foreach (var actor in _actors.Where(candidate =>
+                         candidate.DeathReported &&
+                         !candidate.DeathEchoSpawned &&
+                         candidate.DeathCleanupTicksRemaining > 0))
+            {
+                actor.DeathCleanupTicksRemaining--;
+                if (actor.DeathCleanupTicksRemaining == 0 &&
+                    string.Equals(actor.Definition.Id, "E11", StringComparison.OrdinalIgnoreCase))
+                {
+                    actor.DeathEchoSpawned = true;
+                    echoSources.Add(actor);
+                }
+            }
+
+            foreach (var source in echoSources)
+            {
+                _deathEchoSequence++;
+                TryAddActor(
+                    source.ActorId + "-echo-" + _deathEchoSequence,
+                    source.Team,
+                    source.Definition,
+                    source.Column,
+                    Math.Max(1d, Math.Min(_rows, source.LanePosition)));
             }
         }
 
@@ -806,7 +1186,11 @@ namespace CompanyWarRE.Domain
             var selectedDistance = double.MaxValue;
             foreach (var candidate in _actors)
             {
-                if (!candidate.IsAlive || candidate.Team == actor.Team || !SharesCombatColumn(actor, candidate))
+                if (!candidate.IsAlive ||
+                    candidate.Team == actor.Team ||
+                    !SharesCombatColumn(actor, candidate) ||
+                    (actor.Team == Team.Enemy && IsStealthActor(candidate)) ||
+                    (actor.Definition.IsMovingMelee && candidate.Definition.IsMovingMelee))
                 {
                     continue;
                 }
@@ -819,18 +1203,28 @@ namespace CompanyWarRE.Domain
                 }
 
                 var distance = Math.Abs(candidateLane - actorLane);
-                var maximumDistance = actor.Definition.IsMovingMelee
-                    ? ContactDistance + ContactEpsilon
-                    : actor.Definition.Range;
-                if (requireAttackRange && distance > maximumDistance)
+                var actorRow = ToDiscretePosition(actor, positions).Row;
+                var candidateRow = ToDiscretePosition(candidate, positions).Row;
+                var blockDistance = Math.Abs(
+                    GetControlBlockRow(candidateRow) - GetControlBlockRow(actorRow));
+                var inRange = actor.Definition.IsMovingMelee
+                    ? distance <= ContactDistance + ContactEpsilon
+                    : blockDistance <= Math.Max(1, actor.Definition.Range);
+                if (requireAttackRange && !inRange)
                 {
                     continue;
                 }
 
-                if (distance < selectedDistance)
+                var targetPriority = blockDistance * (_rows + 1d) + distance;
+                if (candidate.Definition.IsBuilding)
+                {
+                    targetPriority -= 0.25d;
+                }
+
+                if (targetPriority < selectedDistance)
                 {
                     selected = candidate;
-                    selectedDistance = distance;
+                    selectedDistance = targetPriority;
                 }
             }
 
@@ -839,7 +1233,7 @@ namespace CompanyWarRE.Domain
 
         private static bool SharesCombatColumn(CombatActor first, CombatActor second)
         {
-            return OccupiesColumn(first, second.Column) || OccupiesColumn(second, first.Column);
+            return GetControlBlockColumn(first.Column) == GetControlBlockColumn(second.Column);
         }
 
         private static bool OccupiesColumn(CombatActor actor, int column)
@@ -872,6 +1266,19 @@ namespace CompanyWarRE.Domain
                             GetControlBlockColumn(secondPosition.Column)) +
                    Math.Abs(GetControlBlockRow(firstPosition.Row) -
                             GetControlBlockRow(secondPosition.Row));
+        }
+
+        private bool SameControlBlock(CombatActor first, CombatActor second)
+        {
+            if (first == null || second == null)
+            {
+                return false;
+            }
+
+            var firstPosition = ToDiscretePosition(first);
+            var secondPosition = ToDiscretePosition(second);
+            return GetControlBlockColumn(firstPosition.Column) == GetControlBlockColumn(secondPosition.Column) &&
+                   GetControlBlockRow(firstPosition.Row) == GetControlBlockRow(secondPosition.Row);
         }
 
         private double ClampLane(double lanePosition)

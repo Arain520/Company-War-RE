@@ -88,6 +88,7 @@ namespace CompanyWarRE.Application
             int columns,
             int rows,
             int resources,
+            int authorizationPoints,
             double elapsedSeconds,
             double remainingCooldown,
             string unitId,
@@ -107,6 +108,7 @@ namespace CompanyWarRE.Application
             Columns = columns;
             Rows = rows;
             Resources = resources;
+            AuthorizationPoints = authorizationPoints;
             ElapsedSeconds = elapsedSeconds;
             RemainingCooldown = remainingCooldown;
             UnitId = unitId;
@@ -127,6 +129,7 @@ namespace CompanyWarRE.Application
         public int Columns { get; }
         public int Rows { get; }
         public int Resources { get; }
+        public int AuthorizationPoints { get; }
         public double ElapsedSeconds { get; }
         public double RemainingCooldown { get; }
         public string UnitId { get; }
@@ -178,7 +181,9 @@ namespace CompanyWarRE.Application
             IReadOnlyList<EnemyBuildingPlacement> enemyBuildings = null,
             int requiredAssaultScore = 0,
             bool victoryByEnemyBuildings = false,
-            bool enableBattleOutcomes = false)
+            bool enableBattleOutcomes = false,
+            IReadOnlyList<UnitDefinition> units = null,
+            IReadOnlyList<CombatantDefinition> allyCombatants = null)
         {
             if (columns <= 0)
             {
@@ -209,6 +214,32 @@ namespace CompanyWarRE.Application
             if (!string.Equals(TestUnit.Id, AllyCombatant.Id, StringComparison.OrdinalIgnoreCase))
             {
                 throw new ArgumentException("Deployment and ally combat definitions must use the same ID.");
+            }
+
+            var configuredUnits = new List<UnitDefinition> { TestUnit };
+            if (units != null)
+            {
+                configuredUnits.AddRange(units.Where(item => item != null));
+            }
+
+            Units = configuredUnits
+                .GroupBy(item => item.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+            var configuredAllies = new List<CombatantDefinition> { AllyCombatant };
+            if (allyCombatants != null)
+            {
+                configuredAllies.AddRange(allyCombatants.Where(item => item != null));
+            }
+
+            AllyCombatants = configuredAllies
+                .GroupBy(item => item.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+            var missingAlly = Units.Keys.FirstOrDefault(id => !AllyCombatants.ContainsKey(id));
+            if (missingAlly != null)
+            {
+                throw new ArgumentException(
+                    "Unit catalog references a missing ally combat definition: " + missingAlly,
+                    nameof(allyCombatants));
             }
 
             if (enemySpawnPosition.Column < 1 || enemySpawnPosition.Column > columns ||
@@ -327,6 +358,8 @@ namespace CompanyWarRE.Application
         public int TransmitterAmount { get; }
         public UnitDefinition TestUnit { get; }
         public CombatantDefinition AllyCombatant { get; }
+        public IReadOnlyDictionary<string, UnitDefinition> Units { get; }
+        public IReadOnlyDictionary<string, CombatantDefinition> AllyCombatants { get; }
         public CombatantDefinition EnemyCombatant { get; }
         public GridPosition EnemySpawnPosition { get; }
         public IReadOnlyList<EnemyWaveStage> EnemyWaveStages { get; }
@@ -387,16 +420,18 @@ namespace CompanyWarRE.Application
     {
         private readonly GridPosition _position;
         private readonly string _actorId;
+        private readonly string _unitId;
 
-        public DeployBattleSliceUnitCommand(GridPosition position, string actorId)
+        public DeployBattleSliceUnitCommand(GridPosition position, string actorId, string unitId = null)
         {
             _position = position;
             _actorId = actorId;
+            _unitId = unitId;
         }
 
         protected override BattleSliceDeploymentResponse OnExecute()
         {
-            var result = this.GetModel<BattleSliceModel>().Deploy(_position, _actorId);
+            var result = this.GetModel<BattleSliceModel>().Deploy(_position, _actorId, _unitId);
             return new BattleSliceDeploymentResponse(result.Succeeded, result.Failure);
         }
     }
@@ -429,12 +464,15 @@ namespace CompanyWarRE.Application
         private BattleSliceConfiguration _configuration;
         private BattleGrid _grid;
         private ResourceEconomy _economy;
+        private AuthorizationScoreEconomy _authorizationScore;
         private DeploymentService _deployment;
+        private BattleSupportAbilityService _supportAbilities;
         private UnitDefinition _testUnit;
         private CombatSimulation _combat;
         private EnemyWaveScheduler _enemyWaves;
         private readonly List<EnemyWaveSpawn> _enemySpawnHistory = new List<EnemyWaveSpawn>();
         private int _enemyActorSequence;
+        private Random _deploymentRandom;
         private BattleProgression _progression;
         private readonly Dictionary<string, GridPosition> _deploymentPositions =
             new Dictionary<string, GridPosition>(StringComparer.Ordinal);
@@ -463,6 +501,8 @@ namespace CompanyWarRE.Application
 
             _economy = new ResourceEconomy();
             _economy.Reset(_configuration.InitialResources);
+            _authorizationScore = new AuthorizationScoreEconomy();
+            _authorizationScore.Reset();
             _economy.ConfigureProduction(
                 _configuration.FixedProductionIntervalSeconds,
                 _configuration.TransmitterProductionIntervalSeconds);
@@ -477,6 +517,7 @@ namespace CompanyWarRE.Application
             _deployment = new DeploymentService(_grid, _economy);
             _deploymentPositions.Clear();
             _combat = new CombatSimulation(_configuration.Columns, _configuration.Rows);
+            _supportAbilities = new BattleSupportAbilityService(_grid, _economy, _combat);
             _enemyWaves = new EnemyWaveScheduler(
                 _configuration.Columns,
                 _configuration.Rows,
@@ -486,6 +527,7 @@ namespace CompanyWarRE.Application
                 _configuration.EnemySpawnPosition.Row);
             _enemySpawnHistory.Clear();
             _enemyActorSequence = 0;
+            _deploymentRandom = new Random(unchecked(_configuration.EnemyWaveRandomSeed ^ 0x5F3759DF));
             _progression = new BattleProgression(
                 _configuration.RequiredAssaultScore,
                 _configuration.VictoryByEnemyBuildings);
@@ -522,6 +564,7 @@ namespace CompanyWarRE.Application
             }
 
             _economy.Advance(deltaSeconds);
+            _authorizationScore.Advance(deltaSeconds);
             foreach (var spawn in _enemyWaves.Advance(deltaSeconds, _grid))
             {
                 if (!_configuration.EnemyCombatants.TryGetValue(spawn.EnemyId, out var definition))
@@ -548,7 +591,24 @@ namespace CompanyWarRE.Application
             {
                 if (!actor.IsAlive && _deploymentPositions.TryGetValue(actor.ActorId, out var position))
                 {
-                    _grid.RemoveOccupant(position, actor.ActorId);
+                    if (actor.IsBuilding)
+                    {
+                        _grid.ClearBuildingFootprint(actor.ActorId);
+                    }
+                    else
+                    {
+                        _grid.RemoveOccupant(position, actor.ActorId);
+                    }
+
+                    if (string.Equals(actor.TemplateId, "U08", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _economy.UnregisterTransmitter(position);
+                    }
+                    else if (string.Equals(actor.TemplateId, "U09", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _authorizationScore.UnregisterProducer(position);
+                    }
+
                     _deploymentPositions.Remove(actor.ActorId);
                 }
             }
@@ -556,7 +616,7 @@ namespace CompanyWarRE.Application
             ProcessEnemyDeathsAndOutcome();
         }
 
-        public DeploymentResult Deploy(GridPosition position, string actorId)
+        public DeploymentResult Deploy(GridPosition position, string actorId, string unitId = null)
         {
             if (_progression.State != BattleState.Running)
             {
@@ -568,7 +628,29 @@ namespace CompanyWarRE.Application
                 return DeploymentResult.Reject(DeploymentFailure.DuplicateActorId);
             }
 
-            var result = _deployment.TryDeploy(_testUnit, actorId, position);
+            var selectedUnitId = string.IsNullOrWhiteSpace(unitId) ? _testUnit.Id : unitId;
+            if (!_configuration.Units.TryGetValue(selectedUnitId, out var unit) ||
+                !_configuration.AllyCombatants.TryGetValue(selectedUnitId, out var combatant))
+            {
+                return DeploymentResult.Reject(DeploymentFailure.MissingUnit);
+            }
+
+            if (combatant.HasConversionAction &&
+                _combat.CreateSnapshot().Count(actor =>
+                    actor.IsAlive &&
+                    actor.Team == Team.Ally &&
+                    string.Equals(actor.TemplateId, selectedUnitId, StringComparison.OrdinalIgnoreCase)) >= 3)
+            {
+                return DeploymentResult.Reject(DeploymentFailure.Occupied);
+            }
+
+            if (unit.DeploymentMode == DeploymentMode.SupportEffect ||
+                unit.DeploymentMode == DeploymentMode.TerrainBuild)
+            {
+                return _supportAbilities.TryExecute(unit, position);
+            }
+
+            var result = _deployment.TryDeploy(unit, actorId, position);
             if (!result.Succeeded)
             {
                 return result;
@@ -577,17 +659,72 @@ namespace CompanyWarRE.Application
             if (!_combat.TryAddActor(
                     actorId,
                     Team.Ally,
-                    _configuration.AllyCombatant,
+                    combatant,
                     position.Column,
                     position.Row))
             {
-                _grid.RemoveOccupant(position, actorId);
-                _economy.RefundDeployment(_testUnit);
+                if (unit.DeploymentMode == DeploymentMode.Building)
+                {
+                    _grid.ClearBuildingFootprint(actorId);
+                }
+                else
+                {
+                    _grid.RemoveOccupant(position, actorId);
+                }
+
+                _economy.RefundDeployment(unit);
                 return DeploymentResult.Reject(DeploymentFailure.CombatRegistrationRejected);
             }
 
+            if (string.Equals(unit.Effect, "Transmitter", StringComparison.OrdinalIgnoreCase))
+            {
+                _economy.RegisterTransmitter(position, (int)Math.Max(1d, Math.Round(unit.ResourceRate)));
+            }
+            else if (string.Equals(unit.Effect, "AuthCenter", StringComparison.OrdinalIgnoreCase))
+            {
+                _authorizationScore.RegisterProducer(position, unit.ScoreRate);
+            }
+
             _deploymentPositions[actorId] = position;
+            DeployEchoCopies(unit, combatant, actorId);
             return result;
+        }
+
+        private void DeployEchoCopies(
+            UnitDefinition unit,
+            CombatantDefinition combatant,
+            string primaryActorId)
+        {
+            var copyCount = unit.DeploymentEchoCount;
+            if (copyCount <= 0)
+            {
+                return;
+            }
+
+            var candidates = _grid.GetDeployableCells()
+                .Where(cell => cell.OccupantCount == 0)
+                .OrderBy(cell => _deploymentRandom.Next())
+                .ThenBy(cell => cell.Position.Column)
+                .ThenBy(cell => cell.Position.Row)
+                .Take(copyCount)
+                .ToList();
+            for (var index = 0; index < candidates.Count; index++)
+            {
+                var position = candidates[index].Position;
+                var actorId = primaryActorId + "-echo-" + (index + 1);
+                if (!_grid.TryAddOccupant(position, actorId, 1))
+                {
+                    continue;
+                }
+
+                if (!_combat.TryAddActor(actorId, Team.Ally, combatant, position.Column, position.Row))
+                {
+                    _grid.RemoveOccupant(position, actorId);
+                    continue;
+                }
+
+                _deploymentPositions[actorId] = position;
+            }
         }
 
         public int TogglePollution(GridPosition position)
@@ -618,6 +755,7 @@ namespace CompanyWarRE.Application
                 _configuration.Columns,
                 _configuration.Rows,
                 _economy.Resources,
+                _authorizationScore.Points,
                 _economy.ElapsedSeconds,
                 _economy.GetRemainingCooldown(_testUnit),
                 _testUnit.Id,

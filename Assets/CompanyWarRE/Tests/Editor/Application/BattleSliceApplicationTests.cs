@@ -62,6 +62,29 @@ namespace CompanyWarRE.Application.Tests
         }
 
         [Test]
+        public void UnitIdCommand_DeploysCatalogStaffAndNineCellBuildingThroughQFrameworkBoundary()
+        {
+            _architecture.SendCommand(new ConfigureBattleSliceCommand(CreateMultiUnitConfiguration()));
+
+            var ranged = _architecture.SendCommand(new DeployBattleSliceUnitCommand(
+                new GridPosition(4, 1),
+                "ranged-1",
+                "U17"));
+            var medical = _architecture.SendCommand(new DeployBattleSliceUnitCommand(
+                new GridPosition(2, 2),
+                "medical-1",
+                "U33"));
+            var snapshot = _architecture.SendQuery(new GetBattleSliceSnapshotQuery());
+
+            Assert.That(ranged.Succeeded, Is.True);
+            Assert.That(medical.Succeeded, Is.True);
+            Assert.That(snapshot.Combatants.Single(actor => actor.ActorId == "ranged-1").TemplateId, Is.EqualTo("U17"));
+            Assert.That(snapshot.Combatants.Single(actor => actor.ActorId == "medical-1").IsBuilding, Is.True);
+            Assert.That(snapshot.Cells.Count(cell => cell.IsBlockedByBuilding), Is.EqualTo(9));
+            Assert.That(snapshot.Resources, Is.EqualTo(15));
+        }
+
+        [Test]
         public void PollutionCommand_ChangesExactlyOneThreeByThreeBlock()
         {
             var changed = _architecture.SendCommand(
@@ -242,6 +265,34 @@ namespace CompanyWarRE.Application.Tests
             Assert.That(execution.Amount, Is.EqualTo(1d));
         }
 
+        [Test]
+        public void SpecialUnits_FlowThroughQFrameworkBoundaryWithoutPresentationDependencies()
+        {
+            _architecture.SendCommand(new ConfigureBattleSliceCommand(CreateAbilityBoundaryConfiguration()));
+
+            var authCenter = _architecture.SendCommand(new DeployBattleSliceUnitCommand(
+                new GridPosition(2, 2),
+                "auth-center",
+                "U09"));
+            var echo = _architecture.SendCommand(new DeployBattleSliceUnitCommand(
+                new GridPosition(4, 1),
+                "echo-primary",
+                "U13"));
+            var freeze = _architecture.SendCommand(new DeployBattleSliceUnitCommand(
+                new GridPosition(4, 4),
+                "support-command",
+                "U12"));
+            _architecture.SendCommand(new AdvanceBattleSliceTimeCommand(3.04d));
+            var snapshot = _architecture.SendQuery(new GetBattleSliceSnapshotQuery());
+
+            Assert.That(authCenter.Succeeded, Is.True);
+            Assert.That(echo.Succeeded, Is.True);
+            Assert.That(freeze.Succeeded, Is.True);
+            Assert.That(snapshot.Combatants.Count(item => item.TemplateId == "U13"), Is.EqualTo(2));
+            Assert.That(snapshot.Combatants.Any(item => item.TemplateId == "U12"), Is.False);
+            Assert.That(snapshot.AuthorizationPoints, Is.EqualTo(1));
+        }
+
         private static BattleSliceConfiguration CreateConfiguration()
         {
             return new BattleSliceConfiguration(
@@ -257,6 +308,96 @@ namespace CompanyWarRE.Application.Tests
                 new CombatantDefinition("U01", "Staff", 1, 1d, 1d, 1d, 1),
                 new CombatantDefinition("E01", "Staff", 1, 1d, 1d, 1d, 1, 1),
                 new GridPosition(3, 4));
+        }
+
+        private static BattleSliceConfiguration CreateMultiUnitConfiguration()
+        {
+            var u01 = new UnitDefinition("U01", 1, 3d);
+            var u17 = new UnitDefinition("U17", 1, 3d);
+            var u33 = new UnitDefinition(
+                "U33",
+                4,
+                18d,
+                DeploymentMode.Building,
+                UnitFootprint.ControlBlock,
+                "边境医护站",
+                "HealLowest");
+            var u01Combat = new CombatantDefinition("U01", "Staff", 1, 1d, 1d, 1d, 1);
+            var u17Combat = new CombatantDefinition("U17", "Staff", 2, 1d, 0.5d, 1d, 2);
+            var u33Combat = new CombatantDefinition(
+                "U33",
+                "Building",
+                8,
+                0d,
+                0d,
+                2d,
+                3,
+                0,
+                "HealLowest");
+            return new BattleSliceConfiguration(
+                6,
+                6,
+                3,
+                20,
+                5d,
+                3d,
+                new GridPosition(2, 2),
+                0,
+                u01,
+                u01Combat,
+                new CombatantDefinition("E01", "Staff", 1, 1d, 1d, 1d, 1, 1),
+                new GridPosition(3, 6),
+                units: new[] { u01, u17, u33 },
+                allyCombatants: new[] { u01Combat, u17Combat, u33Combat });
+        }
+
+        private static BattleSliceConfiguration CreateAbilityBoundaryConfiguration()
+        {
+            var u01 = new UnitDefinition("U01", 1, 3d);
+            var u09 = new UnitDefinition(
+                "U09",
+                0,
+                0d,
+                DeploymentMode.Building,
+                UnitFootprint.ControlBlock,
+                effect: "AuthCenter",
+                scoreRate: 0.33d);
+            var u12 = new UnitDefinition(
+                "U12",
+                0,
+                0d,
+                DeploymentMode.SupportEffect,
+                effect: "Freeze");
+            var u13 = new UnitDefinition("U13", 0, 0d, effect: "DeployEcho1");
+            var u01Combat = new CombatantDefinition("U01", "Staff", 1, 1d, 1d, 1d, 1);
+            var u09Combat = new CombatantDefinition("U09", "Building", 12, 0d, 0d, 1d, 1, effect: "AuthCenter");
+            var u12Combat = new CombatantDefinition("U12", "Support", 1, 0d, 0d, 1d, 1, effect: "Freeze");
+            var u13Combat = new CombatantDefinition("U13", "Staff", 2, 2d, 1d, 1d, 1, effect: "DeployEcho1");
+            var enemy = new CombatantDefinition("E01", "Staff", 1, 0d, 0d, 1d, 1, 1);
+            return new BattleSliceConfiguration(
+                9,
+                6,
+                3,
+                100,
+                100d,
+                100d,
+                new GridPosition(8, 2),
+                0,
+                u01,
+                u01Combat,
+                enemy,
+                new GridPosition(5, 6),
+                new[]
+                {
+                    new EnemyWaveStage(
+                        "DeferredWave",
+                        1000d,
+                        100d,
+                        1,
+                        new[] { new EnemySpawnWeight("E01", 1) })
+                },
+                units: new[] { u09, u12, u13 },
+                allyCombatants: new[] { u09Combat, u12Combat, u13Combat });
         }
 
         private static BattleSliceConfiguration CreateWaveConfiguration()

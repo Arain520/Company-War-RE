@@ -15,6 +15,10 @@ namespace CompanyWarRE.Infrastructure.Tests
             "Assets/CompanyWarRE/ConfigSamples/Compatibility/LegacyUnits.U01.json";
         private const string EnemiesPath =
             "Assets/CompanyWarRE/ConfigSamples/Compatibility/LegacyEnemies.E01.json";
+        private const string AllUnitsPath =
+            "Assets/CompanyWarRE/ConfigSamples/Compatibility/LegacyUnits.All.json";
+        private const string AllEnemiesPath =
+            "Assets/CompanyWarRE/ConfigSamples/Compatibility/LegacyEnemies.All.json";
         private const string SettingsPath =
             "Assets/CompanyWarRE/ConfigSamples/Compatibility/BattleSliceRuntime.json";
         private const string SpawnSchedulesPath =
@@ -25,6 +29,52 @@ namespace CompanyWarRE.Infrastructure.Tests
             "Assets/CompanyWarRE/ConfigSamples/Compatibility/BattleSliceRuntime.L01.json";
         private const string CowL01LevelPath =
             "Assets/CompanyWarRE/ConfigSamples/Compatibility/LegacyLevel.L01.json";
+
+        [Test]
+        public void CompleteCatalog_MapsU01ThroughU36AndE01ThroughE15WithAbilityMetadata()
+        {
+            var provider = new LegacyBattleSliceConfigurationProvider(
+                new DictionaryConfigurationTextSource(new Dictionary<string, string>
+                {
+                    ["units"] = File.ReadAllText(AllUnitsPath),
+                    ["enemies"] = File.ReadAllText(AllEnemiesPath)
+                }));
+
+            var result = provider.LoadCatalog("units", "enemies");
+
+            Assert.That(
+                result.Succeeded,
+                Is.True,
+                string.Join("\n", result.Issues.Select(issue => issue.ToString())));
+            Assert.That(result.Catalog.Units.Count, Is.EqualTo(36));
+            Assert.That(result.Catalog.Allies.Count, Is.EqualTo(36));
+            Assert.That(result.Catalog.Enemies.Count, Is.EqualTo(15));
+            Assert.That(
+                result.Catalog.Units.Keys.OrderBy(id => id),
+                Is.EqualTo(Enumerable.Range(1, 36).Select(index => $"U{index:00}")));
+            Assert.That(
+                result.Catalog.Enemies.Keys.OrderBy(id => id),
+                Is.EqualTo(Enumerable.Range(1, 15).Select(index => $"E{index:00}")));
+
+            var u25 = result.Catalog.Units["U25"];
+            Assert.That(u25.Name, Is.EqualTo("边境协防员"));
+            Assert.That(u25.ResourceCost, Is.EqualTo(6));
+            Assert.That(result.Catalog.Allies["U25"].Speed, Is.EqualTo(0.7d).Within(0.0001d));
+
+            var u30 = result.Catalog.Allies["U30"];
+            Assert.That(result.Catalog.Units["U30"].DeploymentMode, Is.EqualTo(DeploymentMode.StandardUnit));
+            Assert.That(u30.IsStealth, Is.True);
+            Assert.That(u30.IsBuilding, Is.False);
+            Assert.That(u30.Attack, Is.EqualTo(0.3d).Within(0.0001d));
+
+            Assert.That(result.Catalog.Units["U32"].Footprint, Is.EqualTo(UnitFootprint.ControlBlock));
+            Assert.That(result.Catalog.Allies["U32"].HasConversionAction, Is.True);
+            Assert.That(result.Catalog.Allies["U33"].HasHealingAction, Is.True);
+            Assert.That(result.Catalog.Allies["U27"].HasAuthorityPushback, Is.True);
+            Assert.That(result.Catalog.Enemies["E09"].HasHeavyStrike, Is.True);
+            Assert.That(result.Catalog.Enemies["E13"].HasPersistentEnemyCurse, Is.True);
+            Assert.That(result.Catalog.Enemies["E15"].HasExecutionCast, Is.True);
+        }
 
         [Test]
         public void CompatibilitySamples_MapLegacyU01AndObservedRuntimeDefaults()

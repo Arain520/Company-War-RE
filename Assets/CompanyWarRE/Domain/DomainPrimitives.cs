@@ -65,7 +65,12 @@ namespace CompanyWarRE.Domain
             int resourceCost,
             double deploymentCooldownSeconds,
             DeploymentMode deploymentMode = DeploymentMode.StandardUnit,
-            UnitFootprint footprint = UnitFootprint.SmallCell)
+            UnitFootprint footprint = UnitFootprint.SmallCell,
+            string name = "",
+            string effect = "",
+            double resourceRate = 0d,
+            double scoreRate = 0d,
+            bool canDeployOutside = false)
         {
             if (string.IsNullOrWhiteSpace(id))
             {
@@ -77,6 +82,11 @@ namespace CompanyWarRE.Domain
             DeploymentCooldownSeconds = Math.Max(0d, deploymentCooldownSeconds);
             DeploymentMode = deploymentMode;
             Footprint = footprint;
+            Name = name ?? string.Empty;
+            Effect = effect ?? string.Empty;
+            ResourceRate = Math.Max(0d, resourceRate);
+            ScoreRate = Math.Max(0d, scoreRate);
+            CanDeployOutside = canDeployOutside;
         }
 
         public string Id { get; }
@@ -84,5 +94,16 @@ namespace CompanyWarRE.Domain
         public double DeploymentCooldownSeconds { get; }
         public DeploymentMode DeploymentMode { get; }
         public UnitFootprint Footprint { get; }
+        public string Name { get; }
+        public string Effect { get; }
+        public double ResourceRate { get; }
+        public double ScoreRate { get; }
+        public bool CanDeployOutside { get; }
+        public int DeploymentEchoCount =>
+            string.Equals(Effect, "DeployEcho1", StringComparison.OrdinalIgnoreCase)
+                ? 1
+                : string.Equals(Effect, "DeployEcho3", StringComparison.OrdinalIgnoreCase)
+                    ? 3
+                    : 0;
     }
 }

@@ -267,6 +267,38 @@ namespace CompanyWarRE.Infrastructure.Configuration
         public bool Succeeded => Configuration != null && Issues.Count == 0;
     }
 
+    public sealed class LegacyCombatCatalog
+    {
+        public LegacyCombatCatalog(
+            IReadOnlyDictionary<string, UnitDefinition> units,
+            IReadOnlyDictionary<string, CombatantDefinition> allies,
+            IReadOnlyDictionary<string, CombatantDefinition> enemies)
+        {
+            Units = units ?? throw new ArgumentNullException(nameof(units));
+            Allies = allies ?? throw new ArgumentNullException(nameof(allies));
+            Enemies = enemies ?? throw new ArgumentNullException(nameof(enemies));
+        }
+
+        public IReadOnlyDictionary<string, UnitDefinition> Units { get; }
+        public IReadOnlyDictionary<string, CombatantDefinition> Allies { get; }
+        public IReadOnlyDictionary<string, CombatantDefinition> Enemies { get; }
+    }
+
+    public sealed class LegacyCombatCatalogLoadResult
+    {
+        public LegacyCombatCatalogLoadResult(
+            LegacyCombatCatalog catalog,
+            IReadOnlyList<ConfigurationIssue> issues)
+        {
+            Catalog = catalog;
+            Issues = issues ?? Array.Empty<ConfigurationIssue>();
+        }
+
+        public LegacyCombatCatalog Catalog { get; }
+        public IReadOnlyList<ConfigurationIssue> Issues { get; }
+        public bool Succeeded => Catalog != null && Issues.Count == 0;
+    }
+
     public sealed class LegacyBattleSliceConfigurationProvider
     {
         public const int SupportedSettingsSchemaVersion = 1;
@@ -276,6 +308,49 @@ namespace CompanyWarRE.Infrastructure.Configuration
         public LegacyBattleSliceConfigurationProvider(IConfigurationTextSource source)
         {
             _source = source ?? throw new ArgumentNullException(nameof(source));
+        }
+
+        public LegacyCombatCatalogLoadResult LoadCatalog(string unitsKey, string enemiesKey)
+        {
+            var issues = new List<ConfigurationIssue>();
+            if (!_source.TryRead(unitsKey, out var unitsJson, out var unitsReadError))
+            {
+                issues.Add(new ConfigurationIssue("CFG_SOURCE", unitsKey, unitsReadError));
+            }
+
+            if (!_source.TryRead(enemiesKey, out var enemiesJson, out var enemiesReadError))
+            {
+                issues.Add(new ConfigurationIssue("CFG_SOURCE", enemiesKey, enemiesReadError));
+            }
+
+            if (issues.Count > 0)
+            {
+                return new LegacyCombatCatalogLoadResult(null, issues);
+            }
+
+            var units = Parse<LegacyUnitsDocumentDto>(unitsJson, unitsKey, issues);
+            var enemies = Parse<LegacyEnemiesDocumentDto>(enemiesJson, enemiesKey, issues);
+            if (units == null || enemies == null)
+            {
+                return new LegacyCombatCatalogLoadResult(null, issues);
+            }
+
+            ValidateAndFindUnit(units, null, unitsKey, issues);
+            ValidateAndFindEnemy(enemies, null, enemiesKey, issues);
+            var mappedUnits = MapUnitDefinitions(units, unitsKey, issues);
+            var mappedAllies = MapAllyCombatants(units);
+            var mappedEnemies = enemies.Enemies == null
+                ? new Dictionary<string, CombatantDefinition>(StringComparer.OrdinalIgnoreCase)
+                : enemies.Enemies
+                    .Where(item => item != null && !string.IsNullOrWhiteSpace(item.Id))
+                    .Select(MapEnemyCombatant)
+                    .GroupBy(item => item.Id, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+            return issues.Count == 0
+                ? new LegacyCombatCatalogLoadResult(
+                    new LegacyCombatCatalog(mappedUnits, mappedAllies, mappedEnemies),
+                    issues)
+                : new LegacyCombatCatalogLoadResult(null, issues);
         }
 
         public BattleSliceConfigurationLoadResult Load(
@@ -339,6 +414,8 @@ namespace CompanyWarRE.Infrastructure.Configuration
             ValidateSettings(settings, settingsKey, issues);
             var selectedUnit = ValidateAndFindUnit(units, settings.TestUnitId, unitsKey, issues);
             var selectedEnemy = ValidateAndFindEnemy(enemies, settings.TestEnemyId, enemiesKey, issues);
+            var unitDefinitions = MapUnitDefinitions(units, unitsKey, issues);
+            var allyDefinitions = MapAllyCombatants(units);
             var enemyDefinitions = enemies.Enemies == null
                 ? new List<CombatantDefinition>()
                 : enemies.Enemies
@@ -361,28 +438,14 @@ namespace CompanyWarRE.Infrastructure.Configuration
                 return new BattleSliceConfigurationLoadResult(null, issues);
             }
 
-            var deploymentMode = MapDeploymentMode(selectedUnit, unitsKey, issues);
-            var footprint = MapFootprint(selectedUnit.FootprintType, unitsKey, selectedUnit.Id, issues);
             if (issues.Count > 0)
             {
                 return new BattleSliceConfigurationLoadResult(null, issues);
             }
 
-            var unit = new UnitDefinition(
-                selectedUnit.Id,
-                selectedUnit.ResourceCost,
-                selectedUnit.DeployCooldown,
-                deploymentMode,
-                footprint);
+            var unit = unitDefinitions[selectedUnit.Id];
             var controlledRows = ResolveControlledRows(settings);
-            var allyCombatant = new CombatantDefinition(
-                selectedUnit.Id,
-                selectedUnit.Type,
-                selectedUnit.Durability,
-                selectedUnit.Attack,
-                selectedUnit.Speed,
-                selectedUnit.AttackInterval,
-                selectedUnit.Range);
+            var allyCombatant = allyDefinitions[selectedUnit.Id];
             var enemyCombatant = MapEnemyCombatant(selectedEnemy);
             var configuration = new BattleSliceConfiguration(
                 settings.Columns,
@@ -404,7 +467,9 @@ namespace CompanyWarRE.Infrastructure.Configuration
                 enemyBuildings,
                 level?.RequiredAssaultScore ?? 0,
                 level != null,
-                level != null);
+                level != null,
+                unitDefinitions.Values.ToArray(),
+                allyDefinitions.Values.ToArray());
             return new BattleSliceConfigurationLoadResult(configuration, issues);
         }
 
@@ -557,7 +622,67 @@ namespace CompanyWarRE.Infrastructure.Configuration
                 enemy.Speed,
                 enemy.AttackInterval,
                 enemy.Range,
-                enemy.AssaultScoreReward);
+                enemy.AssaultScoreReward,
+                string.Empty,
+                enemy.Name);
+        }
+
+        private static IReadOnlyDictionary<string, UnitDefinition> MapUnitDefinitions(
+            LegacyUnitsDocumentDto document,
+            string path,
+            ICollection<ConfigurationIssue> issues)
+        {
+            var result = new Dictionary<string, UnitDefinition>(StringComparer.OrdinalIgnoreCase);
+            if (document?.Units == null)
+            {
+                return result;
+            }
+
+            foreach (var unit in document.Units.Where(item => item != null && !string.IsNullOrWhiteSpace(item.Id)))
+            {
+                var mode = MapDeploymentMode(unit, path, issues);
+                var footprint = mode == DeploymentMode.Building
+                    ? UnitFootprint.ControlBlock
+                    : MapFootprint(unit.FootprintType, path, unit.Id, issues);
+                result[unit.Id] = new UnitDefinition(
+                    unit.Id,
+                    unit.ResourceCost,
+                    unit.DeployCooldown,
+                    mode,
+                    footprint,
+                    unit.Name,
+                    unit.Effect,
+                    unit.ResourceRate,
+                    unit.ScoreRate,
+                    unit.CanDeployOutside);
+            }
+
+            return result;
+        }
+
+        private static IReadOnlyDictionary<string, CombatantDefinition> MapAllyCombatants(
+            LegacyUnitsDocumentDto document)
+        {
+            if (document?.Units == null)
+            {
+                return new Dictionary<string, CombatantDefinition>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            return document.Units
+                .Where(item => item != null && !string.IsNullOrWhiteSpace(item.Id))
+                .Select(unit => new CombatantDefinition(
+                    unit.Id,
+                    unit.Type,
+                    unit.Durability,
+                    unit.Attack,
+                    unit.Speed,
+                    unit.AttackInterval,
+                    unit.Range,
+                    0,
+                    unit.Effect,
+                    unit.Name))
+                .GroupBy(item => item.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
         }
 
         private static IReadOnlyList<EnemyWaveStage> MapSpawnStages(
@@ -984,6 +1109,11 @@ namespace CompanyWarRE.Infrastructure.Configuration
             string path,
             ICollection<ConfigurationIssue> issues)
         {
+            if (string.Equals(unit.Effect, "Stealth", StringComparison.OrdinalIgnoreCase))
+            {
+                return DeploymentMode.StandardUnit;
+            }
+
             if (string.Equals(unit.Type, "Staff", StringComparison.OrdinalIgnoreCase))
             {
                 return DeploymentMode.StandardUnit;

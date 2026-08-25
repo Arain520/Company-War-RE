@@ -1,3 +1,4 @@
+using System.Linq;
 using NUnit.Framework;
 
 namespace CompanyWarRE.Domain.Tests
@@ -61,11 +62,10 @@ namespace CompanyWarRE.Domain.Tests
             Assert.That(service.TryDeploy(unit, "ally-2", second).Failure, Is.EqualTo(DeploymentFailure.CooldownActive));
         }
 
-        [TestCase(DeploymentMode.Building)]
         [TestCase(DeploymentMode.SupportEffect)]
         [TestCase(DeploymentMode.TerrainBuild)]
         [TestCase(DeploymentMode.OuterRing)]
-        public void NonStandardDeployment_IsExplicitlyDeferred(DeploymentMode mode)
+        public void ActorDeploymentService_RejectsEffectAndOuterRingModes(DeploymentMode mode)
         {
             var grid = new BattleGrid(3, 3);
             var economy = new ResourceEconomy();
@@ -78,6 +78,61 @@ namespace CompanyWarRE.Domain.Tests
                 new GridPosition(1, 1));
 
             Assert.That(result.Failure, Is.EqualTo(DeploymentFailure.UnsupportedMode));
+        }
+
+        [Test]
+        public void BuildingDeployment_OccupiesCompleteControlledBlockAndSpendsResources()
+        {
+            var grid = new BattleGrid(3, 3);
+            var economy = new ResourceEconomy();
+            foreach (var cell in grid.GetControlBlock(new GridPosition(1, 1)).Cells)
+            {
+                grid.SetOwnership(cell.Position, true);
+            }
+
+            economy.Reset(10);
+            var building = new UnitDefinition(
+                "U33",
+                4,
+                2d,
+                DeploymentMode.Building,
+                UnitFootprint.ControlBlock);
+
+            var result = new DeploymentService(grid, economy).TryDeploy(
+                building,
+                "medical-1",
+                new GridPosition(2, 2));
+
+            Assert.That(result.Succeeded, Is.True);
+            Assert.That(economy.Resources, Is.EqualTo(6));
+            Assert.That(
+                grid.GetControlBlock(new GridPosition(1, 1)).Cells.All(cell =>
+                    cell.BuildingId == "medical-1" && cell.Occupants.Contains("medical-1")),
+                Is.True);
+        }
+
+        [Test]
+        public void U10AndU11_CanOccupyCompleteUnownedBlockWhenLegacyFlagAllows()
+        {
+            var grid = new BattleGrid(3, 3);
+            var economy = new ResourceEconomy();
+            economy.Reset(10);
+            var barrier = new UnitDefinition(
+                "U10",
+                1,
+                0d,
+                DeploymentMode.Building,
+                UnitFootprint.ControlBlock,
+                canDeployOutside: true);
+
+            var result = new DeploymentService(grid, economy).TryDeploy(
+                barrier,
+                "barrier-1",
+                new GridPosition(2, 2));
+
+            Assert.That(result.Succeeded, Is.True);
+            Assert.That(grid.GetControlBlock(new GridPosition(1, 1)).Cells.All(cell =>
+                cell.BuildingId == "barrier-1"), Is.True);
         }
 
         private static DeploymentResult Attempt(UnitDefinition unit, int resources, bool polluted = false, bool occupied = false)

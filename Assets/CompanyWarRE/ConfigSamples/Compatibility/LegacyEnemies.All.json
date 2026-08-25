@@ -1,0 +1,19 @@
+{
+  "Enemies": [
+    { "Id": "E01", "Name": "炮灰", "Type": "Staff", "Durability": 1, "Attack": 1, "Speed": 1.0, "AttackInterval": 1.0, "Range": 1, "AssaultScoreReward": 1 },
+    { "Id": "E02", "Name": "叠甲", "Type": "Staff", "Durability": 3, "Attack": 2, "Speed": 1.0, "AttackInterval": 1.0, "Range": 1, "AssaultScoreReward": 1 },
+    { "Id": "E03", "Name": "铁盾", "Type": "Staff", "Durability": 8, "Attack": 1, "Speed": 2.0, "AttackInterval": 1.0, "Range": 1, "AssaultScoreReward": 2 },
+    { "Id": "E04", "Name": "E04", "Type": "Staff", "Durability": 3, "Attack": 3, "Speed": 2.0, "AttackInterval": 1.0, "Range": 1, "AssaultScoreReward": 2 },
+    { "Id": "E05", "Name": "豺狼", "Type": "Staff", "Durability": 2, "Attack": 1, "Speed": 4.0, "AttackInterval": 1.0, "Range": 1, "AssaultScoreReward": 1 },
+    { "Id": "E06", "Name": "污秽之地", "Type": "Building", "Durability": 7, "Attack": 0, "Speed": 0.0, "AttackInterval": 0.0, "Range": 0, "AssaultScoreReward": 1 },
+    { "Id": "E07", "Name": "污秽巢穴", "Type": "Building", "Durability": 12, "Attack": 0, "Speed": 0.0, "AttackInterval": 0.0, "Range": 0, "AssaultScoreReward": 2 },
+    { "Id": "E08", "Name": "塔山", "Type": "Staff", "Durability": 12, "Attack": 2, "Speed": 1.0, "AttackInterval": 1.0, "Range": 1, "AssaultScoreReward": 3 },
+    { "Id": "E09", "Name": "怖人", "Type": "Staff", "Durability": 8, "Attack": 1, "Speed": 1.5, "AttackInterval": 1.2, "Range": 1, "AssaultScoreReward": 3 },
+    { "Id": "E10", "Name": "恐爪", "Type": "Staff", "Durability": 6, "Attack": 2, "Speed": 2.0, "AttackInterval": 0.7, "Range": 1, "AssaultScoreReward": 2 },
+    { "Id": "E11", "Name": "E11", "Type": "Staff", "Durability": 6, "Attack": 3, "Speed": 1.0, "AttackInterval": 1.0, "Range": 1, "AssaultScoreReward": 3 },
+    { "Id": "E12", "Name": "虚伪皮层", "Type": "Building", "Durability": 15, "Attack": 0, "Speed": 0.0, "AttackInterval": 0.0, "Range": 0, "AssaultScoreReward": 2 },
+    { "Id": "E13", "Name": "恶魔", "Type": "Building", "Durability": 18, "Attack": 1, "Speed": 0.0, "AttackInterval": 0.5, "Range": 3, "AssaultScoreReward": 5 },
+    { "Id": "E14", "Name": "巨兽", "Type": "Building", "Durability": 20, "Attack": 1, "Speed": 0.0, "AttackInterval": 1.0, "Range": 1, "AssaultScoreReward": 5 },
+    { "Id": "E15", "Name": "咒灭术师", "Type": "Building", "Durability": 15, "Attack": 0, "Speed": 0.0, "AttackInterval": 12.0, "Range": 99, "AssaultScoreReward": 5 }
+  ]
+}

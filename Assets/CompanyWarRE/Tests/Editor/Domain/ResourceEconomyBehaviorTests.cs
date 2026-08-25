@@ -5,6 +5,23 @@ namespace CompanyWarRE.Domain.Tests
     public sealed class ResourceEconomyBehaviorTests
     {
         [Test]
+        public void U09AuthorizationProducer_PreservesFractionalScoreRateAndStopsAfterRemoval()
+        {
+            var score = new AuthorizationScoreEconomy();
+            var position = new GridPosition(2, 2);
+            score.RegisterProducer(position, 0.33d);
+
+            score.Advance(3d);
+            Assert.That(score.Points, Is.EqualTo(0));
+            score.Advance(0.04d);
+            Assert.That(score.Points, Is.EqualTo(1));
+            score.UnregisterProducer(position);
+            score.Advance(100d);
+
+            Assert.That(score.Points, Is.EqualTo(1));
+        }
+
+        [Test]
         public void Production_PreservesLegacyFixedAndTransmitterCadence()
         {
             var economy = new ResourceEconomy();

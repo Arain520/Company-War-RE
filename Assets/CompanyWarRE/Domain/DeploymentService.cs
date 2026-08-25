@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 
 namespace CompanyWarRE.Domain
 {
@@ -70,7 +71,8 @@ namespace CompanyWarRE.Domain
                 return DeploymentResult.Reject(DeploymentFailure.MissingActorId);
             }
 
-            if (unit.DeploymentMode != DeploymentMode.StandardUnit)
+            if (unit.DeploymentMode != DeploymentMode.StandardUnit &&
+                unit.DeploymentMode != DeploymentMode.Building)
             {
                 return DeploymentResult.Reject(DeploymentFailure.UnsupportedMode);
             }
@@ -81,7 +83,7 @@ namespace CompanyWarRE.Domain
                 return DeploymentResult.Reject(DeploymentFailure.OutsideGrid);
             }
 
-            if (!cell.IsOwned)
+            if (!cell.IsOwned && !unit.CanDeployOutside)
             {
                 return DeploymentResult.Reject(DeploymentFailure.TerritoryNotOwned);
             }
@@ -91,7 +93,18 @@ namespace CompanyWarRE.Domain
                 return DeploymentResult.Reject(DeploymentFailure.Polluted);
             }
 
-            if (cell.OccupantCount >= 1)
+            if (unit.DeploymentMode == DeploymentMode.Building)
+            {
+                var block = _grid.GetControlBlockForCell(target);
+                if (block == null || block.Cells.Count != BattleGrid.ControlBlockSize * BattleGrid.ControlBlockSize ||
+                    (!unit.CanDeployOutside && !block.IsControlled) ||
+                    block.IsPolluted ||
+                    block.Cells.Any(candidate => candidate.IsBlockedByBuilding || candidate.OccupantCount > 0))
+                {
+                    return DeploymentResult.Reject(DeploymentFailure.Occupied);
+                }
+            }
+            else if (cell.OccupantCount >= 1)
             {
                 return DeploymentResult.Reject(DeploymentFailure.Occupied);
             }
@@ -111,7 +124,10 @@ namespace CompanyWarRE.Domain
                 return DeploymentResult.Reject(DeploymentFailure.InsufficientResources);
             }
 
-            if (!_grid.TryAddOccupant(target, actorId, 1))
+            var occupied = unit.DeploymentMode == DeploymentMode.Building
+                ? _grid.TryOccupyBuildingControlBlock(target, actorId)
+                : _grid.TryAddOccupant(target, actorId, 1);
+            if (!occupied)
             {
                 _resources.RefundDeployment(unit);
                 return DeploymentResult.Reject(DeploymentFailure.OccupancyRejected);

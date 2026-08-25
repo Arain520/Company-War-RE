@@ -12,6 +12,28 @@ namespace CompanyWarRE.Domain.Tests
             new CombatantDefinition("E01", "Staff", 1, 1d, 1d, 1d, 1, 1);
 
         [Test]
+        public void E11_SpawnsOneEchoOnlyAfterTwoDeathCleanupTicks()
+        {
+            var e11 = new CombatantDefinition("E11", "Staff", 1, 1d, 0d, 1d, 1);
+            var killer = new CombatantDefinition("U-KILL", "Staff", 1, 1d, 0d, 1d, 1);
+            var simulation = new CombatSimulation(9, 9);
+            simulation.TryAddActor("killer", Team.Ally, killer, 2, 5d);
+            simulation.TryAddActor("echo-source", Team.Enemy, e11, 2, 5.1d);
+
+            simulation.Advance(1d);
+            Assert.That(simulation.CreateSnapshot().Count(actor => actor.TemplateId == "E11"), Is.EqualTo(1));
+            simulation.Advance(1d);
+            Assert.That(simulation.CreateSnapshot().Count(actor => actor.TemplateId == "E11"), Is.EqualTo(1));
+            simulation.Advance(1d);
+
+            var e11Actors = simulation.CreateSnapshot().Where(actor => actor.TemplateId == "E11").ToList();
+            Assert.That(e11Actors.Count, Is.EqualTo(2));
+            Assert.That(e11Actors.Count(actor => actor.IsAlive), Is.EqualTo(1));
+            simulation.Advance(5d);
+            Assert.That(simulation.CreateSnapshot().Count(actor => actor.TemplateId == "E11"), Is.EqualTo(2));
+        }
+
+        [Test]
         public void U01AndE01_ApproachInTheSameColumnWithoutAttackingEarly()
         {
             var simulation = CreateDuel(1d, 9d);
@@ -626,6 +648,140 @@ namespace CompanyWarRE.Domain.Tests
                     item.ActorId == "e15" &&
                     item.TargetActorId == "ally"),
                 Is.True);
+        }
+
+        [Test]
+        public void RangedStaff_MovesUntilForwardControlBlockTargetEntersRangeAndAttacks()
+        {
+            var simulation = new CombatSimulation(3, 12);
+            var ranged = new CombatantDefinition("U17", "Staff", 4, 1d, 3d, 1d, 2);
+            var target = new CombatantDefinition("E08", "Staff", 12, 0d, 0d, 1d, 1);
+            simulation.TryAddActor("ranged", Team.Ally, ranged, 2, 2d);
+            simulation.TryAddActor("target", Team.Enemy, target, 2, 11d);
+
+            simulation.Advance(1d);
+
+            var snapshot = simulation.CreateSnapshot();
+            Assert.That(snapshot.Single(actor => actor.ActorId == "ranged").LanePosition, Is.EqualTo(5d));
+            Assert.That(snapshot.Single(actor => actor.ActorId == "target").HitPoints, Is.EqualTo(11d));
+            Assert.That(
+                simulation.Events.Single(item => item.Type == CombatEventType.Attack).ActorId,
+                Is.EqualTo("ranged"));
+        }
+
+        [Test]
+        public void HeavyRangedHit_DamagesEveryOpponentInPrimaryControlBlock()
+        {
+            var simulation = new CombatSimulation(6, 12);
+            var heavy = new CombatantDefinition("U19", "Staff", 2, 2d, 0d, 1.5d, 4);
+            var target = new CombatantDefinition("E01", "Staff", 5, 0d, 0d, 1d, 1);
+            simulation.TryAddActor("heavy", Team.Ally, heavy, 2, 2d);
+            simulation.TryAddActor("primary", Team.Enemy, target, 1, 5d);
+            simulation.TryAddActor("same-block", Team.Enemy, target, 3, 6d);
+            simulation.TryAddActor("other-block", Team.Enemy, target, 5, 5d);
+
+            simulation.Advance(1.5d);
+
+            var snapshot = simulation.CreateSnapshot();
+            Assert.That(snapshot.Single(actor => actor.ActorId == "primary").HitPoints, Is.EqualTo(3d));
+            Assert.That(snapshot.Single(actor => actor.ActorId == "same-block").HitPoints, Is.EqualTo(3d));
+            Assert.That(snapshot.Single(actor => actor.ActorId == "other-block").HitPoints, Is.EqualTo(5d));
+        }
+
+        [TestCase("U21", 1)]
+        [TestCase("U33", 3)]
+        public void HealingBuilding_PeriodicallyHealsLowestHpAllyWithoutDurabilityCap(
+            string healerId,
+            int range)
+        {
+            var simulation = new CombatSimulation(9, 9);
+            var healer = new CombatantDefinition(healerId, "Building", 8, 0d, 0d, 2d, range);
+            var curse = new CombatantDefinition("E13", "Building", 18, 0d, 0d, 0.5d, 3, 5);
+            var target = new CombatantDefinition("U01", "Staff", 2, 0d, 0d, 1d, 1);
+            simulation.TryAddActor("healer", Team.Ally, healer, 2, 2d);
+            simulation.TryAddActor("target", Team.Ally, target, healerId == "U21" ? 3 : 5, healerId == "U21" ? 3d : 5d);
+            simulation.TryAddActor(
+                "curse",
+                Team.Enemy,
+                curse,
+                8,
+                healerId == "U21" ? 5d : 8d);
+
+            simulation.Advance(10d);
+
+            Assert.That(
+                simulation.CreateSnapshot().Single(actor => actor.ActorId == "target").HitPoints,
+                Is.EqualTo(6d));
+        }
+
+        [Test]
+        public void StealthActor_IsNotBuildingAndCannotBeSelectedByEnemyAttack()
+        {
+            var simulation = new CombatSimulation(6, 9);
+            var enemy = new CombatantDefinition("E08", "Staff", 12, 2d, 0d, 1d, 99);
+            var stealth = new CombatantDefinition("U30", "Building", 3, 0.3d, 0d, 0.7d, 3, 0, "Stealth");
+            var visible = new CombatantDefinition("U01", "Staff", 4, 0d, 0d, 1d, 1);
+            simulation.TryAddActor("enemy", Team.Enemy, enemy, 2, 9d);
+            simulation.TryAddActor("stealth", Team.Ally, stealth, 2, 8d);
+            simulation.TryAddActor("visible", Team.Ally, visible, 2, 5d);
+
+            simulation.Advance(1d);
+
+            var snapshot = simulation.CreateSnapshot();
+            Assert.That(snapshot.Single(actor => actor.ActorId == "stealth").IsBuilding, Is.False);
+            Assert.That(snapshot.Single(actor => actor.ActorId == "stealth").HitPoints, Is.EqualTo(3d));
+            Assert.That(snapshot.Single(actor => actor.ActorId == "visible").HitPoints, Is.EqualTo(2d));
+        }
+
+        [Test]
+        public void U27ZeroDamageAttack_PushesEnemyThreeBlocksAndAppliesTwoSecondLock()
+        {
+            var simulation = new CombatSimulation(3, 12);
+            var pushback = new CombatantDefinition("U27", "Staff", 5, 0d, 0d, 3d, 3, 0, "AuthorityPushback");
+            var enemy = new CombatantDefinition("E02", "Staff", 3, 0d, 1d, 1d, 1);
+            simulation.TryAddActor("pushback", Team.Ally, pushback, 2, 2d);
+            simulation.TryAddActor("enemy", Team.Enemy, enemy, 2, 5d);
+
+            simulation.Advance(3d);
+
+            var pushed = simulation.CreateSnapshot().Single(actor => actor.ActorId == "enemy");
+            Assert.That(pushed.LanePosition, Is.EqualTo(12d));
+            Assert.That(pushed.AttackProgress, Is.EqualTo(-2d));
+            Assert.That(
+                simulation.Events.Single(item => item.ActorId == "pushback").Amount,
+                Is.EqualTo(0d));
+
+            simulation.Advance(1d);
+            Assert.That(
+                simulation.CreateSnapshot().Single(actor => actor.ActorId == "enemy").AttackProgress,
+                Is.EqualTo(-1d));
+        }
+
+        [Test]
+        public void U32Conversion_ChangesThreeEnemiesNearestControlledTerritoryToAllies()
+        {
+            var simulation = new CombatSimulation(9, 9);
+            var grid = new BattleGrid(9, 9);
+            foreach (var cell in grid.GetControlBlock(new GridPosition(1, 1)).Cells)
+            {
+                grid.SetOwnership(cell.Position, true);
+            }
+
+            var converter = new CombatantDefinition("U32", "Building", 8, 0d, 0d, 30d, 99, 0, "ConvertEnemy");
+            var enemy = new CombatantDefinition("E02", "Staff", 3, 0d, 0d, 1d, 1);
+            simulation.TryAddActor("converter", Team.Ally, converter, 2, 2d);
+            simulation.TryAddActor("near-a", Team.Enemy, enemy, 2, 5d);
+            simulation.TryAddActor("near-b", Team.Enemy, enemy, 5, 2d);
+            simulation.TryAddActor("middle", Team.Enemy, enemy, 5, 5d);
+            simulation.TryAddActor("far", Team.Enemy, enemy, 8, 8d);
+
+            simulation.Advance(30d, grid);
+
+            var snapshot = simulation.CreateSnapshot();
+            Assert.That(snapshot.Single(actor => actor.ActorId == "near-a").Team, Is.EqualTo(Team.Ally));
+            Assert.That(snapshot.Single(actor => actor.ActorId == "near-b").Team, Is.EqualTo(Team.Ally));
+            Assert.That(snapshot.Single(actor => actor.ActorId == "middle").Team, Is.EqualTo(Team.Ally));
+            Assert.That(snapshot.Single(actor => actor.ActorId == "far").Team, Is.EqualTo(Team.Enemy));
         }
 
         private static CombatSimulation CreateDuel(double allyLane, double enemyLane)
