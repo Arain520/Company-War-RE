@@ -1,10 +1,12 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using CompanyWarRE.Application;
 using CompanyWarRE.Domain;
 using CompanyWarRE.Infrastructure.Configuration;
 using CompanyWarRE.Infrastructure.Levels;
 using NUnit.Framework;
+using QFramework;
 
 namespace CompanyWarRE.Infrastructure.Tests
 {
@@ -69,6 +71,42 @@ namespace CompanyWarRE.Infrastructure.Tests
             Assert.That(FormalLevelCoordinateConverter.ToSmallCellCenter(1), Is.EqualTo(2));
             Assert.That(FormalLevelCoordinateConverter.ToSmallCellStart(8), Is.EqualTo(22));
             Assert.That(FormalLevelCoordinateConverter.ToSmallCellCenter(8), Is.EqualTo(23));
+        }
+
+        [TestCase("L02", 18, 30, 8)]
+        [TestCase("L03", 24, 36, 10)]
+        [TestCase("L04", 24, 36, 12)]
+        [TestCase("L05", 24, 45, 15)]
+        public void FormalLevels_InitializeApplicationGridControlBuildingsWavesAndObjective(
+            string levelId,
+            int columns,
+            int rows,
+            int buildingCount)
+        {
+            var result = CreatePipeline(levelId).Load("units", "enemies", "schedules", "level");
+            Assert.That(result.Succeeded, Is.True, JoinIssues(result.Issues));
+
+            IArchitecture architecture = BattleSliceArchitecture.Interface;
+            try
+            {
+                architecture.SendCommand(new ConfigureBattleSliceCommand(result.Configuration));
+                var snapshot = architecture.SendQuery(new GetBattleSliceSnapshotQuery());
+
+                Assert.That(snapshot.Columns, Is.EqualTo(columns));
+                Assert.That(snapshot.Rows, Is.EqualTo(rows));
+                Assert.That(snapshot.Cells.Count(cell => cell.IsOwned), Is.EqualTo(columns * 6));
+                Assert.That(snapshot.Cells.Count(cell => cell.IsBlockedByBuilding),
+                    Is.EqualTo(buildingCount * 9));
+                Assert.That(snapshot.EnemyBuildingCount, Is.EqualTo(buildingCount));
+                Assert.That(snapshot.CurrentWaveStage, Is.EqualTo("Stage1"));
+                Assert.That(snapshot.RequiredAssaultScore,
+                    Is.EqualTo(result.Level.Objective.RequiredAssaultScore));
+                Assert.That(snapshot.ValidSpawnPointCount, Is.EqualTo(columns));
+            }
+            finally
+            {
+                architecture.Deinit();
+            }
         }
 
         [Test]

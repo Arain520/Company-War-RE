@@ -87,6 +87,9 @@ crashlytics-build.properties
 # TestRunner generated files
 InitTestScene*.unity*
 
+# Locally generated migration validation reports
+/Migration/Reports/*.json
+
 # Addressables default ignores, before user customizations
 /ServerData
 /[Aa]ssets/StreamingAssets/aa*

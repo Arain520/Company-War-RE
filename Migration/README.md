@@ -35,3 +35,10 @@ Configuration compatibility slice:
 - `Specifications/LegacyConfigCompatibilityMatrix.csv` maps legacy fields to target values.
 - The test scene receives JSON through serialized TextAsset references; this is a
   test composition choice, not a final commitment to StreamingAssets, ResKit, or Addressables.
+
+Formal level startup:
+
+- `Assets/CompanyWarRE/Scenes/FormalBattle.unity` is the target-owned build-index-0 scene.
+- `Specifications/FormalBattleStartup-v1.md` records the L02-L05 selection and startup flow.
+- Formal environment metadata is consumed through a replaceable Presentation component;
+  final art delivery remains undecided.

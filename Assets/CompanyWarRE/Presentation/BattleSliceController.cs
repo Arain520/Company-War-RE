@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using CompanyWarRE.Application;
 using CompanyWarRE.Domain;
 using CompanyWarRE.Infrastructure.Configuration;
+using CompanyWarRE.Infrastructure.Levels;
 using QFramework;
 using UnityEngine;
 
@@ -17,6 +18,9 @@ namespace CompanyWarRE.Presentation
         [SerializeField] private TextAsset sliceSettingsJson;
         [SerializeField] private TextAsset legacySpawnSchedulesJson;
         [SerializeField] private TextAsset legacyLevelJson;
+        [SerializeField] private bool useFormalLevelConfiguration;
+        [SerializeField] private string formalLevelId = "L02";
+        [SerializeField] private TextAsset[] formalLevelJsonDocuments;
 
         private readonly Dictionary<GridPosition, BattleSliceCellView> _cellViews =
             new Dictionary<GridPosition, BattleSliceCellView>();
@@ -35,6 +39,8 @@ namespace CompanyWarRE.Presentation
         private Transform _combatantRoot;
         private BattleSliceFeedbackLayer _feedbackLayer;
         private int _processedCombatEventCount;
+        private string _activeLevelId = "L01";
+        private FormalLevelRuntimeMetadata _formalLevel;
 
         public IArchitecture GetArchitecture()
         {
@@ -51,6 +57,7 @@ namespace CompanyWarRE.Presentation
 
             EnsureSceneInfrastructure(_snapshot.Columns, _snapshot.Rows);
             BuildGrid();
+            ApplyFormalEnvironment();
             _isReady = true;
             RefreshView();
         }
@@ -85,25 +92,57 @@ namespace CompanyWarRE.Presentation
 
         private bool TryConfigureSlice()
         {
-            var documents = new Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase);
-            if (legacyUnitsJson != null)
+            return useFormalLevelConfiguration
+                ? TryConfigureFormalLevel()
+                : TryConfigureLegacySlice();
+        }
+
+        private bool TryConfigureFormalLevel()
+        {
+            var documents = BuildSharedDocuments();
+            var selected = FindFormalLevelDocument(formalLevelId);
+            if (selected != null)
             {
-                documents["legacy-units"] = legacyUnitsJson.text;
+                documents["formal-level"] = selected.text;
             }
+
+            var result = new FormalLevelConfigurationPipeline(
+                    new DictionaryConfigurationTextSource(documents))
+                .Load(
+                    "legacy-units",
+                    "legacy-enemies",
+                    "legacy-spawn-schedules",
+                    "formal-level");
+            if (!result.Succeeded)
+            {
+                return RejectConfiguration("Formal level configuration failed", result.Issues);
+            }
+
+            if (!string.Equals(result.Level.LevelId, formalLevelId, System.StringComparison.OrdinalIgnoreCase))
+            {
+                _configurationError =
+                    $"Selected level '{formalLevelId}' resolved document '{result.Level.LevelId}'.";
+                _lastAction = "Configuration failed";
+                Debug.LogError("Formal level selection failed:\n" + _configurationError, this);
+                return false;
+            }
+
+            _architecture.SendCommand(new ConfigureBattleSliceCommand(result.Configuration));
+            _snapshot = _architecture.SendQuery(new GetBattleSliceSnapshotQuery());
+            _formalLevel = result.Level;
+            _activeLevelId = result.Level.LevelId;
+            _configurationError = null;
+            _lastAction = $"Loaded formal {_activeLevelId}";
+            return true;
+        }
+
+        private bool TryConfigureLegacySlice()
+        {
+            var documents = BuildSharedDocuments();
 
             if (sliceSettingsJson != null)
             {
                 documents["slice-settings"] = sliceSettingsJson.text;
-            }
-
-            if (legacyEnemiesJson != null)
-            {
-                documents["legacy-enemies"] = legacyEnemiesJson.text;
-            }
-
-            if (legacySpawnSchedulesJson != null)
-            {
-                documents["legacy-spawn-schedules"] = legacySpawnSchedulesJson.text;
             }
 
             if (legacyLevelJson != null)
@@ -121,18 +160,82 @@ namespace CompanyWarRE.Presentation
                 "legacy-level");
             if (!result.Succeeded)
             {
-                _configurationError = string.Join("\n", result.Issues);
-                _lastAction = "Configuration failed";
-                Debug.LogError("BattleSlice configuration failed:\n" + _configurationError, this);
-                return false;
+                return RejectConfiguration("BattleSlice configuration failed", result.Issues);
             }
 
             _architecture.SendCommand(new ConfigureBattleSliceCommand(result.Configuration));
             _snapshot = _architecture.SendQuery(new GetBattleSliceSnapshotQuery());
+            _formalLevel = null;
+            _activeLevelId = "L01";
             _configurationError = null;
             _lastAction =
                 $"Loaded legacy {result.Configuration.TestUnit.Id} vs {result.Configuration.EnemyCombatant.Id}";
             return true;
+        }
+
+        private Dictionary<string, string> BuildSharedDocuments()
+        {
+            var documents = new Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase);
+            if (legacyUnitsJson != null)
+            {
+                documents["legacy-units"] = legacyUnitsJson.text;
+            }
+
+            if (legacyEnemiesJson != null)
+            {
+                documents["legacy-enemies"] = legacyEnemiesJson.text;
+            }
+
+            if (legacySpawnSchedulesJson != null)
+            {
+                documents["legacy-spawn-schedules"] = legacySpawnSchedulesJson.text;
+            }
+
+            return documents;
+        }
+
+        private TextAsset FindFormalLevelDocument(string requestedLevelId)
+        {
+            if (string.IsNullOrWhiteSpace(requestedLevelId) || formalLevelJsonDocuments == null)
+            {
+                return null;
+            }
+
+            var expectedName = "FormalLevel." + requestedLevelId.Trim();
+            foreach (var document in formalLevelJsonDocuments)
+            {
+                if (document != null && string.Equals(
+                        document.name,
+                        expectedName,
+                        System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return document;
+                }
+            }
+
+            return null;
+        }
+
+        private bool RejectConfiguration(
+            string heading,
+            System.Collections.Generic.IEnumerable<ConfigurationIssue> issues)
+        {
+            _configurationError = string.Join("\n", issues);
+            _lastAction = "Configuration failed";
+            Debug.LogError(heading + ":\n" + _configurationError, this);
+            return false;
+        }
+
+        private void ApplyFormalEnvironment()
+        {
+            if (_formalLevel == null)
+            {
+                return;
+            }
+
+            var environment = GetComponent<BattleSliceEnvironmentView>() ??
+                              gameObject.AddComponent<BattleSliceEnvironmentView>();
+            environment.Build(_formalLevel);
         }
 
         private void DeploySelected()
@@ -465,7 +568,9 @@ namespace CompanyWarRE.Presentation
             }
 
             GUILayout.BeginArea(new Rect(16f, 16f, 570f, 294f), GUI.skin.box);
-            GUILayout.Label("Company War-RE | L01 可玩验证");
+            GUILayout.Label(useFormalLevelConfiguration
+                ? $"Company War-RE | {_activeLevelId} 正式关卡"
+                : "Company War-RE | L01 可玩验证");
             GUILayout.Label($"资源: {_snapshot.Resources}    时间: {_snapshot.ElapsedSeconds:0.0}s");
             GUILayout.Label(
                 $"{_snapshot.UnitId} 消耗: {_snapshot.UnitResourceCost}    " +
@@ -523,7 +628,9 @@ namespace CompanyWarRE.Presentation
                     fontStyle = FontStyle.Bold
                 };
                 GUILayout.Label(
-                    _snapshot.BattleState == BattleState.Victory ? "L01 胜利" : "L01 失败",
+                    _snapshot.BattleState == BattleState.Victory
+                        ? _activeLevelId + " 胜利"
+                        : _activeLevelId + " 失败",
                     resultStyle);
                 GUILayout.Label(
                     $"突击分 {_snapshot.AssaultScore}    剩余建筑 {_snapshot.EnemyBuildingCount}    " +

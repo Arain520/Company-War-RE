@@ -13,6 +13,7 @@ namespace CompanyWarRE.Migration.Tests
     public sealed class BattleSliceSceneTests
     {
         private const string ScenePath = "Assets/CompanyWarRE/Scenes/BattleSliceTest.unity";
+        private const string FormalScenePath = "Assets/CompanyWarRE/Scenes/FormalBattle.unity";
 
         [Test]
         public void BattleSliceScene_IsStandaloneAndContainsPresentationController()
@@ -91,6 +92,122 @@ namespace CompanyWarRE.Migration.Tests
             StringAssert.Contains("guid: " + settingsGuid, yaml);
             StringAssert.Contains("guid: " + spawnSchedulesGuid, yaml);
             StringAssert.Contains("guid: " + levelGuid, yaml);
+        }
+
+        [Test]
+        public void FormalBattleScene_WiresL02ThroughL05IntoFormalStartup()
+        {
+            Assert.That(AssetDatabase.LoadAssetAtPath<SceneAsset>(FormalScenePath), Is.Not.Null);
+            var controllerGuid = AssetDatabase.AssetPathToGUID(
+                "Assets/CompanyWarRE/Presentation/BattleSliceController.cs");
+            var environmentGuid = AssetDatabase.AssetPathToGUID(
+                "Assets/CompanyWarRE/Presentation/BattleSliceEnvironmentView.cs");
+            var unitsGuid = AssetDatabase.AssetPathToGUID(
+                "Assets/CompanyWarRE/ConfigSamples/Compatibility/LegacyUnits.All.json");
+            var enemiesGuid = AssetDatabase.AssetPathToGUID(
+                "Assets/CompanyWarRE/ConfigSamples/Compatibility/LegacyEnemies.All.json");
+            var schedulesGuid = AssetDatabase.AssetPathToGUID(
+                "Assets/CompanyWarRE/ConfigSamples/Compatibility/LegacySpawnSchedules.json");
+            var yaml = File.ReadAllText(FormalScenePath);
+
+            StringAssert.Contains("m_Name: FormalBattleBootstrap", yaml);
+            StringAssert.Contains("guid: " + controllerGuid, yaml);
+            StringAssert.Contains("guid: " + environmentGuid, yaml);
+            StringAssert.Contains("guid: " + unitsGuid, yaml);
+            StringAssert.Contains("guid: " + enemiesGuid, yaml);
+            StringAssert.Contains("guid: " + schedulesGuid, yaml);
+            StringAssert.Contains("useFormalLevelConfiguration: 1", yaml);
+            StringAssert.Contains("formalLevelId: L02", yaml);
+            foreach (var levelId in new[] { "L02", "L03", "L04", "L05" })
+            {
+                var guid = AssetDatabase.AssetPathToGUID(
+                    $"Assets/CompanyWarRE/ConfigSamples/Compatibility/FormalLevel.{levelId}.json");
+                StringAssert.Contains("guid: " + guid, yaml, levelId + " is not wired to the scene.");
+            }
+        }
+
+        [Test]
+        public void FormalBattleScene_ContainsControllerAndEnvironmentConsumerWithoutMissingComponents()
+        {
+            var previousSetup = EditorSceneManager.GetSceneManagerSetup();
+            try
+            {
+                var scene = EditorSceneManager.OpenScene(FormalScenePath, OpenSceneMode.Single);
+                var roots = scene.GetRootGameObjects();
+                Assert.That(roots.Length, Is.EqualTo(1));
+                Assert.That(roots[0].name, Is.EqualTo("FormalBattleBootstrap"));
+                var componentNames = roots[0]
+                    .GetComponents<MonoBehaviour>()
+                    .Where(component => component != null)
+                    .Select(component => component.GetType().FullName)
+                    .ToArray();
+                Assert.That(componentNames, Does.Contain(
+                    "CompanyWarRE.Presentation.BattleSliceController"));
+                Assert.That(componentNames, Does.Contain(
+                    "CompanyWarRE.Presentation.BattleSliceEnvironmentView"));
+                Assert.That(GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(roots[0]), Is.Zero);
+            }
+            finally
+            {
+                EditorSceneManager.RestoreSceneManagerSetup(previousSetup);
+            }
+        }
+
+        [Test]
+        public void FormalEnvironmentConsumer_ResolvesCowDefaultsFromLoadedL02Metadata()
+        {
+            var sourceType = Type.GetType(
+                "CompanyWarRE.Infrastructure.Configuration.DictionaryConfigurationTextSource, " +
+                "CompanyWarRE.Infrastructure",
+                true);
+            var sourceInterface = Type.GetType(
+                "CompanyWarRE.Infrastructure.Configuration.IConfigurationTextSource, " +
+                "CompanyWarRE.Infrastructure",
+                true);
+            var pipelineType = Type.GetType(
+                "CompanyWarRE.Infrastructure.Levels.FormalLevelConfigurationPipeline, " +
+                "CompanyWarRE.Infrastructure",
+                true);
+            var environmentType = Type.GetType(
+                "CompanyWarRE.Presentation.BattleSliceEnvironmentView, CompanyWarRE.Presentation",
+                true);
+            var documents = new System.Collections.Generic.Dictionary<string, string>
+            {
+                ["units"] = File.ReadAllText(
+                    "Assets/CompanyWarRE/ConfigSamples/Compatibility/LegacyUnits.All.json"),
+                ["enemies"] = File.ReadAllText(
+                    "Assets/CompanyWarRE/ConfigSamples/Compatibility/LegacyEnemies.All.json"),
+                ["schedules"] = File.ReadAllText(
+                    "Assets/CompanyWarRE/ConfigSamples/Compatibility/LegacySpawnSchedules.json"),
+                ["level"] = File.ReadAllText(
+                    "Assets/CompanyWarRE/ConfigSamples/Compatibility/FormalLevel.L02.json")
+            };
+            var source = Activator.CreateInstance(sourceType, documents);
+            var pipeline = pipelineType.GetConstructor(new[] { sourceInterface })
+                ?.Invoke(new[] { source });
+            Assert.That(pipeline, Is.Not.Null);
+            var load = pipelineType.GetMethod("Load")?.Invoke(
+                pipeline,
+                new object[] { "units", "enemies", "schedules", "level" });
+            var level = load?.GetType().GetProperty("Level")?.GetValue(load);
+            Assert.That(level, Is.Not.Null);
+
+            var layout = environmentType.GetMethod(
+                    "ResolveLayout",
+                    BindingFlags.Public | BindingFlags.Static)
+                ?.Invoke(null, new[] { level });
+            Assert.That(layout, Is.Not.Null);
+            Assert.That(ReadProperty<string>(layout, "EnvironmentId"), Is.EqualTo("Cow.DefaultIndustrial"));
+            Assert.That(ReadProperty<int>(layout, "DecorRing"), Is.EqualTo(5));
+            Assert.That(ReadProperty<float>(layout, "OuterGroundSize"), Is.EqualTo(80f));
+            Assert.That(ReadProperty<float>(layout, "SkylineDistance"), Is.EqualTo(35.2f).Within(0.001f));
+            Assert.That(ReadProperty<float>(layout, "SkylineDensity"), Is.EqualTo(0.65f).Within(0.001f));
+            Assert.That(ReadProperty<int>(layout, "Seed"), Is.EqualTo(1001));
+        }
+
+        private static T ReadProperty<T>(object source, string propertyName)
+        {
+            return (T)source.GetType().GetProperty(propertyName)?.GetValue(source);
         }
 
         [Test]
