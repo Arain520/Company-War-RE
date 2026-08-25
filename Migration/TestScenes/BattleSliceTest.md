@@ -16,7 +16,7 @@ Unity input and runtime visuals
 
 The scene intentionally contains only `BattleSliceBootstrap` plus direct references
 to five compatibility JSON TextAssets. At runtime the Presentation layer creates
-the camera, light, 15 x 9 grid, and placeholder combatants with health bars. These
+the camera, light, 18 x 30 L01 grid, and placeholder combatants with health bars. These
 placeholders are test visualization, not migrated production art.
 
 ## Run
@@ -25,22 +25,27 @@ placeholders are test visualization, not migrated production art.
 2. Enter Play Mode.
 3. Left-click a cell to select it.
 4. Right-click, press `D`, or press `Space` to deploy U01.
-5. Press `P` to toggle pollution for the selected 3 x 3 control block.
-6. Press `R` to reset the slice.
+5. Use `WASD`/arrow keys or middle-mouse drag to pan, the wheel to zoom, and `F` or
+   `Home` to restore the full-map camera.
+6. Press `P` to toggle pollution for the selected 3 x 3 control block.
+7. Press `R` to reset the slice.
 
 ## Expected behavior
 
-- The lower rows 1-6 (90 green cells) are owned; upper rows 7-9 (45 gray cells)
-  form the enemy region and reject deployment.
+- Cow L01 expands from a `6 x 10` macro grid into `18 x 30` small cells. Ownership,
+  starting resources, income, cooldown, and waves come from the imported L01/runtime
+  compatibility documents rather than the retained 15 x 9 characterization fixture.
 - U01 costs 1 resource and has a three-second per-unit cooldown, matching Cow's
   `Units.json`.
 - Resources start at 10, gain one every five seconds, and receive one transmitter
   resource every three seconds.
-- Three enlarged magenta enemy buildings are configured at `(2,9)`, `(8,9)`, and
-  `(14,9)`. Each occupies all nine cells of its 3x3 control block: columns `1-3`,
-  `7-9`, and `13-15` respectively, all across rows `7-9`.
-- A wider gap is rendered after columns `3`, `6`, `9`, and `12`, making every
-  three-column control group visually distinct.
+- Six source buildings map, in source order, to centers `(2,29)`, `(5,29)`,
+  `(14,29)`, `(17,29)`, `(8,29)`, and `(11,23)`. Each occupies all nine cells of
+  its 3x3 control block.
+- Wider gaps after every third row and column, alternating block tint, and deep-red
+  occupied cells make each nine-cell control block and building footprint distinct.
+- The angled orthographic camera initially fits the full battlefield and supports
+  pan, zoom, and one-key refit.
 - Staged waves begin after ten seconds. Enemies are generated from valid columns;
   buildings move their control-block columns' spawn points forward.
 - A successful deployment displays a cyan U01. Same-column U01/E01 actors advance,
@@ -54,12 +59,15 @@ placeholders are test visualization, not migrated production art.
   deployment there.
 - Deploy U01 in any of the three columns covered by a building to advance toward
   and damage that same building. Enemy deaths add assault score exactly once.
-- Destroying all three buildings changes the HUD state to `Victory` and stops waves.
+- Destroying all six buildings changes the HUD state to `Victory` and stops waves.
   Losing every controlled block changes it to `Defeat`. Press `R` to reconstruct
   the complete initial battle state.
-- The on-screen panel displays resources, elapsed time, cooldown, selection, and
-  the latest success or rejection reason, plus stage, wave, score, building count,
-  valid spawn columns, and battle state.
+- Units and buildings display template IDs, HP values, and proportional health bars.
+  E13-E15 fixtures receive prototype ability colors, labels, and transient feedback;
+  L01 itself currently declares E06/E07 only.
+- The Chinese on-screen panel displays resources, elapsed time, cooldown, selection,
+  stage, wave, score, alive/building counts, valid spawn columns, and battle state.
+  A terminal-state panel reports victory/defeat and provides a reset button.
 
 ## Non-goals
 

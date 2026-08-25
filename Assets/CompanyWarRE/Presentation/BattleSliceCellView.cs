@@ -9,6 +9,7 @@ namespace CompanyWarRE.Presentation
         private static readonly Color OwnedColor = new Color(0.18f, 0.55f, 0.32f);
         private static readonly Color UnownedColor = new Color(0.22f, 0.24f, 0.28f);
         private static readonly Color PollutedColor = new Color(0.55f, 0.16f, 0.58f);
+        private static readonly Color BuildingBlockedColor = new Color(0.35f, 0.1f, 0.14f);
         private static readonly Color SelectedColor = new Color(0.95f, 0.76f, 0.18f);
 
         private Renderer _cellRenderer;
@@ -22,7 +23,6 @@ namespace CompanyWarRE.Presentation
             _cellRenderer = GetComponent<Renderer>();
             _cellMaterial = CreateMaterial(OwnedColor);
             _cellRenderer.sharedMaterial = _cellMaterial;
-
         }
 
         public void Render(BattleSliceCellSnapshot snapshot, bool selected)
@@ -32,11 +32,20 @@ namespace CompanyWarRE.Presentation
                 return;
             }
 
-            _cellMaterial.color = selected
-                ? SelectedColor
+            var color = snapshot.IsBlockedByBuilding
+                ? BuildingBlockedColor
                 : snapshot.IsPolluted
                     ? PollutedColor
                     : snapshot.IsOwned ? OwnedColor : UnownedColor;
+            var blockColumn = (Position.Column - 1) / BattleGrid.ControlBlockSize;
+            var blockRow = (Position.Row - 1) / BattleGrid.ControlBlockSize;
+            if (!selected && (blockColumn + blockRow) % 2 != 0)
+            {
+                color *= 0.88f;
+                color.a = 1f;
+            }
+
+            _cellMaterial.color = selected ? SelectedColor : color;
             transform.localPosition = new Vector3(
                 transform.localPosition.x,
                 selected ? 0.12f : 0f,
@@ -61,7 +70,6 @@ namespace CompanyWarRE.Presentation
             {
                 Destroy(_cellMaterial);
             }
-
         }
     }
 }

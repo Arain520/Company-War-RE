@@ -63,11 +63,13 @@ single-level import rather than a wholesale copy of Cow's level directory.
 
 ## Deferred
 
-- E12-E15 executable-scene presentation; their special Domain behavior is covered by
-  `EnemyBuildings-v0.1.md`. The Cow audit found
+- Composing E12-E15 into a concrete executable level; prototype labels, health bars,
+  ability cues, and E13-E15 event feedback are implemented in Presentation, while
+  their special Domain behavior is covered by `EnemyBuildings-v0.1.md`. The Cow audit found
   no E06/E07 ID-specific production, spawning, or aura branch (see
   `EnemyBuildings-v0.1.md`);
 - death-animation delay before score/removal;
 - authorization-choice UI and final settlement rewards;
 - persistence of battle state, scheduler RNG, score, and living actors;
-- production models, animation, VFX, SFX, pooling, and asset-loading strategy.
+- production models, animation, VFX, SFX, pooling, and asset-loading strategy. The
+  current procedural presentation is specified in `PlayableL01-v0.1.md`.

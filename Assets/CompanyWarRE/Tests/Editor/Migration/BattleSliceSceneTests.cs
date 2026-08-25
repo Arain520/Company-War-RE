@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -90,6 +91,59 @@ namespace CompanyWarRE.Migration.Tests
             StringAssert.Contains("guid: " + settingsGuid, yaml);
             StringAssert.Contains("guid: " + spawnSchedulesGuid, yaml);
             StringAssert.Contains("guid: " + levelGuid, yaml);
+        }
+
+        [Test]
+        public void L01Presentation_SeparatesControlBlockGroupsAndFitsAdaptiveCamera()
+        {
+            var controllerType = Type.GetType(
+                "CompanyWarRE.Presentation.BattleSliceController, CompanyWarRE.Presentation",
+                true);
+            var cameraRigType = Type.GetType(
+                "CompanyWarRE.Presentation.BattleSliceCameraRig, CompanyWarRE.Presentation",
+                true);
+            var getColumnWorldX = controllerType.GetMethod(
+                "GetColumnWorldX",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            var getRowWorldZ = controllerType.GetMethod(
+                "GetRowWorldZ",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            var calculateCameraSize = cameraRigType.GetMethod(
+                "CalculateOrthographicSize",
+                BindingFlags.Static | BindingFlags.Public);
+
+            Assert.That(getColumnWorldX, Is.Not.Null);
+            Assert.That(getRowWorldZ, Is.Not.Null);
+            Assert.That(calculateCameraSize, Is.Not.Null);
+
+            var column3 = (float)getColumnWorldX.Invoke(null, new object[] { 3 });
+            var column4 = (float)getColumnWorldX.Invoke(null, new object[] { 4 });
+            var row3 = (float)getRowWorldZ.Invoke(null, new object[] { 3 });
+            var row4 = (float)getRowWorldZ.Invoke(null, new object[] { 4 });
+            Assert.That(column4 - column3, Is.GreaterThan(1.5f));
+            Assert.That(row4 - row3, Is.GreaterThan(1.5f));
+
+            var width = (float)getColumnWorldX.Invoke(null, new object[] { 18 }) + 1f;
+            var length = (float)getRowWorldZ.Invoke(null, new object[] { 30 }) + 1f;
+            var cameraSize = (float)calculateCameraSize.Invoke(
+                null,
+                new object[] { width, length, 16f / 9f });
+            Assert.That(cameraSize, Is.GreaterThan(length * 0.6f));
+        }
+
+        [Test]
+        public void PlayablePresentationScripts_AreUnityAssetsWithoutGuidCollisions()
+        {
+            var cameraPath = "Assets/CompanyWarRE/Presentation/BattleSliceCameraRig.cs";
+            var feedbackPath = "Assets/CompanyWarRE/Presentation/BattleSliceFeedbackLayer.cs";
+            Assert.That(AssetDatabase.LoadAssetAtPath<MonoScript>(cameraPath), Is.Not.Null);
+            Assert.That(AssetDatabase.LoadAssetAtPath<MonoScript>(feedbackPath), Is.Not.Null);
+
+            var cameraGuid = AssetDatabase.AssetPathToGUID(cameraPath);
+            var feedbackGuid = AssetDatabase.AssetPathToGUID(feedbackPath);
+            Assert.That(cameraGuid, Is.Not.Empty);
+            Assert.That(feedbackGuid, Is.Not.Empty);
+            Assert.That(cameraGuid, Is.Not.EqualTo(feedbackGuid));
         }
     }
 }

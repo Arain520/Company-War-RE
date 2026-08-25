@@ -19,9 +19,9 @@ in `SourceEvidenceHashes.csv`.
 | E06 污秽之地 | HP 7, attack 0, speed 0, raw interval 0, raw range 0, reward 1 | Static nine-cell building. No ID-specific production, attack, aura, or spawn branch was found. | Implemented through generic stationary-building rules. |
 | E07 污秽巢穴 | HP 12, attack 0, speed 0, raw interval 0, raw range 0, reward 2 | Static nine-cell building. Despite its name, no ID-specific production or spawning branch was found. | Implemented through generic stationary-building rules. |
 | E12 虚伪皮层 | HP 15, attack 0, speed 0, raw interval 0, raw range 0, reward 2 | Static nine-cell building with no ID-specific branch. | Configuration and Domain characterization implemented; executable scene coverage is deferred. |
-| E13 恶魔 | HP 18, attack 1, speed 0, interval 0.5 s, range 3 blocks, reward 5 | Performs normal attacks and applies a persistent curse before movement and attack phases. | Persistent curse implemented in Domain and verified through Application; dedicated VFX is deferred. |
-| E14 巨兽 | HP 20, attack 1, speed 0, interval 1 s, range 1 block, reward 5 | Performs normal attacks and heals 1 HP for every target it kills. | Kill healing implemented in Domain and verified through Application; dedicated VFX is deferred. |
-| E15 咒灭术师 | HP 15, attack 0, speed 0, interval 12 s, range 99 blocks, reward 5 | Uses an ID-specific execution cast rather than the zero-attack generic path. | Execution implemented in Domain and verified through Application; dedicated VFX is deferred. |
+| E13 恶魔 | HP 18, attack 1, speed 0, interval 0.5 s, range 3 blocks, reward 5 | Performs normal attacks and applies a persistent curse before movement and attack phases. | Domain/Application implemented; prototype label, aura, damage pulse, and curse feedback implemented. |
+| E14 巨兽 | HP 20, attack 1, speed 0, interval 1 s, range 1 block, reward 5 | Performs normal attacks and heals 1 HP for every target it kills. | Domain/Application implemented; prototype label, aura, heal pulse, and `+1 HEAL` feedback implemented. |
+| E15 咒灭术师 | HP 15, attack 0, speed 0, interval 12 s, range 99 blocks, reward 5 | Uses an ID-specific execution cast rather than the zero-attack generic path. | Domain/Application implemented; prototype countdown, aura, and execution feedback implemented. |
 
 ## E13 persistent curse contract
 
@@ -94,10 +94,10 @@ in `SourceEvidenceHashes.csv`.
 
 ## Next implementation order
 
-1. Add Presentation feedback for persistent curse, healing, and execution using
-   the stable Domain events and Application attack-progress snapshot.
-2. Compose E12-E15 into the executable scene without changing their locked Domain
-   behavior.
+1. Compose E12-E15 into a target-owned executable fixture or later level without
+   changing their locked Domain behavior.
+2. Replace prototype procedural feedback with approved production art, VFX, SFX,
+   and localized UI after the resource-update strategy is confirmed.
 
 ## Risks and open evidence gaps
 
@@ -111,3 +111,5 @@ in `SourceEvidenceHashes.csv`.
   raw JSON values separately from runtime-safe values.
 - `DamageCarry` is shared by fractional damage sources. Refactoring the curse into a
   separate accumulator would change interactions and requires explicit approval.
+- L01 declares E06/E07 only. E13-E15 Presentation paths are implemented and compile,
+  but require a dedicated scene composition for final visual acceptance.

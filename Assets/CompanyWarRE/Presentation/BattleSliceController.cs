@@ -9,7 +9,8 @@ namespace CompanyWarRE.Presentation
 {
     public sealed class BattleSliceController : MonoBehaviour, IController
     {
-        internal const float ColumnGroupGap = 0.45f;
+        internal const float ColumnGroupGap = 0.7f;
+        internal const float RowGroupGap = 0.7f;
 
         [SerializeField] private TextAsset legacyUnitsJson;
         [SerializeField] private TextAsset legacyEnemiesJson;
@@ -21,6 +22,8 @@ namespace CompanyWarRE.Presentation
             new Dictionary<GridPosition, BattleSliceCellView>();
         private readonly Dictionary<string, BattleSliceCombatantView> _combatantViews =
             new Dictionary<string, BattleSliceCombatantView>(System.StringComparer.Ordinal);
+        private readonly Dictionary<string, double> _previousHitPoints =
+            new Dictionary<string, double>(System.StringComparer.Ordinal);
 
         private IArchitecture _architecture;
         private BattleSliceSnapshot _snapshot;
@@ -30,6 +33,8 @@ namespace CompanyWarRE.Presentation
         private string _configurationError;
         private bool _isReady;
         private Transform _combatantRoot;
+        private BattleSliceFeedbackLayer _feedbackLayer;
+        private int _processedCombatEventCount;
 
         public IArchitecture GetArchitecture()
         {
@@ -68,6 +73,12 @@ namespace CompanyWarRE.Presentation
             _architecture.SendCommand(new ResetBattleSliceCommand());
             _selected = new GridPosition(1, 1);
             _actorSequence = 1;
+            _processedCombatEventCount = 0;
+            _previousHitPoints.Clear();
+            if (_feedbackLayer != null)
+            {
+                _feedbackLayer.Clear();
+            }
             _lastAction = "Slice reset";
             RefreshView();
         }
@@ -199,6 +210,9 @@ namespace CompanyWarRE.Presentation
             root.SetParent(transform, false);
             _combatantRoot = new GameObject("RuntimeCombatants").transform;
             _combatantRoot.SetParent(transform, false);
+            var feedbackRoot = new GameObject("RuntimeFeedback");
+            feedbackRoot.transform.SetParent(transform, false);
+            _feedbackLayer = feedbackRoot.AddComponent<BattleSliceFeedbackLayer>();
 
             for (var column = 1; column <= _snapshot.Columns; column++)
             {
@@ -208,8 +222,11 @@ namespace CompanyWarRE.Presentation
                     var cell = GameObject.CreatePrimitive(PrimitiveType.Cube);
                     cell.name = $"Cell_{column}_{row}";
                     cell.transform.SetParent(root, false);
-                    cell.transform.localPosition = new Vector3(GetColumnWorldX(column), 0f, row - 1);
-                    cell.transform.localScale = new Vector3(0.9f, 0.18f, 0.9f);
+                    cell.transform.localPosition = new Vector3(
+                        GetColumnWorldX(column),
+                        0f,
+                        GetRowWorldZ(row));
+                    cell.transform.localScale = new Vector3(0.84f, 0.16f, 0.84f);
                     var view = cell.AddComponent<BattleSliceCellView>();
                     view.Initialize(position);
                     _cellViews.Add(position, view);
@@ -220,6 +237,19 @@ namespace CompanyWarRE.Presentation
         private void RefreshView()
         {
             _snapshot = _architecture.SendQuery(new GetBattleSliceSnapshotQuery());
+            var directAttackTargets = ProcessNewCombatFeedback();
+            var hasLivingE13 = false;
+            foreach (var combatant in _snapshot.Combatants)
+            {
+                if (combatant.IsAlive &&
+                    combatant.Team == Team.Enemy &&
+                    string.Equals(combatant.TemplateId, "E13", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    hasLivingE13 = true;
+                    break;
+                }
+            }
+
             foreach (var cell in _snapshot.Cells)
             {
                 if (_cellViews.TryGetValue(cell.Position, out var view))
@@ -241,7 +271,33 @@ namespace CompanyWarRE.Presentation
                     _combatantViews.Add(combatant.ActorId, view);
                 }
 
-                view.Render(combatant);
+                var lostHitPoints = _previousHitPoints.TryGetValue(combatant.ActorId, out var previousHitPoints) &&
+                                    combatant.HitPoints < previousHitPoints;
+                var curseDamage = hasLivingE13 &&
+                                  combatant.Team == Team.Ally &&
+                                  lostHitPoints &&
+                                  !directAttackTargets.Contains(combatant.ActorId);
+                view.Render(combatant, curseDamage);
+
+                if (_previousHitPoints.TryGetValue(combatant.ActorId, out previousHitPoints) &&
+                    combatant.HitPoints > previousHitPoints &&
+                    string.Equals(combatant.TemplateId, "E14", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    _feedbackLayer?.Show(
+                        "+1 HEAL",
+                        GetCombatantWorldPosition(combatant),
+                        new Color(0.3f, 1f, 0.45f));
+                }
+
+                if (curseDamage)
+                {
+                    _feedbackLayer?.Show(
+                        "CURSE",
+                        GetCombatantWorldPosition(combatant),
+                        new Color(0.85f, 0.25f, 1f));
+                }
+
+                _previousHitPoints[combatant.ActorId] = combatant.HitPoints;
             }
 
             foreach (var pair in _combatantViews)
@@ -253,22 +309,82 @@ namespace CompanyWarRE.Presentation
             }
         }
 
+        private HashSet<string> ProcessNewCombatFeedback()
+        {
+            var directAttackTargets = new HashSet<string>(System.StringComparer.Ordinal);
+            if (_snapshot == null)
+            {
+                return directAttackTargets;
+            }
+
+            var combatants = new Dictionary<string, BattleSliceCombatantSnapshot>(System.StringComparer.Ordinal);
+            foreach (var combatant in _snapshot.Combatants)
+            {
+                combatants[combatant.ActorId] = combatant;
+            }
+
+            var startIndex = Mathf.Clamp(_processedCombatEventCount, 0, _snapshot.CombatEvents.Count);
+            for (var index = startIndex; index < _snapshot.CombatEvents.Count; index++)
+            {
+                var combatEvent = _snapshot.CombatEvents[index];
+                if (combatEvent.Type == CombatEventType.Attack)
+                {
+                    directAttackTargets.Add(combatEvent.TargetActorId);
+                    if (combatants.TryGetValue(combatEvent.ActorId, out var source) &&
+                        combatants.TryGetValue(combatEvent.TargetActorId, out var target) &&
+                        string.Equals(source.TemplateId, "E15", System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        _feedbackLayer?.Show(
+                            "EXECUTE",
+                            GetCombatantWorldPosition(target),
+                            new Color(1f, 0.15f, 0.75f),
+                            1.4f);
+                    }
+                }
+                else if (combatEvent.Type == CombatEventType.Pollution)
+                {
+                    _feedbackLayer?.Show(
+                        "POLLUTED",
+                        new Vector3(
+                            GetColumnWorldX(combatEvent.Column),
+                            0.25f,
+                            GetRowWorldZ(combatEvent.Row)),
+                        new Color(0.75f, 0.2f, 0.9f));
+                }
+                else if (combatEvent.Type == CombatEventType.Death &&
+                         combatants.TryGetValue(combatEvent.ActorId, out var defeated))
+                {
+                    _feedbackLayer?.Show(
+                        defeated.IsBuilding ? "BUILDING DOWN" : "DOWN",
+                        GetCombatantWorldPosition(defeated),
+                        new Color(1f, 0.35f, 0.25f));
+                }
+            }
+
+            _processedCombatEventCount = _snapshot.CombatEvents.Count;
+            return directAttackTargets;
+        }
+
         private static void EnsureSceneInfrastructure(int columns, int rows)
         {
+            Camera camera;
             if (Camera.main == null)
             {
                 var cameraObject = new GameObject("Main Camera");
                 cameraObject.tag = "MainCamera";
-                var camera = cameraObject.AddComponent<Camera>();
+                camera = cameraObject.AddComponent<Camera>();
                 cameraObject.AddComponent<AudioListener>();
-                var lastColumnX = GetColumnWorldX(columns);
-                var center = new Vector3(lastColumnX * 0.5f, 0f, (rows - 1) * 0.5f);
-                var extent = Mathf.Max(lastColumnX + 1f, rows);
-                camera.transform.position = new Vector3(center.x, extent * 1.3f, center.z - extent * 1.05f);
-                camera.transform.LookAt(center);
                 camera.clearFlags = CameraClearFlags.SolidColor;
                 camera.backgroundColor = new Color(0.07f, 0.09f, 0.13f);
             }
+            else
+            {
+                camera = Camera.main;
+            }
+
+            var cameraRig = camera.GetComponent<BattleSliceCameraRig>() ??
+                            camera.gameObject.AddComponent<BattleSliceCameraRig>();
+            cameraRig.Configure(columns, rows);
 
             if (FindObjectOfType<Light>() == null)
             {
@@ -287,6 +403,35 @@ namespace CompanyWarRE.Presentation
             return zeroBasedColumn + completedGroups * ColumnGroupGap;
         }
 
+        internal static float GetRowWorldZ(int row)
+        {
+            var zeroBasedRow = Mathf.Max(0, row - 1);
+            var completedGroups = zeroBasedRow / BattleGrid.ControlBlockSize;
+            return zeroBasedRow + completedGroups * RowGroupGap;
+        }
+
+        internal static float GetLaneWorldZ(double lanePosition)
+        {
+            var zeroBasedLane = System.Math.Max(0d, lanePosition - 1d);
+            var completedGroups = (int)System.Math.Floor(zeroBasedLane / BattleGrid.ControlBlockSize);
+            return (float)zeroBasedLane + completedGroups * RowGroupGap;
+        }
+
+        internal static Vector3 GetCombatantWorldPosition(BattleSliceCombatantSnapshot combatant)
+        {
+            var worldX = GetColumnWorldX(combatant.Column);
+            var worldZ = GetLaneWorldZ(combatant.LanePosition);
+            if (combatant.IsBuilding)
+            {
+                worldX = (GetColumnWorldX(combatant.FootprintStartColumn) +
+                          GetColumnWorldX(combatant.FootprintEndColumn)) * 0.5f;
+                worldZ = (GetRowWorldZ(combatant.FootprintStartRow) +
+                          GetRowWorldZ(combatant.FootprintEndRow)) * 0.5f;
+            }
+
+            return new Vector3(worldX, 0.12f, worldZ);
+        }
+
         private void OnGUI()
         {
             if (_snapshot == null)
@@ -301,16 +446,16 @@ namespace CompanyWarRE.Presentation
                 return;
             }
 
-            GUILayout.BeginArea(new Rect(16f, 16f, 540f, 270f), GUI.skin.box);
-            GUILayout.Label("Company War-RE | Wide battle loop slice");
-            GUILayout.Label($"Resources: {_snapshot.Resources}    Time: {_snapshot.ElapsedSeconds:0.0}s");
+            GUILayout.BeginArea(new Rect(16f, 16f, 570f, 294f), GUI.skin.box);
+            GUILayout.Label("Company War-RE | L01 可玩验证");
+            GUILayout.Label($"资源: {_snapshot.Resources}    时间: {_snapshot.ElapsedSeconds:0.0}s");
             GUILayout.Label(
-                $"{_snapshot.UnitId} cost: {_snapshot.UnitResourceCost}    " +
-                $"cooldown: {_snapshot.RemainingCooldown:0.0}s    Selected: {_selected}");
+                $"{_snapshot.UnitId} 消耗: {_snapshot.UnitResourceCost}    " +
+                $"冷却: {_snapshot.RemainingCooldown:0.0}s    选中: {_selected}");
             GUILayout.Space(6f);
-            GUILayout.Label($"Left click: select | Right click / D / Space: deploy {_snapshot.UnitId}");
-            GUILayout.Label("P: toggle 3x3 pollution block | R: reset");
-            GUILayout.Label("Green owned | Gray unowned | Purple polluted | Wider gap every 3 columns");
+            GUILayout.Label($"左键选择 | 右键 / D / 空格部署 {_snapshot.UnitId}");
+            GUILayout.Label("WASD/方向键移动镜头 | 滚轮缩放 | F/Home 回到全图 | R 重置");
+            GUILayout.Label("绿色我方 | 灰色敌方 | 紫色污染 | 深红为建筑占用 | 每3行/列分组");
             var aliveAllies = 0;
             var aliveEnemies = 0;
             foreach (var combatant in _snapshot.Combatants)
@@ -331,12 +476,12 @@ namespace CompanyWarRE.Presentation
             }
 
             GUILayout.Label(
-                $"Wave: {_snapshot.WaveIndex} / {_snapshot.CurrentWaveStage}    " +
-                $"Alive: ally {aliveAllies} / enemy {aliveEnemies}    Spawned: {_snapshot.EnemySpawns.Count}");
+                $"波次: {_snapshot.WaveIndex} / {_snapshot.CurrentWaveStage}    " +
+                $"存活: 我方 {aliveAllies} / 敌方 {aliveEnemies}    已生成: {_snapshot.EnemySpawns.Count}");
             GUILayout.Label(
-                $"State: {_snapshot.BattleState}    Buildings: {_snapshot.EnemyBuildingCount}    " +
-                $"Assault: {_snapshot.AssaultScore}/{_snapshot.RequiredAssaultScore}    " +
-                $"Spawn columns: {_snapshot.ValidSpawnPointCount}");
+                $"状态: {_snapshot.BattleState}    建筑: {_snapshot.EnemyBuildingCount}    " +
+                $"突击分: {_snapshot.AssaultScore}/{_snapshot.RequiredAssaultScore}    " +
+                $"有效生成列: {_snapshot.ValidSpawnPointCount}");
             if (_snapshot.CombatEvents.Count > 0)
             {
                 GUILayout.Label(Describe(_snapshot.CombatEvents[_snapshot.CombatEvents.Count - 1]));
@@ -344,6 +489,34 @@ namespace CompanyWarRE.Presentation
             GUILayout.Space(6f);
             GUILayout.Label(_lastAction);
             GUILayout.EndArea();
+
+            if (_snapshot.BattleState != BattleState.Running)
+            {
+                var width = 420f;
+                var height = 170f;
+                GUILayout.BeginArea(
+                    new Rect((Screen.width - width) * 0.5f, (Screen.height - height) * 0.5f, width, height),
+                    GUI.skin.window);
+                GUILayout.Space(18f);
+                var resultStyle = new GUIStyle(GUI.skin.label)
+                {
+                    alignment = TextAnchor.MiddleCenter,
+                    fontSize = 28,
+                    fontStyle = FontStyle.Bold
+                };
+                GUILayout.Label(
+                    _snapshot.BattleState == BattleState.Victory ? "L01 胜利" : "L01 失败",
+                    resultStyle);
+                GUILayout.Label(
+                    $"突击分 {_snapshot.AssaultScore}    剩余建筑 {_snapshot.EnemyBuildingCount}    " +
+                    $"耗时 {_snapshot.ElapsedSeconds:0.0}s");
+                GUILayout.Space(12f);
+                if (GUILayout.Button("重新开始 (R)", GUILayout.Height(36f)))
+                {
+                    ResetSlice();
+                }
+                GUILayout.EndArea();
+            }
         }
 
         private static string Describe(DeploymentFailure failure)

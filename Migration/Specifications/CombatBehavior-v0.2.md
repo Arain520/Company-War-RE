@@ -47,6 +47,7 @@ All evidence is read from Cow and pinned in `SourceEvidenceHashes.csv`.
   mechanics; building occupation plus E13-E15 abilities are covered by
   `BattleLoop-v0.1.md` and
   `EnemyBuildings-v0.1.md`;
-- final VFX/animation/audio for battlefield start, attack, death, and pollution;
+- prototype event rings/labels for attack-derived special feedback, death, and
+  pollution are implemented; final VFX/animation/audio remain deferred;
 - save data. Enemy waves are covered by `EnemyWaves-v0.1.md`; base score and
   victory/defeat integration are covered by `BattleLoop-v0.1.md`.
