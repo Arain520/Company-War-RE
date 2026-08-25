@@ -7,6 +7,9 @@ namespace CompanyWarRE.Presentation
 {
     public sealed class BattleSliceCombatantView : MonoBehaviour
     {
+        public const float MovingUnitVisualFootprint = 0.78f;
+        public const float BuildingVisualFootprint = 2.65f;
+
         private static readonly Color AllyColor = new Color(0.12f, 0.75f, 0.9f);
         private static readonly Color EnemyColor = new Color(0.9f, 0.2f, 0.18f);
         private static readonly Color EnemyBuildingColor = new Color(0.7f, 0.12f, 0.45f);
@@ -121,7 +124,7 @@ namespace CompanyWarRE.Presentation
             }
 
             transform.localPosition = BattleSliceController.GetCombatantWorldPosition(snapshot);
-            var hasImportedBody = EnsureImportedBody(snapshot.TemplateId);
+            var hasImportedBody = EnsureImportedBody(snapshot.TemplateId, snapshot.IsBuilding);
             _unitBody.gameObject.SetActive(!hasImportedBody && !snapshot.IsBuilding);
             _buildingBody.gameObject.SetActive(!hasImportedBody && snapshot.IsBuilding);
 
@@ -236,7 +239,7 @@ namespace CompanyWarRE.Presentation
                 : EnemyBuildingColor;
         }
 
-        private bool EnsureImportedBody(string templateId)
+        private bool EnsureImportedBody(string templateId, bool isBuilding)
         {
             if (_importedBody != null && string.Equals(
                     _resolvedTemplateId,
@@ -289,8 +292,74 @@ namespace CompanyWarRE.Presentation
                 }
             }
 
+            FitImportedBodyToFootprint(isBuilding);
+
             _resolvedTemplateId = templateId;
             return true;
+        }
+
+        private void FitImportedBodyToFootprint(bool isBuilding)
+        {
+            if (_importedBody == null || _importedRenderers.Length == 0 ||
+                !TryCalculateRendererBounds(_importedRenderers, out var bounds))
+            {
+                return;
+            }
+
+            var scale = CalculateFootprintScale(bounds.size, isBuilding);
+            _importedBody.localScale *= scale;
+
+            if (!TryCalculateRendererBounds(_importedRenderers, out bounds))
+            {
+                return;
+            }
+
+            var bottomInViewSpace = transform.InverseTransformPoint(new Vector3(
+                bounds.center.x,
+                bounds.min.y,
+                bounds.center.z));
+            var position = _importedBody.localPosition;
+            position.y -= bottomInViewSpace.y;
+            _importedBody.localPosition = position;
+        }
+
+        public static float CalculateFootprintScale(Vector3 rendererBoundsSize, bool isBuilding)
+        {
+            var horizontalSize = Mathf.Max(
+                Mathf.Abs(rendererBoundsSize.x),
+                Mathf.Abs(rendererBoundsSize.z));
+            if (horizontalSize <= 0.0001f)
+            {
+                return 1f;
+            }
+
+            var targetSize = isBuilding ? BuildingVisualFootprint : MovingUnitVisualFootprint;
+            return targetSize / horizontalSize;
+        }
+
+        private static bool TryCalculateRendererBounds(Renderer[] renderers, out Bounds bounds)
+        {
+            bounds = default;
+            var hasBounds = false;
+            foreach (var renderer in renderers)
+            {
+                if (renderer == null || !renderer.gameObject.activeInHierarchy)
+                {
+                    continue;
+                }
+
+                if (!hasBounds)
+                {
+                    bounds = renderer.bounds;
+                    hasBounds = true;
+                }
+                else
+                {
+                    bounds.Encapsulate(renderer.bounds);
+                }
+            }
+
+            return hasBounds;
         }
 
         private void RenderImportedFeedback(bool active, Color color)

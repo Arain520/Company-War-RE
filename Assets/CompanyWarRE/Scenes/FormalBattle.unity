@@ -214,7 +214,7 @@ MonoBehaviour:
     model: {fileID: 919132149155446097, guid: 25cebf529e493fb4ebbedd04c000cf1f, type: 3}
     localPosition: {x: 0, y: 0, z: 0}
     localEulerAngles: {x: 0, y: 0, z: 0}
-    localScale: {x: 0.75, y: 0.75, z: 0.75}
+    localScale: {x: 1, y: 1, z: 1}
   enemyMappings:
   - enemyId: E01
     prefab: {fileID: 7579568755868994769, guid: 88b3bd44a9baaa14ca68d58fcfc8b60f, type: 3}
@@ -222,18 +222,18 @@ MonoBehaviour:
     model: {fileID: 919132149155446097, guid: d3bdc38d9e243df47a93adcee51b362e, type: 3}
     localPosition: {x: 0, y: 0, z: 0}
     localEulerAngles: {x: 0, y: 0, z: 0}
-    localScale: {x: 0.75, y: 0.75, z: 0.75}
+    localScale: {x: 1, y: 1, z: 1}
   - enemyId: E06
     prefab: {fileID: 5271957260069354564, guid: 0b36364c0d8c8c34a91ea39f779676fc, type: 3}
     material: {fileID: 2100000, guid: 184cbfe1ed6d3c241b7ec9d9b5d2326d, type: 2}
     model: {fileID: 919132149155446097, guid: 6587bd970d7104147955315630d14712, type: 3}
     localPosition: {x: 0, y: 0, z: 0}
     localEulerAngles: {x: 0, y: 0, z: 0}
-    localScale: {x: 2.2, y: 2.2, z: 2.2}
+    localScale: {x: 1, y: 1, z: 1}
   - enemyId: E07
     prefab: {fileID: 8708909874074985757, guid: 0f913102eb457e246b99ac01ec3e9871, type: 3}
     material: {fileID: 2100000, guid: 73e65bf99733ab54ebbdacf1938482a6, type: 2}
     model: {fileID: 919132149155446097, guid: 68413b30f6236ad45840f8c4294add33, type: 3}
     localPosition: {x: 0, y: 0, z: 0}
     localEulerAngles: {x: 0, y: 0, z: 0}
-    localScale: {x: 2.2, y: 2.2, z: 2.2}
+    localScale: {x: 1, y: 1, z: 1}

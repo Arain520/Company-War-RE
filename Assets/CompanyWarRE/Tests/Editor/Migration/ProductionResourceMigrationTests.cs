@@ -137,6 +137,44 @@ namespace CompanyWarRE.Migration.Tests
         }
 
         [Test]
+        public void ImportedVisuals_NormalizeMovingUnitsToOneCellAndBuildingsToThreeByThree()
+        {
+            var viewType = Type.GetType(
+                "CompanyWarRE.Presentation.BattleSliceCombatantView, CompanyWarRE.Presentation",
+                true);
+            var calculateScale = viewType.GetMethod(
+                "CalculateFootprintScale",
+                BindingFlags.Public | BindingFlags.Static);
+            Assert.That(calculateScale, Is.Not.Null);
+
+            var movingScale = (float)calculateScale.Invoke(
+                null,
+                new object[] { new Vector3(3.9f, 8f, 1.3f), false });
+            var buildingScale = (float)calculateScale.Invoke(
+                null,
+                new object[] { new Vector3(5.3f, 2f, 2.65f), true });
+
+            Assert.That(3.9f * movingScale, Is.EqualTo(0.78f).Within(0.001f));
+            Assert.That(5.3f * buildingScale, Is.EqualTo(2.65f).Within(0.001f));
+
+            AssertVisualFit(
+                viewType,
+                "Assets/CompanyWarRE/Content/Prefabs/Units/PF_U01.prefab",
+                false,
+                0.78f);
+            AssertVisualFit(
+                viewType,
+                "Assets/CompanyWarRE/Content/Prefabs/Enemies/PF_E01.prefab",
+                false,
+                0.78f);
+            AssertVisualFit(
+                viewType,
+                "Assets/CompanyWarRE/Content/Prefabs/Buildings/PF_E06.prefab",
+                true,
+                2.65f);
+        }
+
+        [Test]
         public void Batch01SnapshotAndCompleteCatalogManifest_ArePresentAndVerified()
         {
             const string snapshotRoot =
@@ -166,6 +204,51 @@ namespace CompanyWarRE.Migration.Tests
             var dependencies = AssetDatabase.GetDependencies(prefabPath, true);
             Assert.That(dependencies, Does.Contain(materialPath), prefabPath);
             Assert.That(dependencies, Does.Contain(modelPath), prefabPath);
+        }
+
+        private static void AssertVisualFit(
+            Type viewType,
+            string prefabPath,
+            bool isBuilding,
+            float expectedHorizontalSize)
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+            Assert.That(prefab, Is.Not.Null, prefabPath);
+            var host = new GameObject("VisualFitTestHost");
+            try
+            {
+                var view = host.AddComponent(viewType);
+                var instance = UnityEngine.Object.Instantiate(prefab, host.transform, false);
+                var renderers = instance.GetComponentsInChildren<Renderer>(true);
+                viewType.GetField("_importedBody", BindingFlags.Instance | BindingFlags.NonPublic)
+                    ?.SetValue(view, instance.transform);
+                viewType.GetField("_importedRenderers", BindingFlags.Instance | BindingFlags.NonPublic)
+                    ?.SetValue(view, renderers);
+                var fit = viewType.GetMethod(
+                    "FitImportedBodyToFootprint",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(fit, Is.Not.Null);
+                fit.Invoke(view, new object[] { isBuilding });
+
+                var bounds = renderers[0].bounds;
+                foreach (var renderer in renderers.Skip(1))
+                {
+                    bounds.Encapsulate(renderer.bounds);
+                }
+
+                Assert.That(
+                    Mathf.Max(bounds.size.x, bounds.size.z),
+                    Is.EqualTo(expectedHorizontalSize).Within(0.01f),
+                    prefabPath);
+                Assert.That(
+                    bounds.min.y - host.transform.position.y,
+                    Is.EqualTo(0f).Within(0.01f),
+                    prefabPath + " should rest on the battlefield plane.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(host);
+            }
         }
     }
 }
