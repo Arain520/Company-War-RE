@@ -13,7 +13,7 @@
 - Domain 不引用 Unity、Prefab 或资源系统；战斗判定仍只依赖纯 C# 快照。
 - 正式场景使用序列化直接引用，暂不把 Addressables、ResKit 或 StreamingAssets 定为唯一方案。
 - 未迁移模板继续使用 `BattleSliceCombatantView` 的 Capsule/Cube 回退表现，规则运行不受影响。
-- 导入实例按 Renderer Bounds 自动统一尺度：移动单位水平尺寸为 0.95（小于相邻格心间距 1.0），九格建筑适配 3×3 占地（2.65）。移动单位 Transform 对齐三维几何中心后整体上移半高以保持贴地；建筑仍以底部中心对齐格心，避免旧 Prefab Pivot 偏移造成视觉出格。
+- 导入实例只按包含真实几何的非零 Renderer Bounds 自动统一尺度，忽略旧 Prefab 中无 Mesh 的空 Renderer。移动单位水平尺寸为 0.95（小于相邻格心间距 1.0），九格建筑适配 3×3 占地（2.65）。移动单位 Transform 对齐三维几何中心后整体上移半高以保持贴地；建筑仍以底部中心对齐格心，避免旧 Prefab Pivot 或空 Bounds 造成视觉偏移、缩小和出格。
 
 ## 序列化兼容
 

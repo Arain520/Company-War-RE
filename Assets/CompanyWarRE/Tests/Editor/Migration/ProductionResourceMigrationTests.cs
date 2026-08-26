@@ -239,8 +239,16 @@ namespace CompanyWarRE.Migration.Tests
                     host.transform.position += Vector3.up * groundOffset;
                 }
 
-                var bounds = renderers[0].bounds;
-                foreach (var renderer in renderers.Skip(1))
+                var visibleRenderers = renderers
+                    .Where(renderer => renderer.bounds.size.sqrMagnitude > 0.000001f)
+                    .ToArray();
+                Assert.That(
+                    visibleRenderers,
+                    Is.Not.Empty,
+                    prefabPath + " should contain at least one renderer with real geometry.");
+
+                var bounds = visibleRenderers[0].bounds;
+                foreach (var renderer in visibleRenderers.Skip(1))
                 {
                     bounds.Encapsulate(renderer.bounds);
                 }

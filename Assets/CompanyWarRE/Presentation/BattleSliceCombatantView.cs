@@ -377,14 +377,20 @@ namespace CompanyWarRE.Presentation
                     continue;
                 }
 
+                var rendererBounds = renderer.bounds;
+                if (rendererBounds.size.sqrMagnitude <= 0.000001f)
+                {
+                    continue;
+                }
+
                 if (!hasBounds)
                 {
-                    bounds = renderer.bounds;
+                    bounds = rendererBounds;
                     hasBounds = true;
                 }
                 else
                 {
-                    bounds.Encapsulate(renderer.bounds);
+                    bounds.Encapsulate(rendererBounds);
                 }
             }
 
