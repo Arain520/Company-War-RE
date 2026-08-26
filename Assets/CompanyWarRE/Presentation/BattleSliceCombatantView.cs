@@ -7,7 +7,7 @@ namespace CompanyWarRE.Presentation
 {
     public sealed class BattleSliceCombatantView : MonoBehaviour
     {
-        public const float MovingUnitVisualFootprint = 0.78f;
+        public const float MovingUnitVisualFootprint = 0.95f;
         public const float BuildingVisualFootprint = 2.65f;
 
         private static readonly Color AllyColor = new Color(0.12f, 0.75f, 0.9f);
@@ -34,6 +34,8 @@ namespace CompanyWarRE.Presentation
         private MaterialPropertyBlock _importedPropertyBlock;
         private BattleSliceVisualCatalog _visualCatalog;
         private string _resolvedTemplateId;
+        private float _importedVerticalGroundOffset;
+        private float _importedVisualTop;
         private TextMesh _statusLabel;
         private double _previousHitPoints = double.NaN;
         private float _healPulseRemaining;
@@ -123,8 +125,13 @@ namespace CompanyWarRE.Presentation
                 return;
             }
 
-            transform.localPosition = BattleSliceController.GetCombatantWorldPosition(snapshot);
             var hasImportedBody = EnsureImportedBody(snapshot.TemplateId, snapshot.IsBuilding);
+            var worldPosition = BattleSliceController.GetCombatantWorldPosition(snapshot);
+            if (hasImportedBody && !snapshot.IsBuilding)
+            {
+                worldPosition.y += _importedVerticalGroundOffset;
+            }
+            transform.localPosition = worldPosition;
             _unitBody.gameObject.SetActive(!hasImportedBody && !snapshot.IsBuilding);
             _buildingBody.gameObject.SetActive(!hasImportedBody && snapshot.IsBuilding);
 
@@ -132,7 +139,9 @@ namespace CompanyWarRE.Presentation
                 ? 0f
                 : Mathf.Clamp01((float)(snapshot.HitPoints / snapshot.MaximumHitPoints));
             var barWidth = snapshot.IsBuilding ? 2.5f : 0.76f;
-            var barHeight = snapshot.IsBuilding ? 2.05f : 1.62f;
+            var barHeight = hasImportedBody
+                ? _importedVisualTop + 0.18f
+                : snapshot.IsBuilding ? 2.05f : 1.62f;
             _healthBackground.localScale = new Vector3(barWidth + 0.12f, 0.11f, 0.12f);
             _healthBackground.localPosition = new Vector3(0f, barHeight, 0f);
             _healthFill.localScale = new Vector3(barWidth * ratio, 0.075f, 0.08f);
@@ -219,7 +228,10 @@ namespace CompanyWarRE.Presentation
 
             _statusLabel.text =
                 $"{snapshot.TemplateId}  {snapshot.HitPoints:0.#}/{snapshot.MaximumHitPoints:0.#}{ability}";
-            _statusLabel.transform.localPosition = new Vector3(0f, snapshot.IsBuilding ? 2.42f : 1.92f, 0f);
+            var labelHeight = _importedBody != null
+                ? _importedVisualTop + 0.48f
+                : snapshot.IsBuilding ? 2.42f : 1.92f;
+            _statusLabel.transform.localPosition = new Vector3(0f, labelHeight, 0f);
         }
 
         private static Color GetBuildingColor(string templateId)
@@ -315,13 +327,29 @@ namespace CompanyWarRE.Presentation
                 return;
             }
 
-            var boundsAnchorInViewSpace = transform.InverseTransformPoint(new Vector3(
-                bounds.center.x,
-                bounds.min.y,
-                bounds.center.z));
+            var anchorInWorldSpace = isBuilding
+                ? new Vector3(bounds.center.x, bounds.min.y, bounds.center.z)
+                : bounds.center;
+            var boundsAnchorInViewSpace = transform.InverseTransformPoint(anchorInWorldSpace);
             var position = _importedBody.localPosition;
             position += intendedAnchor - boundsAnchorInViewSpace;
             _importedBody.localPosition = position;
+
+            if (!TryCalculateRendererBounds(_importedRenderers, out bounds))
+            {
+                return;
+            }
+
+            var bottomInViewSpace = transform.InverseTransformPoint(new Vector3(
+                bounds.center.x,
+                bounds.min.y,
+                bounds.center.z));
+            var topInViewSpace = transform.InverseTransformPoint(new Vector3(
+                bounds.center.x,
+                bounds.max.y,
+                bounds.center.z));
+            _importedVerticalGroundOffset = isBuilding ? 0f : -bottomInViewSpace.y;
+            _importedVisualTop = topInViewSpace.y;
         }
 
         public static float CalculateFootprintScale(Vector3 rendererBoundsSize, bool isBuilding)

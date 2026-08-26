@@ -154,19 +154,19 @@ namespace CompanyWarRE.Migration.Tests
                 null,
                 new object[] { new Vector3(5.3f, 2f, 2.65f), true });
 
-            Assert.That(3.9f * movingScale, Is.EqualTo(0.78f).Within(0.001f));
+            Assert.That(3.9f * movingScale, Is.EqualTo(0.95f).Within(0.001f));
             Assert.That(5.3f * buildingScale, Is.EqualTo(2.65f).Within(0.001f));
 
             AssertVisualFit(
                 viewType,
                 "Assets/CompanyWarRE/Content/Prefabs/Units/PF_U01.prefab",
                 false,
-                0.78f);
+                0.95f);
             AssertVisualFit(
                 viewType,
                 "Assets/CompanyWarRE/Content/Prefabs/Enemies/PF_E01.prefab",
                 false,
-                0.78f);
+                0.95f);
             AssertVisualFit(
                 viewType,
                 "Assets/CompanyWarRE/Content/Prefabs/Buildings/PF_E06.prefab",
@@ -230,6 +230,15 @@ namespace CompanyWarRE.Migration.Tests
                 Assert.That(fit, Is.Not.Null);
                 fit.Invoke(view, new object[] { isBuilding });
 
+                var groundOffset = (float)(viewType.GetField(
+                        "_importedVerticalGroundOffset",
+                        BindingFlags.Instance | BindingFlags.NonPublic)
+                    ?.GetValue(view) ?? 0f);
+                if (!isBuilding)
+                {
+                    host.transform.position += Vector3.up * groundOffset;
+                }
+
                 var bounds = renderers[0].bounds;
                 foreach (var renderer in renderers.Skip(1))
                 {
@@ -242,8 +251,10 @@ namespace CompanyWarRE.Migration.Tests
                     prefabPath);
                 Assert.That(
                     bounds.min.y - host.transform.position.y,
-                    Is.EqualTo(0f).Within(0.01f),
-                    prefabPath + " should rest on the battlefield plane.");
+                    isBuilding
+                        ? Is.EqualTo(0f).Within(0.01f)
+                        : Is.EqualTo(-groundOffset).Within(0.01f),
+                    prefabPath + " should preserve its expected transform-relative bottom.");
                 Assert.That(
                     bounds.center.x - host.transform.position.x,
                     Is.EqualTo(0f).Within(0.01f),
@@ -252,6 +263,17 @@ namespace CompanyWarRE.Migration.Tests
                     bounds.center.z - host.transform.position.z,
                     Is.EqualTo(0f).Within(0.01f),
                     prefabPath + " should be centered on the cell Z coordinate.");
+                if (!isBuilding)
+                {
+                    Assert.That(
+                        bounds.center.y - host.transform.position.y,
+                        Is.EqualTo(0f).Within(0.01f),
+                        prefabPath + " geometry center should match its Transform center.");
+                    Assert.That(
+                        bounds.min.y,
+                        Is.EqualTo(0f).Within(0.01f),
+                        prefabPath + " should still rest on the battlefield plane.");
+                }
             }
             finally
             {
