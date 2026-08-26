@@ -118,7 +118,7 @@ namespace CompanyWarRE.Migration.Tests
 
                 var tryResolve = catalogType.GetMethod("TryResolve", BindingFlags.Instance | BindingFlags.Public);
                 Assert.That(tryResolve, Is.Not.Null);
-                foreach (var templateId in new[] { "U01", "E01", "E06", "E07" })
+                foreach (var templateId in new[] { "U01", "U02", "U24", "E01", "E06", "E07", "E15" })
                 {
                     var arguments = new object[] { templateId, null };
                     Assert.That((bool)tryResolve.Invoke(catalog, arguments), Is.True, templateId);
@@ -194,6 +194,51 @@ namespace CompanyWarRE.Migration.Tests
                 "Migration/Inventory/ProductionResources/SerializationCompatibilityBatch01.csv");
             Assert.That(compatibilityRows.Length, Is.EqualTo(6));
             StringAssert.Contains("e4e65e1ec4a34c068baf55ae0319f61c", compatibilityRows[1]);
+        }
+
+        [Test]
+        public void Batch05_AllCowPrefabsHaveRestoreSnapshotManifestAndCompatibilityScripts()
+        {
+            const string snapshotRoot =
+                "Migration/Baseline/Cow/20260826-all-prefabs-batch-05";
+            const string inventoryPath =
+                "Migration/Inventory/PrefabMigrationBatch05/AllPrefabMigrationManifest.csv";
+
+            var verification = File.ReadAllText(Path.Combine(snapshotRoot, "restore-verification.txt"));
+            StringAssert.Contains("verification: PASS", verification);
+            StringAssert.Contains("PrefabCount: 75", verification);
+            StringAssert.Contains("AssetClosureCount: 158", verification);
+            StringAssert.Contains("ArchiveRestoreVerified: true", verification);
+            Assert.That(
+                new FileInfo(Path.Combine(snapshotRoot, "all-prefab-resources.zip")).Length,
+                Is.GreaterThan(0));
+
+            var rows = File.ReadAllLines(inventoryPath);
+            Assert.That(rows.Count(line => line.Contains("\"Prefab\"")), Is.EqualTo(75));
+            Assert.That(rows.Count(line => line.Contains("\"CompatibilityShim\"")), Is.EqualTo(4));
+            Assert.That(rows.Count(line => line.Contains("\"CopiedWithMeta\"")), Is.EqualTo(142));
+            Assert.That(rows.Count(line => line.Contains("\"ExistingGuidReused\"")), Is.EqualTo(12));
+
+            var visualMap = File.ReadAllLines(
+                "Migration/Inventory/ProductionResources/CombatVisualResourceMap.csv");
+            Assert.That(visualMap.Count(line => line.Contains("\"ImportedBatch05\"")), Is.EqualTo(35));
+            Assert.That(visualMap.Count(line => line.Contains("\"PendingNoCowPrefab\"")), Is.EqualTo(12));
+
+            var compatibilityScripts = new Dictionary<string, string>
+            {
+                ["e52691e61cc9cfb4eb29e48a69f4f231"] =
+                    "Assets/CompanyWarRE/Compatibility/CowUI/MenuPanel.cs",
+                ["81c4b70ccd8a8b94bbc0f6eff40736f7"] =
+                    "Assets/CompanyWarRE/Compatibility/CowUI/LevelSelectPanel.cs",
+                ["642b2c2954fd5574fa229fca7cac5ac4"] =
+                    "Assets/CompanyWarRE/Compatibility/CowUI/BattlePanel.cs",
+                ["0411f205fe34b6e4aa5bc9e62ecaec3c"] =
+                    "Assets/CompanyWarRE/Compatibility/CowUI/FloatingTextItem.cs"
+            };
+            foreach (var pair in compatibilityScripts)
+            {
+                Assert.That(AssetDatabase.GUIDToAssetPath(pair.Key), Is.EqualTo(pair.Value));
+            }
         }
 
         private static void AssertPrefabDependencies(

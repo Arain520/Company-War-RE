@@ -1,0 +1,8 @@
+Cow all-prefab snapshot restore verification: PASS
+SnapshotId: 20260826-all-prefabs-batch-05
+PrefabCount: 75
+AssetClosureCount: 158
+SnapshotFileCount: 316
+SourceWasReadOnlyByPolicy: true
+ArchiveRestoreVerified: true
+ArchiveSHA256: e2317cdcd12538b66b2c21f4af666f037e678be22752a9494dfc1ce3cd249f18

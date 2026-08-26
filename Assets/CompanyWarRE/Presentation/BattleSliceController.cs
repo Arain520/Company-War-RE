@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using CompanyWarRE.Application;
 using CompanyWarRE.Domain;
 using CompanyWarRE.Infrastructure.Configuration;
@@ -10,6 +11,8 @@ namespace CompanyWarRE.Presentation
 {
     public sealed class BattleSliceController : MonoBehaviour, IController
     {
+        private static readonly string[] FormalLevelIds = { "L02", "L03", "L04", "L05" };
+
         internal const float CellVisualSize = 0.98f;
         internal const float ControlBlockBorderWidth = 0.06f;
         internal const float ColumnGroupBorderWidth = 0.1f;
@@ -45,6 +48,15 @@ namespace CompanyWarRE.Presentation
         private FormalLevelRuntimeMetadata _formalLevel;
         private Material _controlBlockBorderMaterial;
         private Material _columnGroupBorderMaterial;
+        private Transform _runtimeGridRoot;
+        private Transform _feedbackRoot;
+        private FormalGameFlowSnapshot _flowSnapshot;
+        private BattleState _reportedBattleState = BattleState.Running;
+        private string _selectedUnitId;
+
+        public BattleSliceSnapshot CurrentSnapshot => _snapshot;
+        public FormalGameFlowSnapshot CurrentFlow => _flowSnapshot;
+        public string ActiveLevelId => _activeLevelId;
 
         public IArchitecture GetArchitecture()
         {
@@ -54,6 +66,12 @@ namespace CompanyWarRE.Presentation
         private void Awake()
         {
             _architecture = GetArchitecture();
+            if (useFormalLevelConfiguration)
+            {
+                _architecture.SendCommand(new InitializeFormalGameFlowCommand(FormalLevelIds));
+                _flowSnapshot = _architecture.SendQuery(new GetFormalGameFlowSnapshotQuery());
+            }
+
             if (visualCatalog == null)
             {
                 visualCatalog = GetComponent<BattleSliceVisualCatalog>();
@@ -69,6 +87,7 @@ namespace CompanyWarRE.Presentation
             ApplyFormalEnvironment();
             _isReady = true;
             RefreshView();
+            _selectedUnitId = _snapshot.UnitId;
         }
 
         private void Update()
@@ -78,10 +97,41 @@ namespace CompanyWarRE.Presentation
                 return;
             }
 
-            _architecture.SendCommand(new AdvanceBattleSliceTimeCommand(Time.deltaTime));
-            ProcessPointerInput();
-            ProcessKeyboardInput();
+            if (useFormalLevelConfiguration)
+            {
+                _flowSnapshot = _architecture.SendQuery(new GetFormalGameFlowSnapshotQuery());
+                if (Input.GetKeyDown(KeyCode.Escape))
+                {
+                    ToggleFormalPause();
+                }
+            }
+
+            var canRunBattle = !useFormalLevelConfiguration ||
+                               _flowSnapshot.Screen == FormalFlowScreen.Battle;
+            var choosingAuthorization = _snapshot.AuthorizationState == AuthorizationState.Choosing;
+            if (canRunBattle && !choosingAuthorization)
+            {
+                _architecture.SendCommand(new AdvanceBattleSliceTimeCommand(Time.deltaTime));
+                ProcessPointerInput();
+                ProcessKeyboardInput();
+            }
+
             RefreshView();
+            if (canRunBattle && _snapshot.AuthorizationState == AuthorizationState.Available &&
+                _architecture.SendCommand(new BeginBattleAuthorizationChoiceCommand()))
+            {
+                RefreshView();
+            }
+
+            if (useFormalLevelConfiguration &&
+                _snapshot.BattleState != BattleState.Running &&
+                _reportedBattleState == BattleState.Running)
+            {
+                _reportedBattleState = _snapshot.BattleState;
+                _architecture.SendCommand(
+                    new RecordFormalBattleResultCommand(_activeLevelId, _snapshot.BattleState));
+                _flowSnapshot = _architecture.SendQuery(new GetFormalGameFlowSnapshotQuery());
+            }
         }
 
         private void ResetSlice()
@@ -90,6 +140,7 @@ namespace CompanyWarRE.Presentation
             _selected = new GridPosition(1, 1);
             _actorSequence = 1;
             _processedCombatEventCount = 0;
+            _reportedBattleState = BattleState.Running;
             _previousHitPoints.Clear();
             if (_feedbackLayer != null)
             {
@@ -97,6 +148,160 @@ namespace CompanyWarRE.Presentation
             }
             _lastAction = "Slice reset";
             RefreshView();
+            if (string.IsNullOrWhiteSpace(_selectedUnitId) || !_snapshot.DeployList.Contains(_selectedUnitId))
+            {
+                _selectedUnitId = _snapshot.UnitId;
+            }
+        }
+
+        public bool StartFormalLevel(string levelId)
+        {
+            if (!useFormalLevelConfiguration)
+            {
+                return false;
+            }
+
+            var resumeLoadedBattle = _flowSnapshot != null &&
+                                     _flowSnapshot.Screen == FormalFlowScreen.MainMenu &&
+                                     _snapshot != null &&
+                                     _snapshot.BattleState == BattleState.Running &&
+                                     string.Equals(
+                                         _activeLevelId,
+                                         levelId,
+                                         System.StringComparison.OrdinalIgnoreCase);
+            if (!_architecture.SendCommand(new StartFormalLevelCommand(levelId)))
+            {
+                return false;
+            }
+
+            if (resumeLoadedBattle)
+            {
+                _flowSnapshot = _architecture.SendQuery(new GetFormalGameFlowSnapshotQuery());
+                _lastAction = "Resumed " + _activeLevelId;
+                return true;
+            }
+
+            formalLevelId = levelId;
+            if (!TryConfigureFormalLevel())
+            {
+                return false;
+            }
+
+            ClearRuntimePresentation();
+            EnsureSceneInfrastructure(_snapshot.Columns, _snapshot.Rows);
+            BuildGrid();
+            ApplyFormalEnvironment();
+            _selected = new GridPosition(1, 1);
+            _selectedUnitId = _snapshot.DeployList.FirstOrDefault() ?? _snapshot.UnitId;
+            _actorSequence = 1;
+            _processedCombatEventCount = 0;
+            _reportedBattleState = BattleState.Running;
+            _previousHitPoints.Clear();
+            _flowSnapshot = _architecture.SendQuery(new GetFormalGameFlowSnapshotQuery());
+            _lastAction = "Started " + _activeLevelId;
+            RefreshView();
+            return true;
+        }
+
+        public void OpenFormalLevelSelect()
+        {
+            if (!useFormalLevelConfiguration)
+            {
+                return;
+            }
+
+            _architecture.SendCommand(new SetFormalFlowScreenCommand(FormalFlowScreen.LevelSelect));
+            _flowSnapshot = _architecture.SendQuery(new GetFormalGameFlowSnapshotQuery());
+        }
+
+        public void ReturnFormalMainMenu()
+        {
+            if (!useFormalLevelConfiguration)
+            {
+                return;
+            }
+
+            _architecture.SendCommand(new SetFormalFlowScreenCommand(FormalFlowScreen.MainMenu));
+            _flowSnapshot = _architecture.SendQuery(new GetFormalGameFlowSnapshotQuery());
+        }
+
+        public void ToggleFormalPause()
+        {
+            if (!useFormalLevelConfiguration || _flowSnapshot == null)
+            {
+                return;
+            }
+
+            if (_flowSnapshot.Screen == FormalFlowScreen.LevelSelect)
+            {
+                ReturnFormalMainMenu();
+                return;
+            }
+
+            _architecture.SendCommand(new ToggleFormalPauseCommand());
+            _flowSnapshot = _architecture.SendQuery(new GetFormalGameFlowSnapshotQuery());
+        }
+
+        public void RestartFormalLevel()
+        {
+            if (!useFormalLevelConfiguration)
+            {
+                ResetSlice();
+                return;
+            }
+
+            _architecture.SendCommand(new RestartFormalLevelCommand());
+            _flowSnapshot = _architecture.SendQuery(new GetFormalGameFlowSnapshotQuery());
+            ResetSlice();
+        }
+
+        public bool AcceptAuthorization(string unitId)
+        {
+            if (!_architecture.SendCommand(new AcceptBattleAuthorizationCommand(unitId)))
+            {
+                return false;
+            }
+
+            _selectedUnitId = unitId;
+            RefreshView();
+            return true;
+        }
+
+        private void ClearRuntimePresentation()
+        {
+            foreach (var root in new[] { _runtimeGridRoot, _combatantRoot, _feedbackRoot })
+            {
+                if (root == null)
+                {
+                    continue;
+                }
+
+                root.gameObject.SetActive(false);
+                Destroy(root.gameObject);
+            }
+
+            _runtimeGridRoot = null;
+            _combatantRoot = null;
+            _feedbackRoot = null;
+            _feedbackLayer = null;
+            _cellViews.Clear();
+            _combatantViews.Clear();
+            DestroyGridBorderMaterials();
+        }
+
+        private void DestroyGridBorderMaterials()
+        {
+            if (_controlBlockBorderMaterial != null)
+            {
+                Destroy(_controlBlockBorderMaterial);
+                _controlBlockBorderMaterial = null;
+            }
+
+            if (_columnGroupBorderMaterial != null)
+            {
+                Destroy(_columnGroupBorderMaterial);
+                _columnGroupBorderMaterial = null;
+            }
         }
 
         private bool TryConfigureSlice()
@@ -251,11 +456,11 @@ namespace CompanyWarRE.Presentation
         {
             var actorId = $"test-unit-{_actorSequence:00}";
             var response = _architecture.SendCommand(
-                new DeployBattleSliceUnitCommand(_selected, actorId));
+                new DeployBattleSliceUnitCommand(_selected, actorId, _selectedUnitId));
             if (response.Succeeded)
             {
                 _actorSequence++;
-                _lastAction = $"Deployed {actorId} at {_selected}";
+                _lastAction = $"Deployed {_selectedUnitId} as {actorId} at {_selected}";
             }
             else
             {
@@ -316,10 +521,12 @@ namespace CompanyWarRE.Presentation
         {
             var root = new GameObject("RuntimeGrid").transform;
             root.SetParent(transform, false);
+            _runtimeGridRoot = root;
             _combatantRoot = new GameObject("RuntimeCombatants").transform;
             _combatantRoot.SetParent(transform, false);
             var feedbackRoot = new GameObject("RuntimeFeedback");
             feedbackRoot.transform.SetParent(transform, false);
+            _feedbackRoot = feedbackRoot.transform;
             _feedbackLayer = feedbackRoot.AddComponent<BattleSliceFeedbackLayer>();
 
             for (var column = 1; column <= _snapshot.Columns; column++)
@@ -625,8 +832,19 @@ namespace CompanyWarRE.Presentation
 
         internal bool IsPointerOverRuntimeHud(Vector2 screenPosition)
         {
+            if (useFormalLevelConfiguration && _flowSnapshot != null &&
+                _flowSnapshot.Screen != FormalFlowScreen.Battle)
+            {
+                return true;
+            }
+
+            if (_snapshot != null && _snapshot.AuthorizationState == AuthorizationState.Choosing)
+            {
+                return true;
+            }
+
             var guiPosition = new Vector2(screenPosition.x, Screen.height - screenPosition.y);
-            if (new Rect(16f, 16f, 570f, 294f).Contains(guiPosition))
+            if (new Rect(16f, 16f, 570f, 370f).Contains(guiPosition))
             {
                 return true;
             }
@@ -659,16 +877,31 @@ namespace CompanyWarRE.Presentation
                 return;
             }
 
-            GUILayout.BeginArea(new Rect(16f, 16f, 570f, 294f), GUI.skin.box);
+            if (useFormalLevelConfiguration && _flowSnapshot != null)
+            {
+                if (_flowSnapshot.Screen == FormalFlowScreen.MainMenu)
+                {
+                    DrawFormalMainMenu();
+                    return;
+                }
+
+                if (_flowSnapshot.Screen == FormalFlowScreen.LevelSelect)
+                {
+                    DrawFormalLevelSelect();
+                    return;
+                }
+            }
+
+            GUILayout.BeginArea(new Rect(16f, 16f, 570f, 370f), GUI.skin.box);
             GUILayout.Label(useFormalLevelConfiguration
                 ? $"Company War-RE | {_activeLevelId} 正式关卡"
                 : "Company War-RE | L01 可玩验证");
             GUILayout.Label($"资源: {_snapshot.Resources}    时间: {_snapshot.ElapsedSeconds:0.0}s");
             GUILayout.Label(
-                $"{_snapshot.UnitId} 消耗: {_snapshot.UnitResourceCost}    " +
+                $"已选: {_selectedUnitId}    基准 {_snapshot.UnitId} 消耗: {_snapshot.UnitResourceCost}    " +
                 $"冷却: {_snapshot.RemainingCooldown:0.0}s    选中: {_selected}");
             GUILayout.Space(6f);
-            GUILayout.Label($"左键选择 | D / 空格部署 {_snapshot.UnitId} | 右键拖动旋转镜头");
+            GUILayout.Label($"左键选择 | D / 空格部署 {_selectedUnitId} | 右键拖动旋转镜头 | Esc 暂停");
             GUILayout.Label("WASD/方向键平移 | Shift 加速 | 中键拖动 | 滚轮缩放 | F/Home 复位");
             GUILayout.Label("绿色我方 | 灰色敌方 | 紫色污染 | 深红为建筑占用 | 每3行/列分组");
             var aliveAllies = 0;
@@ -697,6 +930,23 @@ namespace CompanyWarRE.Presentation
                 $"状态: {_snapshot.BattleState}    建筑: {_snapshot.EnemyBuildingCount}    " +
                 $"突击分: {_snapshot.AssaultScore}/{_snapshot.RequiredAssaultScore}    " +
                 $"有效生成列: {_snapshot.ValidSpawnPointCount}");
+            GUILayout.Label(
+                $"授权: {_snapshot.AuthorizationPoints}    下一需求: " +
+                $"{(_snapshot.NextAuthorizationRequirement == int.MaxValue ? "完成" : _snapshot.NextAuthorizationRequirement.ToString())}");
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("部署列表:", GUILayout.Width(70f));
+            foreach (var unitId in _snapshot.DeployList)
+            {
+                if (GUILayout.Toggle(
+                        string.Equals(_selectedUnitId, unitId, System.StringComparison.OrdinalIgnoreCase),
+                        unitId,
+                        GUI.skin.button,
+                        GUILayout.Width(54f)))
+                {
+                    _selectedUnitId = unitId;
+                }
+            }
+            GUILayout.EndHorizontal();
             if (_snapshot.CombatEvents.Count > 0)
             {
                 GUILayout.Label(Describe(_snapshot.CombatEvents[_snapshot.CombatEvents.Count - 1]));
@@ -705,10 +955,23 @@ namespace CompanyWarRE.Presentation
             GUILayout.Label(_lastAction);
             GUILayout.EndArea();
 
+            if (useFormalLevelConfiguration && _flowSnapshot != null &&
+                _flowSnapshot.Screen == FormalFlowScreen.Paused)
+            {
+                DrawFormalPause();
+                return;
+            }
+
+            if (_snapshot.AuthorizationState == AuthorizationState.Choosing)
+            {
+                DrawAuthorizationChoice();
+                return;
+            }
+
             if (_snapshot.BattleState != BattleState.Running)
             {
                 var width = 420f;
-                var height = 170f;
+                var height = useFormalLevelConfiguration ? 285f : 170f;
                 GUILayout.BeginArea(
                     new Rect((Screen.width - width) * 0.5f, (Screen.height - height) * 0.5f, width, height),
                     GUI.skin.window);
@@ -730,10 +993,141 @@ namespace CompanyWarRE.Presentation
                 GUILayout.Space(12f);
                 if (GUILayout.Button("重新开始 (R)", GUILayout.Height(36f)))
                 {
-                    ResetSlice();
+                    RestartFormalLevel();
+                }
+                if (useFormalLevelConfiguration && _flowSnapshot != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(_flowSnapshot.NextLevelId) &&
+                        GUILayout.Button("下一关 " + _flowSnapshot.NextLevelId, GUILayout.Height(34f)))
+                    {
+                        StartFormalLevel(_flowSnapshot.NextLevelId);
+                    }
+                    if (GUILayout.Button("关卡选择", GUILayout.Height(32f)))
+                    {
+                        OpenFormalLevelSelect();
+                    }
+                    if (GUILayout.Button("返回主菜单", GUILayout.Height(32f)))
+                    {
+                        ReturnFormalMainMenu();
+                    }
                 }
                 GUILayout.EndArea();
             }
+        }
+
+        private void DrawFormalMainMenu()
+        {
+            const float width = 460f;
+            const float height = 300f;
+            GUILayout.BeginArea(
+                new Rect((Screen.width - width) * 0.5f, (Screen.height - height) * 0.5f, width, height),
+                GUI.skin.window);
+            GUILayout.Space(22f);
+            var title = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = 30,
+                fontStyle = FontStyle.Bold
+            };
+            GUILayout.Label("COMPANY WAR-RE", title);
+            GUILayout.Label("正式战役 L02–L05", new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = 18
+            });
+            GUILayout.Space(28f);
+            if (GUILayout.Button("开始 / 继续 " + _flowSnapshot.ActiveLevelId, GUILayout.Height(42f)))
+            {
+                StartFormalLevel(_flowSnapshot.ActiveLevelId);
+            }
+            if (GUILayout.Button("关卡选择", GUILayout.Height(42f)))
+            {
+                OpenFormalLevelSelect();
+            }
+            GUILayout.Space(18f);
+            GUILayout.Label("胜利后自动解锁下一关；进度暂存于本次运行。", GUI.skin.label);
+            GUILayout.EndArea();
+        }
+
+        private void DrawFormalLevelSelect()
+        {
+            const float width = 520f;
+            const float height = 390f;
+            GUILayout.BeginArea(
+                new Rect((Screen.width - width) * 0.5f, (Screen.height - height) * 0.5f, width, height),
+                GUI.skin.window);
+            GUILayout.Space(16f);
+            GUILayout.Label("选择正式关卡", new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = 26,
+                fontStyle = FontStyle.Bold
+            });
+            GUILayout.Space(18f);
+            foreach (var levelId in _flowSnapshot.LevelOrder)
+            {
+                var unlocked = _flowSnapshot.IsUnlocked(levelId);
+                var completed = _flowSnapshot.IsCompleted(levelId);
+                GUI.enabled = unlocked;
+                var suffix = completed ? "  已完成" : unlocked ? "  可挑战" : "  未解锁";
+                if (GUILayout.Button(levelId + suffix, GUILayout.Height(48f)))
+                {
+                    StartFormalLevel(levelId);
+                }
+            }
+            GUI.enabled = true;
+            GUILayout.Space(12f);
+            if (GUILayout.Button("返回主菜单", GUILayout.Height(38f)))
+            {
+                ReturnFormalMainMenu();
+            }
+            GUILayout.EndArea();
+        }
+
+        private void DrawFormalPause()
+        {
+            const float width = 400f;
+            const float height = 285f;
+            GUILayout.BeginArea(
+                new Rect((Screen.width - width) * 0.5f, (Screen.height - height) * 0.5f, width, height),
+                GUI.skin.window);
+            GUILayout.Space(18f);
+            GUILayout.Label("已暂停", new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = 28,
+                fontStyle = FontStyle.Bold
+            });
+            if (GUILayout.Button("继续", GUILayout.Height(38f))) ToggleFormalPause();
+            if (GUILayout.Button("重新开始", GUILayout.Height(38f))) RestartFormalLevel();
+            if (GUILayout.Button("关卡选择", GUILayout.Height(38f))) OpenFormalLevelSelect();
+            if (GUILayout.Button("主菜单", GUILayout.Height(38f))) ReturnFormalMainMenu();
+            GUILayout.EndArea();
+        }
+
+        private void DrawAuthorizationChoice()
+        {
+            const float width = 480f;
+            var height = 150f + _snapshot.AuthorizationCandidates.Count * 44f;
+            GUILayout.BeginArea(
+                new Rect((Screen.width - width) * 0.5f, (Screen.height - height) * 0.5f, width, height),
+                GUI.skin.window);
+            GUILayout.Space(14f);
+            GUILayout.Label("授权成长", new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = 26,
+                fontStyle = FontStyle.Bold
+            });
+            GUILayout.Label("选择一个新单位加入部署列表");
+            foreach (var candidate in _snapshot.AuthorizationCandidates)
+            {
+                if (GUILayout.Button(candidate, GUILayout.Height(36f)))
+                {
+                    AcceptAuthorization(candidate);
+                }
+            }
+            GUILayout.EndArea();
         }
 
         private static string Describe(DeploymentFailure failure)
@@ -784,15 +1178,7 @@ namespace CompanyWarRE.Presentation
 
         private void OnDestroy()
         {
-            if (_controlBlockBorderMaterial != null)
-            {
-                Destroy(_controlBlockBorderMaterial);
-            }
-
-            if (_columnGroupBorderMaterial != null)
-            {
-                Destroy(_columnGroupBorderMaterial);
-            }
+            DestroyGridBorderMaterials();
 
             if (UnityEngine.Application.isPlaying && _architecture != null)
             {

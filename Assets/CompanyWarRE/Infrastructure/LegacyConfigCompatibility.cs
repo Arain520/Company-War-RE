@@ -469,8 +469,47 @@ namespace CompanyWarRE.Infrastructure.Configuration
                 level != null,
                 level != null,
                 unitDefinitions.Values.ToArray(),
-                allyDefinitions.Values.ToArray());
+                allyDefinitions.Values.ToArray(),
+                BuildCowAuthorizationStages(unitDefinitions),
+                new[] { selectedUnit.Id, "U08", "U09" }
+                    .Where(unitDefinitions.ContainsKey)
+                    .ToArray(),
+                6);
             return new BattleSliceConfigurationLoadResult(configuration, issues);
+        }
+
+        private static IReadOnlyList<AuthorizationStageDefinition> BuildCowAuthorizationStages(
+            IReadOnlyDictionary<string, UnitDefinition> units)
+        {
+            AuthorizationStageDefinition Stage(
+                string name,
+                int requiredPoints,
+                params AuthorizationItemDefinition[] items)
+            {
+                return new AuthorizationStageDefinition(
+                    name,
+                    requiredPoints,
+                    items.Where(item => units.ContainsKey(item.Id)));
+            }
+
+            AuthorizationItemDefinition Item(string id, int weight)
+            {
+                return new AuthorizationItemDefinition(id, weight);
+            }
+
+            return new[]
+            {
+                Stage("I", 7,
+                    Item("U02", 5), Item("U04", 5), Item("U10", 5), Item("U03", 3),
+                    Item("U05", 3), Item("U11", 3), Item("U17", 1), Item("U16", 1),
+                    Item("U13", 1), Item("U07", 3)),
+                Stage("II", 10,
+                    Item("U06", 3), Item("U24", 3), Item("U19", 1), Item("U14", 5),
+                    Item("U21", 1), Item("U18", 5)),
+                Stage("III", 15,
+                    Item("U12", 3), Item("U23", 3), Item("U20", 1), Item("U15", 5),
+                    Item("U22", 1))
+            };
         }
 
         private static IReadOnlyList<EnemyBuildingPlacement> MapEnemyBuildings(

@@ -1,0 +1,36 @@
+{
+  "Stages": [
+    {
+      "Stage": "I",
+      "RequiredPoints": 7,
+      "Options": 4,
+      "Items": [
+        { "Id": "U02", "Weight": 5 }, { "Id": "U04", "Weight": 5 },
+        { "Id": "U10", "Weight": 5 }, { "Id": "U03", "Weight": 3 },
+        { "Id": "U05", "Weight": 3 }, { "Id": "U11", "Weight": 3 },
+        { "Id": "U17", "Weight": 1 }, { "Id": "U16", "Weight": 1 },
+        { "Id": "U13", "Weight": 1 }, { "Id": "U07", "Weight": 3 }
+      ]
+    },
+    {
+      "Stage": "II",
+      "RequiredPoints": 10,
+      "Options": 3,
+      "Items": [
+        { "Id": "U06", "Weight": 3 }, { "Id": "U24", "Weight": 3 },
+        { "Id": "U19", "Weight": 1 }, { "Id": "U14", "Weight": 5 },
+        { "Id": "U21", "Weight": 1 }, { "Id": "U18", "Weight": 5 }
+      ]
+    },
+    {
+      "Stage": "III",
+      "RequiredPoints": 15,
+      "Options": 2,
+      "Items": [
+        { "Id": "U12", "Weight": 3 }, { "Id": "U23", "Weight": 3 },
+        { "Id": "U20", "Weight": 1 }, { "Id": "U15", "Weight": 5 },
+        { "Id": "U22", "Weight": 1 }
+      ]
+    }
+  ]
+}

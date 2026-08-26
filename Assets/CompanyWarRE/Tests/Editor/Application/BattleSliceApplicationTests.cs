@@ -40,6 +40,24 @@ namespace CompanyWarRE.Application.Tests
         }
 
         [Test]
+        public void FormalFlowCommands_UnlockNextLevelAndRemainBehindQFrameworkBoundary()
+        {
+            _architecture.SendCommand(new InitializeFormalGameFlowCommand("L02", "L03", "L04", "L05"));
+
+            Assert.That(_architecture.SendCommand(new StartFormalLevelCommand("L03")), Is.False);
+            Assert.That(_architecture.SendCommand(new StartFormalLevelCommand("L02")), Is.True);
+            Assert.That(
+                _architecture.SendCommand(new RecordFormalBattleResultCommand("L02", BattleState.Victory)),
+                Is.True);
+
+            var flow = _architecture.SendQuery(new GetFormalGameFlowSnapshotQuery());
+            Assert.That(flow.Screen, Is.EqualTo(FormalFlowScreen.Result));
+            Assert.That(flow.IsCompleted("L02"), Is.True);
+            Assert.That(flow.IsUnlocked("L03"), Is.True);
+            Assert.That(flow.NextLevelId, Is.EqualTo("L03"));
+        }
+
+        [Test]
         public void DeployCommand_ConnectsQFrameworkToDomainRules()
         {
             var first = _architecture.SendCommand(new DeployBattleSliceUnitCommand(

@@ -11,6 +11,7 @@ namespace CompanyWarRE.Application
         protected override void Init()
         {
             RegisterModel(new BattleSliceModel());
+            RegisterModel(new FormalGameFlowModel());
         }
     }
 
@@ -103,7 +104,11 @@ namespace CompanyWarRE.Application
             int assaultScore,
             int requiredAssaultScore,
             int enemyBuildingCount,
-            int validSpawnPointCount)
+            int validSpawnPointCount,
+            AuthorizationState authorizationState,
+            int nextAuthorizationRequirement,
+            IReadOnlyList<string> authorizationCandidates,
+            IReadOnlyList<string> deployList)
         {
             Columns = columns;
             Rows = rows;
@@ -124,6 +129,10 @@ namespace CompanyWarRE.Application
             RequiredAssaultScore = requiredAssaultScore;
             EnemyBuildingCount = enemyBuildingCount;
             ValidSpawnPointCount = validSpawnPointCount;
+            AuthorizationState = authorizationState;
+            NextAuthorizationRequirement = nextAuthorizationRequirement;
+            AuthorizationCandidates = authorizationCandidates ?? Array.Empty<string>();
+            DeployList = deployList ?? Array.Empty<string>();
         }
 
         public int Columns { get; }
@@ -145,6 +154,10 @@ namespace CompanyWarRE.Application
         public int RequiredAssaultScore { get; }
         public int EnemyBuildingCount { get; }
         public int ValidSpawnPointCount { get; }
+        public AuthorizationState AuthorizationState { get; }
+        public int NextAuthorizationRequirement { get; }
+        public IReadOnlyList<string> AuthorizationCandidates { get; }
+        public IReadOnlyList<string> DeployList { get; }
     }
 
     public sealed class BattleSliceDeploymentResponse
@@ -183,7 +196,10 @@ namespace CompanyWarRE.Application
             bool victoryByEnemyBuildings = false,
             bool enableBattleOutcomes = false,
             IReadOnlyList<UnitDefinition> units = null,
-            IReadOnlyList<CombatantDefinition> allyCombatants = null)
+            IReadOnlyList<CombatantDefinition> allyCombatants = null,
+            IReadOnlyList<AuthorizationStageDefinition> authorizationStages = null,
+            IReadOnlyList<string> initialDeployments = null,
+            int initialAuthorizationPoints = 0)
         {
             if (columns <= 0)
             {
@@ -346,6 +362,14 @@ namespace CompanyWarRE.Application
             RequiredAssaultScore = Math.Max(0, requiredAssaultScore);
             VictoryByEnemyBuildings = victoryByEnemyBuildings;
             EnableBattleOutcomes = enableBattleOutcomes;
+            AuthorizationStages = (authorizationStages ?? Array.Empty<AuthorizationStageDefinition>())
+                .Where(stage => stage != null)
+                .ToArray();
+            InitialDeployments = (initialDeployments ?? new[] { TestUnit.Id })
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            InitialAuthorizationPoints = Math.Max(0, initialAuthorizationPoints);
         }
 
         public int Columns { get; }
@@ -370,6 +394,9 @@ namespace CompanyWarRE.Application
         public int RequiredAssaultScore { get; }
         public bool VictoryByEnemyBuildings { get; }
         public bool EnableBattleOutcomes { get; }
+        public IReadOnlyList<AuthorizationStageDefinition> AuthorizationStages { get; }
+        public IReadOnlyList<string> InitialDeployments { get; }
+        public int InitialAuthorizationPoints { get; }
 
         private static int GetControlBlockStart(int cellIndex)
         {
@@ -459,6 +486,29 @@ namespace CompanyWarRE.Application
         }
     }
 
+    public sealed class BeginBattleAuthorizationChoiceCommand : AbstractCommand<bool>
+    {
+        protected override bool OnExecute()
+        {
+            return this.GetModel<BattleSliceModel>().BeginAuthorizationChoice();
+        }
+    }
+
+    public sealed class AcceptBattleAuthorizationCommand : AbstractCommand<bool>
+    {
+        private readonly string _unitId;
+
+        public AcceptBattleAuthorizationCommand(string unitId)
+        {
+            _unitId = unitId;
+        }
+
+        protected override bool OnExecute()
+        {
+            return this.GetModel<BattleSliceModel>().AcceptAuthorization(_unitId);
+        }
+    }
+
     public sealed class BattleSliceModel : AbstractModel
     {
         private BattleSliceConfiguration _configuration;
@@ -474,6 +524,8 @@ namespace CompanyWarRE.Application
         private int _enemyActorSequence;
         private Random _deploymentRandom;
         private BattleProgression _progression;
+        private AuthorizationProgression _authorizationProgression;
+        private int _creditedAuthorizationPoints;
         private readonly Dictionary<string, GridPosition> _deploymentPositions =
             new Dictionary<string, GridPosition>(StringComparer.Ordinal);
 
@@ -503,6 +555,13 @@ namespace CompanyWarRE.Application
             _economy.Reset(_configuration.InitialResources);
             _authorizationScore = new AuthorizationScoreEconomy();
             _authorizationScore.Reset();
+            _authorizationProgression = new AuthorizationProgression();
+            _authorizationProgression.Configure(
+                _configuration.AuthorizationStages,
+                _configuration.InitialAuthorizationPoints,
+                _configuration.InitialDeployments,
+                new FirstAvailableAuthorizationCandidateSelector());
+            _creditedAuthorizationPoints = _authorizationScore.Points;
             _economy.ConfigureProduction(
                 _configuration.FixedProductionIntervalSeconds,
                 _configuration.TransmitterProductionIntervalSeconds);
@@ -565,6 +624,12 @@ namespace CompanyWarRE.Application
 
             _economy.Advance(deltaSeconds);
             _authorizationScore.Advance(deltaSeconds);
+            var newlyCompletedAuthorizationPoints = _authorizationScore.Points - _creditedAuthorizationPoints;
+            if (newlyCompletedAuthorizationPoints > 0)
+            {
+                _authorizationProgression.GainPoints(newlyCompletedAuthorizationPoints);
+                _creditedAuthorizationPoints = _authorizationScore.Points;
+            }
             foreach (var spawn in _enemyWaves.Advance(deltaSeconds, _grid))
             {
                 if (!_configuration.EnemyCombatants.TryGetValue(spawn.EnemyId, out var definition))
@@ -733,6 +798,16 @@ namespace CompanyWarRE.Application
             return cell == null ? 0 : _grid.SetPollution(position, !cell.IsPolluted);
         }
 
+        public bool BeginAuthorizationChoice()
+        {
+            return _authorizationProgression.BeginChoice();
+        }
+
+        public bool AcceptAuthorization(string unitId)
+        {
+            return _authorizationProgression.Accept(unitId);
+        }
+
         public BattleSliceSnapshot CreateSnapshot()
         {
             EnsureConfigured();
@@ -755,7 +830,7 @@ namespace CompanyWarRE.Application
                 _configuration.Columns,
                 _configuration.Rows,
                 _economy.Resources,
-                _authorizationScore.Points,
+                _authorizationProgression.Points,
                 _economy.ElapsedSeconds,
                 _economy.GetRemainingCooldown(_testUnit),
                 _testUnit.Id,
@@ -770,7 +845,11 @@ namespace CompanyWarRE.Application
                 _progression.AssaultScore,
                 _progression.RequiredAssaultScore,
                 _progression.EnemyBuildingCount,
-                _enemyWaves.CountValidSpawnPoints(_grid));
+                _enemyWaves.CountValidSpawnPoints(_grid),
+                _authorizationProgression.State,
+                _authorizationProgression.NextRequirement,
+                _authorizationProgression.Candidates.ToArray(),
+                _authorizationProgression.DeployList.ToArray());
         }
 
         private void ProcessEnemyDeathsAndOutcome()

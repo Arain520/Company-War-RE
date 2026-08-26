@@ -127,6 +127,33 @@ namespace CompanyWarRE.Migration.Tests
         }
 
         [Test]
+        public void FormalBattleController_ExposesCompleteFormalFlowUseCases()
+        {
+            var controllerType = Type.GetType(
+                "CompanyWarRE.Presentation.BattleSliceController, CompanyWarRE.Presentation",
+                true);
+
+            foreach (var methodName in new[]
+                     {
+                         "StartFormalLevel",
+                         "OpenFormalLevelSelect",
+                         "ReturnFormalMainMenu",
+                         "ToggleFormalPause",
+                         "RestartFormalLevel",
+                         "AcceptAuthorization"
+                     })
+            {
+                Assert.That(
+                    controllerType.GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public),
+                    Is.Not.Null,
+                    methodName);
+            }
+
+            Assert.That(controllerType.GetProperty("CurrentFlow"), Is.Not.Null);
+            Assert.That(controllerType.GetProperty("CurrentSnapshot"), Is.Not.Null);
+        }
+
+        [Test]
         public void FormalBattleScene_ContainsControllerAndEnvironmentConsumerWithoutMissingComponents()
         {
             var previousSetup = EditorSceneManager.GetSceneManagerSetup();

@@ -57,8 +57,62 @@ namespace CompanyWarRE.Presentation
                 }
             }
 
+            if (TryResolveMigratedCowPrefab(templateId, out var prefab))
+            {
+                resolved = new ResolvedVisual(
+                    prefab,
+                    null,
+                    Vector3.zero,
+                    Quaternion.identity,
+                    Vector3.one);
+                return true;
+            }
+
             resolved = default;
             return false;
+        }
+
+        private static bool TryResolveMigratedCowPrefab(string templateId, out GameObject prefab)
+        {
+            prefab = null;
+            if (templateId.Length != 3 ||
+                !int.TryParse(templateId.Substring(1), out var number))
+            {
+                return false;
+            }
+
+            string relativePath;
+            if (char.ToUpperInvariant(templateId[0]) == 'U')
+            {
+                if (number > 24)
+                {
+                    return false;
+                }
+
+                var folder = (number >= 8 && number <= 11) || number == 21
+                    ? "Buildings"
+                    : "Units";
+                relativePath = $"CowLegacy/_Game/Art/Prefabs/{folder}/PF_U{number:00}";
+            }
+            else if (char.ToUpperInvariant(templateId[0]) == 'E')
+            {
+                if (number < 1 || number > 15)
+                {
+                    return false;
+                }
+
+                var folder = number == 6 || number == 7 || number >= 12
+                    ? "Buildings"
+                    : "Enemies";
+                relativePath = $"CowLegacy/_Game/Art/Prefabs/{folder}/PF_E{number:00}";
+            }
+            else
+            {
+                return false;
+            }
+
+            prefab = Resources.Load<GameObject>(relativePath);
+            return prefab != null;
         }
 
         private static bool TryResolve(

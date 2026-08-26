@@ -53,6 +53,9 @@ namespace CompanyWarRE.Infrastructure.Tests
             Assert.That(result.Configuration.EnemyWaveStages.Count, Is.EqualTo(stageCount));
             Assert.That(result.Configuration.RequiredAssaultScore, Is.EqualTo(requiredScore));
             Assert.That(result.Configuration.VictoryByEnemyBuildings, Is.True);
+            Assert.That(result.Configuration.InitialAuthorizationPoints, Is.EqualTo(6));
+            Assert.That(result.Configuration.InitialDeployments, Is.EquivalentTo(new[] { "U01", "U08", "U09" }));
+            Assert.That(result.Configuration.AuthorizationStages.Count, Is.EqualTo(3));
             Assert.That(result.Configuration.EnemyBuildings.First().Position,
                 Is.EqualTo(new GridPosition(firstColumn, firstRow)));
             Assert.That(result.Configuration.EnemyBuildings.Last().Position,
@@ -102,6 +105,10 @@ namespace CompanyWarRE.Infrastructure.Tests
                 Assert.That(snapshot.RequiredAssaultScore,
                     Is.EqualTo(result.Level.Objective.RequiredAssaultScore));
                 Assert.That(snapshot.ValidSpawnPointCount, Is.EqualTo(columns));
+                Assert.That(snapshot.AuthorizationPoints, Is.EqualTo(6));
+                Assert.That(snapshot.NextAuthorizationRequirement, Is.EqualTo(7));
+                Assert.That(snapshot.AuthorizationState, Is.EqualTo(AuthorizationState.WaitingForNextRequirement));
+                Assert.That(snapshot.DeployList, Is.EquivalentTo(new[] { "U01", "U08", "U09" }));
             }
             finally
             {
