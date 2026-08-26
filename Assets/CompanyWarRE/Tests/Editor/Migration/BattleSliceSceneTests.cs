@@ -211,7 +211,7 @@ namespace CompanyWarRE.Migration.Tests
         }
 
         [Test]
-        public void L01Presentation_SeparatesControlBlockGroupsAndFitsAdaptiveCamera()
+        public void L01Presentation_UsesContinuousGridWithControlBlockBordersAndFitsAdaptiveCamera()
         {
             var controllerType = Type.GetType(
                 "CompanyWarRE.Presentation.BattleSliceController, CompanyWarRE.Presentation",
@@ -228,17 +228,40 @@ namespace CompanyWarRE.Migration.Tests
             var calculateCameraSize = cameraRigType.GetMethod(
                 "CalculateOrthographicSize",
                 BindingFlags.Static | BindingFlags.Public);
+            var getBoundaryWorldCoordinate = controllerType.GetMethod(
+                "GetControlBlockBoundaryWorldCoordinate",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            var cellVisualSize = controllerType.GetField(
+                "CellVisualSize",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            var controlBlockBorderWidth = controllerType.GetField(
+                "ControlBlockBorderWidth",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            var columnGroupBorderWidth = controllerType.GetField(
+                "ColumnGroupBorderWidth",
+                BindingFlags.Static | BindingFlags.NonPublic);
 
             Assert.That(getColumnWorldX, Is.Not.Null);
             Assert.That(getRowWorldZ, Is.Not.Null);
             Assert.That(calculateCameraSize, Is.Not.Null);
+            Assert.That(getBoundaryWorldCoordinate, Is.Not.Null);
+            Assert.That(cellVisualSize, Is.Not.Null);
+            Assert.That(controlBlockBorderWidth, Is.Not.Null);
+            Assert.That(columnGroupBorderWidth, Is.Not.Null);
 
             var column3 = (float)getColumnWorldX.Invoke(null, new object[] { 3 });
             var column4 = (float)getColumnWorldX.Invoke(null, new object[] { 4 });
             var row3 = (float)getRowWorldZ.Invoke(null, new object[] { 3 });
             var row4 = (float)getRowWorldZ.Invoke(null, new object[] { 4 });
-            Assert.That(column4 - column3, Is.GreaterThan(1.5f));
-            Assert.That(row4 - row3, Is.GreaterThan(1.5f));
+            Assert.That(column4 - column3, Is.EqualTo(1f).Within(0.001f));
+            Assert.That(row4 - row3, Is.EqualTo(1f).Within(0.001f));
+            Assert.That((float)cellVisualSize.GetRawConstantValue(), Is.EqualTo(0.98f).Within(0.001f));
+            Assert.That(
+                (float)getBoundaryWorldCoordinate.Invoke(null, new object[] { 3 }),
+                Is.EqualTo(2.5f).Within(0.001f));
+            Assert.That(
+                (float)columnGroupBorderWidth.GetRawConstantValue(),
+                Is.GreaterThan((float)controlBlockBorderWidth.GetRawConstantValue()));
 
             var width = (float)getColumnWorldX.Invoke(null, new object[] { 18 }) + 1f;
             var length = (float)getRowWorldZ.Invoke(null, new object[] { 30 }) + 1f;

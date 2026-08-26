@@ -10,8 +10,9 @@ namespace CompanyWarRE.Presentation
 {
     public sealed class BattleSliceController : MonoBehaviour, IController
     {
-        internal const float ColumnGroupGap = 0.7f;
-        internal const float RowGroupGap = 0.7f;
+        internal const float CellVisualSize = 0.98f;
+        internal const float ControlBlockBorderWidth = 0.06f;
+        internal const float ColumnGroupBorderWidth = 0.1f;
 
         [SerializeField] private TextAsset legacyUnitsJson;
         [SerializeField] private TextAsset legacyEnemiesJson;
@@ -42,6 +43,8 @@ namespace CompanyWarRE.Presentation
         private int _processedCombatEventCount;
         private string _activeLevelId = "L01";
         private FormalLevelRuntimeMetadata _formalLevel;
+        private Material _controlBlockBorderMaterial;
+        private Material _columnGroupBorderMaterial;
 
         public IArchitecture GetArchitecture()
         {
@@ -331,12 +334,96 @@ namespace CompanyWarRE.Presentation
                         GetColumnWorldX(column),
                         0f,
                         GetRowWorldZ(row));
-                    cell.transform.localScale = new Vector3(0.84f, 0.16f, 0.84f);
+                    cell.transform.localScale = new Vector3(CellVisualSize, 0.16f, CellVisualSize);
                     var view = cell.AddComponent<BattleSliceCellView>();
                     view.Initialize(position);
                     _cellViews.Add(position, view);
                 }
             }
+
+            BuildGridBorders(root, _snapshot.Columns, _snapshot.Rows);
+        }
+
+        private void BuildGridBorders(Transform gridRoot, int columns, int rows)
+        {
+            var borderRoot = new GameObject("ControlBlockBorders").transform;
+            borderRoot.SetParent(gridRoot, false);
+            _controlBlockBorderMaterial = CreateGridBorderMaterial(new Color(0.08f, 0.1f, 0.14f));
+            _columnGroupBorderMaterial = CreateGridBorderMaterial(new Color(0.12f, 0.2f, 0.29f));
+
+            var centerX = (columns - 1) * 0.5f;
+            var centerZ = (rows - 1) * 0.5f;
+            for (var boundary = 0; boundary <= columns; boundary += BattleGrid.ControlBlockSize)
+            {
+                CreateGridBorder(
+                    borderRoot,
+                    $"ColumnGroupBorder_{boundary}",
+                    new Vector3(GetControlBlockBoundaryWorldCoordinate(boundary), 0.1f, centerZ),
+                    new Vector3(ColumnGroupBorderWidth, 0.035f, rows),
+                    _columnGroupBorderMaterial);
+            }
+
+            if (columns % BattleGrid.ControlBlockSize != 0)
+            {
+                CreateGridBorder(
+                    borderRoot,
+                    "ColumnGroupBorder_End",
+                    new Vector3(columns - 0.5f, 0.1f, centerZ),
+                    new Vector3(ColumnGroupBorderWidth, 0.035f, rows),
+                    _columnGroupBorderMaterial);
+            }
+
+            for (var boundary = 0; boundary <= rows; boundary += BattleGrid.ControlBlockSize)
+            {
+                CreateGridBorder(
+                    borderRoot,
+                    $"ControlBlockRowBorder_{boundary}",
+                    new Vector3(centerX, 0.1f, GetControlBlockBoundaryWorldCoordinate(boundary)),
+                    new Vector3(columns, 0.035f, ControlBlockBorderWidth),
+                    _controlBlockBorderMaterial);
+            }
+
+            if (rows % BattleGrid.ControlBlockSize != 0)
+            {
+                CreateGridBorder(
+                    borderRoot,
+                    "ControlBlockRowBorder_End",
+                    new Vector3(centerX, 0.1f, rows - 0.5f),
+                    new Vector3(columns, 0.035f, ControlBlockBorderWidth),
+                    _controlBlockBorderMaterial);
+            }
+        }
+
+        private static void CreateGridBorder(
+            Transform parent,
+            string name,
+            Vector3 localPosition,
+            Vector3 localScale,
+            Material material)
+        {
+            var border = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            border.name = name;
+            border.transform.SetParent(parent, false);
+            border.transform.localPosition = localPosition;
+            border.transform.localScale = localScale;
+            var collider = border.GetComponent<Collider>();
+            if (collider != null)
+            {
+                collider.enabled = false;
+            }
+
+            var renderer = border.GetComponent<Renderer>();
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+        }
+
+        private static Material CreateGridBorderMaterial(Color color)
+        {
+            var shader = Shader.Find("Universal Render Pipeline/Lit") ??
+                         Shader.Find("Standard") ??
+                         Shader.Find("Sprites/Default");
+            return new Material(shader) { color = color };
         }
 
         private void RefreshView()
@@ -503,23 +590,22 @@ namespace CompanyWarRE.Presentation
 
         internal static float GetColumnWorldX(int column)
         {
-            var zeroBasedColumn = Mathf.Max(0, column - 1);
-            var completedGroups = zeroBasedColumn / BattleGrid.ControlBlockSize;
-            return zeroBasedColumn + completedGroups * ColumnGroupGap;
+            return Mathf.Max(0, column - 1);
         }
 
         internal static float GetRowWorldZ(int row)
         {
-            var zeroBasedRow = Mathf.Max(0, row - 1);
-            var completedGroups = zeroBasedRow / BattleGrid.ControlBlockSize;
-            return zeroBasedRow + completedGroups * RowGroupGap;
+            return Mathf.Max(0, row - 1);
         }
 
         internal static float GetLaneWorldZ(double lanePosition)
         {
-            var zeroBasedLane = System.Math.Max(0d, lanePosition - 1d);
-            var completedGroups = (int)System.Math.Floor(zeroBasedLane / BattleGrid.ControlBlockSize);
-            return (float)zeroBasedLane + completedGroups * RowGroupGap;
+            return (float)System.Math.Max(0d, lanePosition - 1d);
+        }
+
+        internal static float GetControlBlockBoundaryWorldCoordinate(int completedCells)
+        {
+            return Mathf.Max(0, completedCells) - 0.5f;
         }
 
         internal static Vector3 GetCombatantWorldPosition(BattleSliceCombatantSnapshot combatant)
@@ -698,6 +784,16 @@ namespace CompanyWarRE.Presentation
 
         private void OnDestroy()
         {
+            if (_controlBlockBorderMaterial != null)
+            {
+                Destroy(_controlBlockBorderMaterial);
+            }
+
+            if (_columnGroupBorderMaterial != null)
+            {
+                Destroy(_columnGroupBorderMaterial);
+            }
+
             if (UnityEngine.Application.isPlaying && _architecture != null)
             {
                 _architecture.Deinit();

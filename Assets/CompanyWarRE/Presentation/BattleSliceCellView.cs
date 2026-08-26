@@ -37,14 +37,6 @@ namespace CompanyWarRE.Presentation
                 : snapshot.IsPolluted
                     ? PollutedColor
                     : snapshot.IsOwned ? OwnedColor : UnownedColor;
-            var blockColumn = (Position.Column - 1) / BattleGrid.ControlBlockSize;
-            var blockRow = (Position.Row - 1) / BattleGrid.ControlBlockSize;
-            if (!selected && (blockColumn + blockRow) % 2 != 0)
-            {
-                color *= 0.88f;
-                color.a = 1f;
-            }
-
             _cellMaterial.color = selected ? SelectedColor : color;
             transform.localPosition = new Vector3(
                 transform.localPosition.x,

@@ -13,9 +13,11 @@ Application commands.
 ## Implemented presentation contract
 
 - The `6x10` L01 macro grid is shown as an `18x30` small-cell battlefield.
-- Both rows and columns receive a wider separator after every three cells, so each
-  nine-cell control block is visually identifiable. Alternating block tint adds a
-  second cue, and building footprints use a deep-red blocked-cell color.
+- Small-cell centers keep a continuous one-unit spacing and cells fill 0.98 units,
+  so the battlefield remains visually connected without road-like gaps. Thin row
+  borders outline each three-row control-block band, while slightly stronger column
+  borders mark every three-column group; building footprints use a deep-red
+  blocked-cell color.
 - An angled orthographic camera calculates its home framing from the expanded grid.
   Following Cow's camera behavior, right-drag orbits around the current focus with
   a 25-75 degree pitch clamp, the mouse wheel zooms toward the pointer, and motion
@@ -42,7 +44,7 @@ introduced into Domain.
 
 ## Verification
 
-- `BattleSliceSceneTests.L01Presentation_SeparatesControlBlockGroupsAndFitsAdaptiveCamera`
+- `BattleSliceSceneTests.L01Presentation_UsesContinuousGridWithControlBlockBordersAndFitsAdaptiveCamera`
 - `BattleSliceSceneTests.PlayablePresentationScripts_AreUnityAssetsWithoutGuidCollisions`
 - compiled Domain, Infrastructure, and Application suites remain green
 - solution compilation includes the new Presentation components and reports no
