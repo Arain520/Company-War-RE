@@ -67,7 +67,7 @@ MonoBehaviour:
   m_SourceFontFileGUID: 40552c6c6b56118409f41b5054cfdb44
   m_SourceFontFile_EditorRef: {fileID: 12800000, guid: 40552c6c6b56118409f41b5054cfdb44, type: 3}
   m_SourceFontFile: {fileID: 12800000, guid: 40552c6c6b56118409f41b5054cfdb44, type: 3}
-  m_AtlasPopulationMode: 2
+  m_AtlasPopulationMode: 1
   m_FaceInfo:
     m_FaceIndex: 0
     m_FamilyName: zixiaohunxinkehuanti_trial

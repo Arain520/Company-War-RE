@@ -232,6 +232,72 @@ namespace CompanyWarRE.Migration.Tests
         }
 
         [Test]
+        public void CowTmpFontAsset_IsDynamicAndContainsFormalUguiCharacters()
+        {
+            const string fontAssetPath =
+                "Assets/CompanyWarRE/Resources/CowLegacy/_Game/Art/Fonts/Default SDF.asset";
+            const string requiredCharacters =
+                "资源授权战斗结算重新开始下一关卡选择返回主菜单成长一个新单位加入部署列表" +
+                "胜利失败突击分剩余建筑用时已完成可挑战未解锁继续暂停";
+            var prefabPaths = new[]
+            {
+                "Assets/CompanyWarRE/Resources/CowLegacy/_Game/Scripts/UI/Menu.prefab",
+                "Assets/CompanyWarRE/LevelSelectPanel.prefab",
+                "Assets/CompanyWarRE/Resources/CowLegacy/_Game/Scripts/UI/BattlePanel.prefab"
+            };
+            var fontAssetType = Type.GetType("TMPro.TMP_FontAsset, Unity.TextMeshPro", true);
+            var fontAsset = AssetDatabase.LoadAssetAtPath(fontAssetPath, fontAssetType);
+
+            Assert.That(fontAsset, Is.Not.Null, fontAssetPath);
+            foreach (var prefabPath in prefabPaths)
+            {
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+                Assert.That(prefab, Is.Not.Null, prefabPath);
+                var textComponents = prefab
+                    .GetComponentsInChildren<MonoBehaviour>(true)
+                    .Where(component =>
+                        component != null && component.GetType().FullName == "TMPro.TextMeshProUGUI")
+                    .ToArray();
+                Assert.That(textComponents, Is.Not.Empty, prefabPath);
+                foreach (var textComponent in textComponents)
+                {
+                    var serializedText = new SerializedObject(textComponent);
+                    Assert.That(
+                        AssetDatabase.GetAssetPath(
+                            serializedText.FindProperty("m_fontAsset").objectReferenceValue),
+                        Is.EqualTo(fontAssetPath),
+                        prefabPath + ":" + textComponent.name);
+                }
+            }
+
+            var testFontAsset = UnityEngine.Object.Instantiate(fontAsset);
+            try
+            {
+                var serializedFontAsset = new SerializedObject(testFontAsset);
+                Assert.That(
+                    serializedFontAsset.FindProperty("m_AtlasPopulationMode").intValue,
+                    Is.EqualTo(1),
+                    "Target TMP 3.0.7 requires AtlasPopulationMode.Dynamic (1).");
+                Assert.That(
+                    serializedFontAsset.FindProperty("m_SourceFontFile").objectReferenceValue,
+                    Is.Not.Null,
+                    "Dynamic font assets require the real source TTF.");
+
+                var tryAddCharacters = fontAssetType.GetMethod(
+                    "TryAddCharacters",
+                    new[] { typeof(string), typeof(string).MakeByRefType(), typeof(bool) });
+                Assert.That(tryAddCharacters, Is.Not.Null);
+                var arguments = new object[] { requiredCharacters, string.Empty, false };
+                Assert.That((bool)tryAddCharacters.Invoke(testFontAsset, arguments), Is.True);
+                Assert.That(arguments[1] as string ?? string.Empty, Is.Empty);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(testFontAsset);
+            }
+        }
+
+        [Test]
         public void FormalBattleScene_ContainsControllerAndEnvironmentConsumerWithoutMissingComponents()
         {
             var previousSetup = EditorSceneManager.GetSceneManagerSetup();
