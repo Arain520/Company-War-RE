@@ -53,10 +53,13 @@ namespace CompanyWarRE.Presentation
         private FormalGameFlowSnapshot _flowSnapshot;
         private BattleState _reportedBattleState = BattleState.Running;
         private string _selectedUnitId;
+        private bool _runtimeHudVisible = true;
+        private bool _runtimeUiPointerBlocked;
 
         public BattleSliceSnapshot CurrentSnapshot => _snapshot;
         public FormalGameFlowSnapshot CurrentFlow => _flowSnapshot;
         public string ActiveLevelId => _activeLevelId;
+        public string SelectedUnitId => _selectedUnitId;
 
         public IArchitecture GetArchitecture()
         {
@@ -265,6 +268,29 @@ namespace CompanyWarRE.Presentation
             _selectedUnitId = unitId;
             RefreshView();
             return true;
+        }
+
+        public bool SelectDeploymentUnit(string unitId)
+        {
+            if (_snapshot == null || string.IsNullOrWhiteSpace(unitId) ||
+                !_snapshot.DeployList.Contains(unitId))
+            {
+                return false;
+            }
+
+            _selectedUnitId = unitId;
+            _lastAction = "Selected deployment " + unitId;
+            return true;
+        }
+
+        public void SetRuntimeHudVisible(bool visible)
+        {
+            _runtimeHudVisible = visible;
+        }
+
+        public void SetRuntimeUiPointerBlocked(bool blocked)
+        {
+            _runtimeUiPointerBlocked = blocked;
         }
 
         private void ClearRuntimePresentation()
@@ -478,7 +504,7 @@ namespace CompanyWarRE.Presentation
 
         private void ProcessPointerInput()
         {
-            if (!Input.GetMouseButtonDown(0))
+            if (_runtimeUiPointerBlocked || !Input.GetMouseButtonDown(0))
             {
                 return;
             }
@@ -832,6 +858,11 @@ namespace CompanyWarRE.Presentation
 
         internal bool IsPointerOverRuntimeHud(Vector2 screenPosition)
         {
+            if (_runtimeUiPointerBlocked)
+            {
+                return true;
+            }
+
             if (useFormalLevelConfiguration && _flowSnapshot != null &&
                 _flowSnapshot.Screen != FormalFlowScreen.Battle)
             {
@@ -844,7 +875,7 @@ namespace CompanyWarRE.Presentation
             }
 
             var guiPosition = new Vector2(screenPosition.x, Screen.height - screenPosition.y);
-            if (new Rect(16f, 16f, 570f, 370f).Contains(guiPosition))
+            if (_runtimeHudVisible && new Rect(16f, 16f, 570f, 370f).Contains(guiPosition))
             {
                 return true;
             }
@@ -874,6 +905,11 @@ namespace CompanyWarRE.Presentation
                     ? "No configuration was loaded."
                     : _configurationError);
                 GUILayout.EndArea();
+                return;
+            }
+
+            if (!_runtimeHudVisible)
+            {
                 return;
             }
 

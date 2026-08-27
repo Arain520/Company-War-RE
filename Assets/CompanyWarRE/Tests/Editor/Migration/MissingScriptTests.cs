@@ -56,7 +56,7 @@ namespace CompanyWarRE.Migration.Tests
             }
             finally
             {
-                EditorSceneManager.RestoreSceneManagerSetup(previousSetup);
+                RestoreSceneSetup(previousSetup);
             }
 
             Assert.That(failures, Is.Empty, "Missing scripts in scenes:\n" + string.Join("\n", failures));
@@ -100,6 +100,17 @@ namespace CompanyWarRE.Migration.Tests
             }
 
             return count;
+        }
+
+        private static void RestoreSceneSetup(SceneSetup[] setup)
+        {
+            if (setup.Any(scene => scene.isLoaded))
+            {
+                EditorSceneManager.RestoreSceneManagerSetup(setup);
+                return;
+            }
+
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         }
     }
 }

@@ -16,8 +16,9 @@
 
 ## UI 与流程边界
 
-- 当前正式流程具备目标侧可执行 IMGUI，保证在 Cow UI 进一步美术整理前可完整游玩。
-- Cow 的 `Menu`、`LevelSelectPanel`、`BattlePanel` Prefab 与字段均已迁移；兼容组件保留旧脚本 GUID/类型，可将按钮与文本直接接入新流程。
+- `FormalBattle` 运行时创建正式 Canvas/EventSystem，并实例化 Cow 的 `Menu`、`LevelSelectPanel`、`BattlePanel`；IMGUI 默认关闭，只保留配置失败和调试后备用途。
+- 兼容组件保留旧脚本 GUID/类型，并补齐 Cow Prefab 当前缺少的开始、暂停、重开、返回、结算、授权候选与部署列表控件。
+- Cow `Default SDF` 保留字体和材质 GUID，但旧 TMP Shader 改为引用目标工程提交的 TMP Essential Resources，禁止再次整体复制旧 TMP 包。
 - Cow UI 仅作为 Presentation 视觉与序列化来源，不恢复 YFan Procedure 或旧 Domain 依赖。
 
 ## 验收
@@ -25,4 +26,6 @@
 - `FormalCampaignProgressionTests`：锁定、胜利解锁、失败重开、暂停。
 - `BattleSliceApplicationTests.FormalFlowCommands_UnlockNextLevelAndRemainBehindQFrameworkBoundary`：QFramework 用例边界。
 - `FormalLevelConfigurationPipelineTests`：正式关卡初始授权状态与部署列表。
+- `BattleSliceSceneTests.FormalBattleScene_WiresCowUguiPrefabsAndRuntimeBootstrap`：正式场景必须引用三套 Cow UGUI Prefab 与运行时装载器。
+- `BattleSliceSceneTests.CowTmpShader_UsesInstalledTargetEssentialResources`：Cow 字体 Shader 必须使用目标 TMP include。
 - `MissingScriptTests.TargetPrefabs_HaveNoMissingScripts`：Cow UI 兼容组件不得出现 Missing Script。

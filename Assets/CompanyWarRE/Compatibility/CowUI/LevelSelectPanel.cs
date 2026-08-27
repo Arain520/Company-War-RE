@@ -17,23 +17,34 @@ namespace CompanyWar.UI
         private void Awake()
         {
             _controller = FindObjectOfType<BattleSliceController>();
+            if (BackButton == null && LevelButtons != null && LevelButtons.Length > FormalLevelIds.Length)
+            {
+                BackButton = LevelButtons[FormalLevelIds.Length];
+            }
+
             for (var index = 0; index < (LevelButtons?.Length ?? 0); index++)
             {
                 var button = LevelButtons[index];
                 if (button == null) continue;
                 if (index >= FormalLevelIds.Length)
                 {
-                    button.gameObject.SetActive(false);
+                    button.gameObject.SetActive(button == BackButton);
                     continue;
                 }
 
                 var levelId = FormalLevelIds[index];
+                button.onClick.RemoveAllListeners();
                 button.onClick.AddListener(() => _controller?.StartFormalLevel(levelId));
                 var label = button.GetComponentInChildren<TMP_Text>(true);
                 if (label != null) label.text = levelId;
             }
 
-            if (BackButton != null) BackButton.onClick.AddListener(() => _controller?.ReturnFormalMainMenu());
+            if (BackButton != null)
+            {
+                BackButton.onClick.RemoveAllListeners();
+                BackButton.onClick.AddListener(() => _controller?.ReturnFormalMainMenu());
+                SetLabel(BackButton, "返回主菜单");
+            }
         }
 
         private void OnEnable()
@@ -43,8 +54,24 @@ namespace CompanyWar.UI
             {
                 if (LevelButtons[index] != null)
                 {
-                    LevelButtons[index].interactable = flow != null && flow.IsUnlocked(FormalLevelIds[index]);
+                    var levelId = FormalLevelIds[index];
+                    var unlocked = flow != null && flow.IsUnlocked(levelId);
+                    LevelButtons[index].interactable = unlocked;
+                    SetLabel(
+                        LevelButtons[index],
+                        levelId + (flow != null && flow.IsCompleted(levelId)
+                            ? "  已完成"
+                            : unlocked ? "  可挑战" : "  未解锁"));
                 }
+            }
+        }
+
+        private static void SetLabel(Button button, string value)
+        {
+            var label = button != null ? button.GetComponentInChildren<TMP_Text>(true) : null;
+            if (label != null)
+            {
+                label.text = value;
             }
         }
     }

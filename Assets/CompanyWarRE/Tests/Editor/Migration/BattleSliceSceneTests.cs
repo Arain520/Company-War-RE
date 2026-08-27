@@ -36,7 +36,7 @@ namespace CompanyWarRE.Migration.Tests
             }
             finally
             {
-                EditorSceneManager.RestoreSceneManagerSetup(previousSetup);
+                RestoreSceneSetup(previousSetup);
             }
         }
 
@@ -140,7 +140,10 @@ namespace CompanyWarRE.Migration.Tests
                          "ReturnFormalMainMenu",
                          "ToggleFormalPause",
                          "RestartFormalLevel",
-                         "AcceptAuthorization"
+                         "AcceptAuthorization",
+                         "SelectDeploymentUnit",
+                         "SetRuntimeHudVisible",
+                         "SetRuntimeUiPointerBlocked"
                      })
             {
                 Assert.That(
@@ -151,6 +154,81 @@ namespace CompanyWarRE.Migration.Tests
 
             Assert.That(controllerType.GetProperty("CurrentFlow"), Is.Not.Null);
             Assert.That(controllerType.GetProperty("CurrentSnapshot"), Is.Not.Null);
+        }
+
+        [Test]
+        public void FormalBattleScene_WiresCowUguiPrefabsAndRuntimeBootstrap()
+        {
+            const string menuPath =
+                "Assets/CompanyWarRE/Resources/CowLegacy/_Game/Scripts/UI/Menu.prefab";
+            const string levelSelectPath = "Assets/CompanyWarRE/LevelSelectPanel.prefab";
+            const string battlePath =
+                "Assets/CompanyWarRE/Resources/CowLegacy/_Game/Scripts/UI/BattlePanel.prefab";
+            const string bootstrapPath =
+                "Assets/CompanyWarRE/Compatibility/CowUI/FormalCowUiBootstrap.cs";
+            var yaml = File.ReadAllText(FormalScenePath);
+
+            foreach (var path in new[] { menuPath, levelSelectPath, battlePath })
+            {
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                Assert.That(prefab, Is.Not.Null, path);
+                var missingScriptCount = prefab
+                    .GetComponentsInChildren<Transform>(true)
+                    .Sum(transform =>
+                        GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(transform.gameObject));
+                Assert.That(missingScriptCount, Is.Zero, path);
+                StringAssert.Contains("guid: " + AssetDatabase.AssetPathToGUID(path), yaml, path);
+            }
+
+            var bootstrapGuid = AssetDatabase.AssetPathToGUID(bootstrapPath);
+            Assert.That(bootstrapGuid, Is.Not.Empty);
+            StringAssert.Contains("guid: " + bootstrapGuid, yaml);
+            StringAssert.Contains("hideImmediateModeDebugHud: 1", yaml);
+
+            var previousSetup = EditorSceneManager.GetSceneManagerSetup();
+            try
+            {
+                var scene = EditorSceneManager.OpenScene(FormalScenePath, OpenSceneMode.Single);
+                var bootstrap = scene.GetRootGameObjects()
+                    .SelectMany(root => root.GetComponentsInChildren<MonoBehaviour>(true))
+                    .FirstOrDefault(component =>
+                        component != null &&
+                        component.GetType().FullName == "CompanyWar.UI.FormalCowUiBootstrap");
+                Assert.That(bootstrap, Is.Not.Null);
+
+                var serializedBootstrap = new SerializedObject(bootstrap);
+                Assert.That(
+                    AssetDatabase.GetAssetPath(serializedBootstrap
+                        .FindProperty("menuPanelPrefab").objectReferenceValue),
+                    Is.EqualTo(menuPath));
+                Assert.That(
+                    AssetDatabase.GetAssetPath(serializedBootstrap
+                        .FindProperty("levelSelectPanelPrefab").objectReferenceValue),
+                    Is.EqualTo(levelSelectPath));
+                Assert.That(
+                    AssetDatabase.GetAssetPath(serializedBootstrap
+                        .FindProperty("battlePanelPrefab").objectReferenceValue),
+                    Is.EqualTo(battlePath));
+            }
+            finally
+            {
+                RestoreSceneSetup(previousSetup);
+            }
+        }
+
+        [Test]
+        public void CowTmpShader_UsesInstalledTargetEssentialResources()
+        {
+            const string shaderPath =
+                "Assets/CompanyWarRE/Resources/CowLegacy/TextMesh Pro/Shaders/TMP_SDF.shader";
+            var shader = File.ReadAllText(shaderPath);
+
+            StringAssert.Contains(
+                "Assets/TextMesh Pro/Shaders/TMPro_Properties.cginc",
+                shader);
+            StringAssert.Contains("Assets/TextMesh Pro/Shaders/TMPro.cginc", shader);
+            Assert.That(File.Exists("Assets/TextMesh Pro/Shaders/TMPro_Properties.cginc"), Is.True);
+            Assert.That(File.Exists("Assets/TextMesh Pro/Shaders/TMPro.cginc"), Is.True);
         }
 
         [Test]
@@ -176,7 +254,7 @@ namespace CompanyWarRE.Migration.Tests
             }
             finally
             {
-                EditorSceneManager.RestoreSceneManagerSetup(previousSetup);
+                RestoreSceneSetup(previousSetup);
             }
         }
 
@@ -235,6 +313,17 @@ namespace CompanyWarRE.Migration.Tests
         private static T ReadProperty<T>(object source, string propertyName)
         {
             return (T)source.GetType().GetProperty(propertyName)?.GetValue(source);
+        }
+
+        private static void RestoreSceneSetup(SceneSetup[] setup)
+        {
+            if (setup.Any(scene => scene.isLoaded))
+            {
+                EditorSceneManager.RestoreSceneManagerSetup(setup);
+                return;
+            }
+
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         }
 
         [Test]

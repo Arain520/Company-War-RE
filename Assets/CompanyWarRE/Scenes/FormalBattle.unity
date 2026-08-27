@@ -135,6 +135,7 @@ GameObject:
   - component: {fileID: 1002}
   - component: {fileID: 1003}
   - component: {fileID: 1004}
+  - component: {fileID: 1005}
   m_Layer: 0
   m_Name: FormalBattleBootstrap
   m_TagString: Untagged
@@ -183,6 +184,23 @@ MonoBehaviour:
   - {fileID: 4900000, guid: 6e454618284e494ba8c3f873e7bd929e, type: 3}
   - {fileID: 4900000, guid: 349fe0d472a84404921021f564320009, type: 3}
   visualCatalog: {fileID: 1004}
+--- !u!114 &1005
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c0f54b6de13d4ce8879f867f9b1f2c20, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  menuPanelPrefab: {fileID: 3912412698316433635, guid: 290e077e0729742428a81a8ebc2598ab, type: 3}
+  levelSelectPanelPrefab: {fileID: 1796180020789166937, guid: 44e02acd9e3c0de4798f6bcc2d934a26, type: 3}
+  battlePanelPrefab: {fileID: 1969066535967575369, guid: e7e1df7b19d70bd448fe75ed4627e17e, type: 3}
+  referenceResolution: {x: 1920, y: 1080}
+  hideImmediateModeDebugHud: 1
 --- !u!114 &1003
 MonoBehaviour:
   m_ObjectHideFlags: 0

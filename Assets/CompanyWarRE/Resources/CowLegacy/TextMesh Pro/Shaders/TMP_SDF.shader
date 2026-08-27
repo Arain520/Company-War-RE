@@ -124,8 +124,10 @@ SubShader {
 
 		#include "UnityCG.cginc"
 		#include "UnityUI.cginc"
-		#include "TMPro_Properties.cginc"
-		#include "TMPro.cginc"
+		// Keep the Cow font material GUID, but consume the target project's
+		// installed TMP Essential Resources instead of copying an old TMP stack.
+		#include "Assets/TextMesh Pro/Shaders/TMPro_Properties.cginc"
+		#include "Assets/TextMesh Pro/Shaders/TMPro.cginc"
 
 		struct vertex_t {
 			UNITY_VERTEX_INPUT_INSTANCE_ID

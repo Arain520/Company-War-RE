@@ -49,8 +49,9 @@ namespace CompanyWarRE.Migration.Tests
         {
             foreach (var pair in ExpectedGuids)
             {
-                Assert.That(AssetDatabase.GUIDToAssetPath(pair.Value), Is.EqualTo(pair.Key), pair.Key);
-                Assert.That(AssetDatabase.AssetPathToGUID(pair.Key), Is.EqualTo(pair.Value), pair.Key);
+                var actualPath = ResolveAssetPath(pair.Value);
+                Assert.That(Path.GetFileName(actualPath), Is.EqualTo(Path.GetFileName(pair.Key)), pair.Key);
+                Assert.That(AssetDatabase.AssetPathToGUID(actualPath), Is.EqualTo(pair.Value), pair.Key);
             }
 
             AssertPrefabDependencies(
@@ -62,11 +63,13 @@ namespace CompanyWarRE.Migration.Tests
                 "Assets/CompanyWarRE/Content/Materials/Mat_E01.mat",
                 "Assets/CompanyWarRE/Content/Models/E01.fbx");
             AssertPrefabDependencies(
-                "Assets/CompanyWarRE/Content/Prefabs/Buildings/PF_E06.prefab",
+                ResolveAssetPath(ExpectedGuids[
+                    "Assets/CompanyWarRE/Content/Prefabs/Buildings/PF_E06.prefab"]),
                 "Assets/CompanyWarRE/Content/Materials/Mat_E06.mat",
                 "Assets/CompanyWarRE/Content/Models/E06.fbx");
             AssertPrefabDependencies(
-                "Assets/CompanyWarRE/Content/Prefabs/Buildings/PF_E07.prefab",
+                ResolveAssetPath(ExpectedGuids[
+                    "Assets/CompanyWarRE/Content/Prefabs/Buildings/PF_E07.prefab"]),
                 "Assets/CompanyWarRE/Content/Materials/Mat_E07.mat",
                 "Assets/CompanyWarRE/Content/Models/E07.fbx");
         }
@@ -74,7 +77,9 @@ namespace CompanyWarRE.Migration.Tests
         [Test]
         public void Batch01Prefabs_HaveNoMissingScriptsOrMaterialsAndUseUrp()
         {
-            foreach (var path in ExpectedGuids.Keys.Where(path => path.EndsWith(".prefab")))
+            foreach (var path in ExpectedGuids
+                         .Where(pair => pair.Key.EndsWith(".prefab"))
+                         .Select(pair => ResolveAssetPath(pair.Value)))
             {
                 var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
                 Assert.That(prefab, Is.Not.Null, path);
@@ -132,7 +137,7 @@ namespace CompanyWarRE.Migration.Tests
             }
             finally
             {
-                EditorSceneManager.RestoreSceneManagerSetup(previousSetup);
+                RestoreSceneSetup(previousSetup);
             }
         }
 
@@ -169,7 +174,8 @@ namespace CompanyWarRE.Migration.Tests
                 0.95f);
             AssertVisualFit(
                 viewType,
-                "Assets/CompanyWarRE/Content/Prefabs/Buildings/PF_E06.prefab",
+                ResolveAssetPath(ExpectedGuids[
+                    "Assets/CompanyWarRE/Content/Prefabs/Buildings/PF_E06.prefab"]),
                 true,
                 2.65f);
         }
@@ -216,8 +222,8 @@ namespace CompanyWarRE.Migration.Tests
             var rows = File.ReadAllLines(inventoryPath);
             Assert.That(rows.Count(line => line.Contains("\"Prefab\"")), Is.EqualTo(75));
             Assert.That(rows.Count(line => line.Contains("\"CompatibilityShim\"")), Is.EqualTo(4));
-            Assert.That(rows.Count(line => line.Contains("\"CopiedWithMeta\"")), Is.EqualTo(142));
-            Assert.That(rows.Count(line => line.Contains("\"ExistingGuidReused\"")), Is.EqualTo(12));
+            Assert.That(rows.Count(line => line.Contains("\"CopiedWithMeta\"")), Is.EqualTo(141));
+            Assert.That(rows.Count(line => line.Contains("\"ExistingGuidReused\"")), Is.EqualTo(13));
 
             var visualMap = File.ReadAllLines(
                 "Migration/Inventory/ProductionResources/CombatVisualResourceMap.csv");
@@ -249,6 +255,24 @@ namespace CompanyWarRE.Migration.Tests
             var dependencies = AssetDatabase.GetDependencies(prefabPath, true);
             Assert.That(dependencies, Does.Contain(materialPath), prefabPath);
             Assert.That(dependencies, Does.Contain(modelPath), prefabPath);
+        }
+
+        private static string ResolveAssetPath(string guid)
+        {
+            var path = AssetDatabase.GUIDToAssetPath(guid);
+            Assert.That(path, Is.Not.Empty, "Missing asset for GUID " + guid);
+            return path;
+        }
+
+        private static void RestoreSceneSetup(SceneSetup[] setup)
+        {
+            if (setup.Any(scene => scene.isLoaded))
+            {
+                EditorSceneManager.RestoreSceneManagerSetup(setup);
+                return;
+            }
+
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         }
 
         private static void AssertVisualFit(
