@@ -141,6 +141,7 @@ namespace CompanyWarRE.Migration.Tests
                          "ToggleFormalPause",
                          "RestartFormalLevel",
                          "AcceptAuthorization",
+                         "SaveAudioSetting",
                          "SelectDeploymentUnit",
                          "SetRuntimeHudVisible",
                          "SetRuntimeUiPointerBlocked"
@@ -154,6 +155,9 @@ namespace CompanyWarRE.Migration.Tests
 
             Assert.That(controllerType.GetProperty("CurrentFlow"), Is.Not.Null);
             Assert.That(controllerType.GetProperty("CurrentSnapshot"), Is.Not.Null);
+            Assert.That(controllerType.GetProperty("SaveStatus"), Is.Not.Null);
+            Assert.That(controllerType.GetProperty("SavePath"), Is.Not.Null);
+            Assert.That(controllerType.GetProperty("IsSaveWritable"), Is.Not.Null);
         }
 
         [Test]

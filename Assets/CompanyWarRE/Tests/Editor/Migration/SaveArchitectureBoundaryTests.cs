@@ -23,12 +23,18 @@ namespace CompanyWarRE.Migration.Tests
         public void SaveStorage_DoesNotBindToResKitOrStreamingAssets()
         {
             var application = File.ReadAllText("Assets/CompanyWarRE/Application/SaveGameApplication.cs");
+            var session = File.ReadAllText("Assets/CompanyWarRE/Application/FormalSaveSession.cs");
             var infrastructure = File.ReadAllText("Assets/CompanyWarRE/Infrastructure/SaveCompatibility.cs");
 
             StringAssert.DoesNotContain("UnityEngine", application);
             StringAssert.DoesNotContain("PlayerPrefs", application);
             StringAssert.DoesNotContain("StreamingAssets", application);
             StringAssert.DoesNotContain("ResKit", application);
+            StringAssert.DoesNotContain("UnityEngine", session);
+            StringAssert.DoesNotContain("PlayerPrefs", session);
+            StringAssert.DoesNotContain("StreamingAssets", session);
+            StringAssert.DoesNotContain("ResKit", session);
+            StringAssert.DoesNotContain("System.IO", session);
             StringAssert.DoesNotContain("UnityEngine", infrastructure);
             StringAssert.DoesNotContain("PlayerPrefs", infrastructure);
             StringAssert.DoesNotContain("StreamingAssets", infrastructure);

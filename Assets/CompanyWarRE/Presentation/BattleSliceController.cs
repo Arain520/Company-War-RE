@@ -55,11 +55,16 @@ namespace CompanyWarRE.Presentation
         private string _selectedUnitId;
         private bool _runtimeHudVisible = true;
         private bool _runtimeUiPointerBlocked;
+        private FormalSaveSession _saveSession;
+        private string _saveStatus = "Save not initialized";
 
         public BattleSliceSnapshot CurrentSnapshot => _snapshot;
         public FormalGameFlowSnapshot CurrentFlow => _flowSnapshot;
         public string ActiveLevelId => _activeLevelId;
         public string SelectedUnitId => _selectedUnitId;
+        public string SaveStatus => _saveStatus;
+        public string SavePath => _saveSession?.SavePath ?? string.Empty;
+        public bool IsSaveWritable => _saveSession?.State == FormalSaveSessionState.Ready;
 
         public IArchitecture GetArchitecture()
         {
@@ -73,6 +78,7 @@ namespace CompanyWarRE.Presentation
             {
                 _architecture.SendCommand(new InitializeFormalGameFlowCommand(FormalLevelIds));
                 _flowSnapshot = _architecture.SendQuery(new GetFormalGameFlowSnapshotQuery());
+                InitializeFormalSave();
             }
 
             if (visualCatalog == null)
@@ -131,10 +137,36 @@ namespace CompanyWarRE.Presentation
                 _reportedBattleState == BattleState.Running)
             {
                 _reportedBattleState = _snapshot.BattleState;
-                _architecture.SendCommand(
+                var recorded = _architecture.SendCommand(
                     new RecordFormalBattleResultCommand(_activeLevelId, _snapshot.BattleState));
                 _flowSnapshot = _architecture.SendQuery(new GetFormalGameFlowSnapshotQuery());
+                if (recorded)
+                {
+                    RememberSaveResult(_saveSession?.SaveBattleResult(_flowSnapshot, _snapshot));
+                }
             }
+        }
+
+        private void InitializeFormalSave()
+        {
+            var paths = UnitySavePathSet.ForCurrentPlatform();
+            _saveSession = new FormalSaveSession(
+                UnitySaveCompatibilityFactory.CreateForCurrentPlayerPrefs(FormalLevelIds),
+                paths.SavePath,
+                paths.BackupDirectory);
+            var result = _saveSession.Start(_flowSnapshot);
+            RememberSaveResult(result);
+            if (!result.Succeeded)
+            {
+                Debug.LogWarning(
+                    "Formal save entered read-only protection: " + result.Error + " - " + result.Message,
+                    this);
+                return;
+            }
+
+            _architecture.SendCommand(new RestoreFormalGameFlowCommand(result.Value, FormalLevelIds));
+            _flowSnapshot = _architecture.SendQuery(new GetFormalGameFlowSnapshotQuery());
+            formalLevelId = _flowSnapshot.ActiveLevelId;
         }
 
         private void ResetSlice()
@@ -202,6 +234,7 @@ namespace CompanyWarRE.Presentation
             _previousHitPoints.Clear();
             _flowSnapshot = _architecture.SendQuery(new GetFormalGameFlowSnapshotQuery());
             _lastAction = "Started " + _activeLevelId;
+            RememberSaveResult(_saveSession?.SaveCampaign(_flowSnapshot));
             RefreshView();
             return true;
         }
@@ -267,7 +300,33 @@ namespace CompanyWarRE.Presentation
 
             _selectedUnitId = unitId;
             RefreshView();
+            _snapshot = _architecture.SendQuery(new GetBattleSliceSnapshotQuery());
+            RememberSaveResult(_saveSession?.SaveBattleResult(_flowSnapshot, _snapshot));
             return true;
+        }
+
+        public bool SaveAudioSetting(string layer, float volume, bool muted)
+        {
+            var result = _saveSession?.SaveAudioSetting(layer, volume, muted);
+            RememberSaveResult(result);
+            return result != null && result.Succeeded;
+        }
+
+        public AudioLayerSaveSettings GetSavedAudioSetting(string layer)
+        {
+            return _saveSession?.Current?.Settings?.FindAudioLayer(layer);
+        }
+
+        private void RememberSaveResult(SaveOperationResult<SaveGame> result)
+        {
+            if (result == null)
+            {
+                return;
+            }
+
+            _saveStatus = result.Succeeded
+                ? (string.IsNullOrEmpty(result.BackupPath) ? "Saved" : "Saved with backup")
+                : result.Error + ": " + result.Message;
         }
 
         public bool SelectDeploymentUnit(string unitId)
@@ -367,7 +426,8 @@ namespace CompanyWarRE.Presentation
                 return false;
             }
 
-            _architecture.SendCommand(new ConfigureBattleSliceCommand(result.Configuration));
+            var configuration = _saveSession?.ApplyGrowth(result.Configuration) ?? result.Configuration;
+            _architecture.SendCommand(new ConfigureBattleSliceCommand(configuration));
             _snapshot = _architecture.SendQuery(new GetBattleSliceSnapshotQuery());
             _formalLevel = result.Level;
             _activeLevelId = result.Level.LevelId;
