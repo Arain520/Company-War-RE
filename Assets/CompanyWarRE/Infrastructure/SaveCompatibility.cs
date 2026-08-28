@@ -304,7 +304,7 @@ namespace CompanyWarRE.Infrastructure.Saves
             {
                 return SaveOperationResult<SaveGame>.Failure(
                     SaveOperationError.LegacySourceUnavailable,
-                    "No real Cow PlayerPrefs keys were found.");
+                    "No real Cow legacy preference keys were found.");
             }
 
             var report = new SaveValidationReport();
