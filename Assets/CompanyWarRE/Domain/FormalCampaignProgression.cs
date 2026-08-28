@@ -55,6 +55,43 @@ namespace CompanyWarRE.Domain
             return !string.IsNullOrWhiteSpace(levelId) && _completed.Contains(levelId);
         }
 
+        public void Restore(CampaignSaveProgress saved)
+        {
+            if (saved == null)
+            {
+                return;
+            }
+
+            _unlocked.Clear();
+            _completed.Clear();
+            foreach (var levelId in _levelOrder)
+            {
+                var progress = saved.FindLevel(levelId);
+                if (progress == null)
+                {
+                    continue;
+                }
+
+                if (progress.Unlocked)
+                {
+                    _unlocked.Add(levelId);
+                }
+
+                if (progress.Completed && progress.Unlocked)
+                {
+                    _completed.Add(levelId);
+                }
+            }
+
+            _unlocked.Add(_levelOrder[0]);
+            var restoredActive = NormalizeKnownLevel(saved.ActiveLevelId);
+            ActiveLevelId = restoredActive != null && _unlocked.Contains(restoredActive)
+                ? restoredActive
+                : _levelOrder[0];
+            LastResult = BattleState.Running;
+            Screen = FormalFlowScreen.MainMenu;
+        }
+
         public void OpenLevelSelect()
         {
             Screen = FormalFlowScreen.LevelSelect;

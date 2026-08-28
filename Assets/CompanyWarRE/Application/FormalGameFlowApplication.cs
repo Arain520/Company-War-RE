@@ -53,6 +53,25 @@ namespace CompanyWarRE.Application
         }
     }
 
+    public sealed class RestoreFormalGameFlowCommand : AbstractCommand
+    {
+        private readonly SaveGame _save;
+        private readonly IReadOnlyList<string> _levelIds;
+
+        public RestoreFormalGameFlowCommand(SaveGame save, params string[] levelIds)
+        {
+            _save = save;
+            _levelIds = levelIds ?? Array.Empty<string>();
+        }
+
+        protected override void OnExecute()
+        {
+            var model = this.GetModel<FormalGameFlowModel>();
+            model.Initialize(_levelIds);
+            model.Progression.Restore(_save?.Campaign);
+        }
+    }
+
     public sealed class SetFormalFlowScreenCommand : AbstractCommand
     {
         private readonly FormalFlowScreen _screen;
