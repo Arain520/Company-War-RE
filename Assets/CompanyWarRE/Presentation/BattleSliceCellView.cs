@@ -13,21 +13,21 @@ namespace CompanyWarRE.Presentation
         private static readonly Color SelectedColor = new Color(0.95f, 0.76f, 0.18f);
 
         private Renderer _cellRenderer;
-        private Material _cellMaterial;
+        private MaterialPropertyBlock _propertyBlock;
 
         public GridPosition Position { get; private set; }
 
-        public void Initialize(GridPosition position)
+        public void Initialize(GridPosition position, Material sharedMaterial)
         {
             Position = position;
             _cellRenderer = GetComponent<Renderer>();
-            _cellMaterial = CreateMaterial(OwnedColor);
-            _cellRenderer.sharedMaterial = _cellMaterial;
+            _cellRenderer.sharedMaterial = sharedMaterial;
+            _propertyBlock = new MaterialPropertyBlock();
         }
 
         public void Render(BattleSliceCellSnapshot snapshot, bool selected)
         {
-            if (_cellMaterial == null || snapshot == null)
+            if (_cellRenderer == null || _propertyBlock == null || snapshot == null)
             {
                 return;
             }
@@ -37,31 +37,15 @@ namespace CompanyWarRE.Presentation
                 : snapshot.IsPolluted
                     ? PollutedColor
                     : snapshot.IsOwned ? OwnedColor : UnownedColor;
-            _cellMaterial.color = selected ? SelectedColor : color;
+            _propertyBlock.Clear();
+            _propertyBlock.SetColor("_BaseColor", selected ? SelectedColor : color);
+            _propertyBlock.SetColor("_Color", selected ? SelectedColor : color);
+            _cellRenderer.SetPropertyBlock(_propertyBlock);
             transform.localPosition = new Vector3(
                 transform.localPosition.x,
                 selected ? 0.12f : 0f,
                 transform.localPosition.z);
         }
 
-        private static Material CreateMaterial(Color color)
-        {
-            var shader = Shader.Find("Universal Render Pipeline/Lit") ??
-                         Shader.Find("Standard") ??
-                         Shader.Find("Sprites/Default");
-            var material = new Material(shader)
-            {
-                color = color
-            };
-            return material;
-        }
-
-        private void OnDestroy()
-        {
-            if (_cellMaterial != null)
-            {
-                Destroy(_cellMaterial);
-            }
-        }
     }
 }

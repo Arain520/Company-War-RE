@@ -57,6 +57,13 @@ namespace CompanyWarRE.Presentation
         private bool _runtimeUiPointerBlocked;
         private FormalSaveSession _saveSession;
         private string _saveStatus = "Save not initialized";
+        private FormalAudioService _audioService;
+        private IProductionAssetProvider _assetProvider;
+        private ProductionSceneLoader _sceneLoader;
+        private ProductionComponentPool<BattleSliceCombatantView> _combatantViewPool;
+        private Transform _poolRoot;
+        private Material _cellSharedMaterial;
+        private BattleRuntimePerformanceMonitor _performanceMonitor;
 
         public BattleSliceSnapshot CurrentSnapshot => _snapshot;
         public FormalGameFlowSnapshot CurrentFlow => _flowSnapshot;
@@ -65,6 +72,8 @@ namespace CompanyWarRE.Presentation
         public string SaveStatus => _saveStatus;
         public string SavePath => _saveSession?.SavePath ?? string.Empty;
         public bool IsSaveWritable => _saveSession?.State == FormalSaveSessionState.Ready;
+        public BattlePerformanceSnapshot Performance =>
+            _performanceMonitor != null ? _performanceMonitor.Latest : default;
 
         public IArchitecture GetArchitecture()
         {
@@ -74,12 +83,15 @@ namespace CompanyWarRE.Presentation
         private void Awake()
         {
             _architecture = GetArchitecture();
+            InitializeProductionInfrastructure();
             if (useFormalLevelConfiguration)
             {
                 _architecture.SendCommand(new InitializeFormalGameFlowCommand(FormalLevelIds));
                 _flowSnapshot = _architecture.SendQuery(new GetFormalGameFlowSnapshotQuery());
                 InitializeFormalSave();
             }
+
+            _audioService.Apply(_saveSession?.Current?.Settings ?? GameSettingsSave.Default);
 
             if (visualCatalog == null)
             {
@@ -145,6 +157,27 @@ namespace CompanyWarRE.Presentation
                     RememberSaveResult(_saveSession?.SaveBattleResult(_flowSnapshot, _snapshot));
                 }
             }
+        }
+
+        private void InitializeProductionInfrastructure()
+        {
+            _audioService = new FormalAudioService();
+            _assetProvider = new ResKitWithResourcesFallbackProvider();
+            _sceneLoader = new ProductionSceneLoader();
+            _performanceMonitor = GetComponent<BattleRuntimePerformanceMonitor>() ??
+                                  gameObject.AddComponent<BattleRuntimePerformanceMonitor>();
+            var poolObject = new GameObject("RuntimePools");
+            poolObject.transform.SetParent(transform, false);
+            _poolRoot = poolObject.transform;
+            _combatantViewPool = new ProductionComponentPool<BattleSliceCombatantView>(
+                () =>
+                {
+                    var actorObject = new GameObject("PooledCombatant");
+                    actorObject.transform.SetParent(_poolRoot, false);
+                    return actorObject.AddComponent<BattleSliceCombatantView>();
+                },
+                _poolRoot,
+                BattleRuntimePerformanceMonitor.RecommendedMaximumCombatantViews);
         }
 
         private void InitializeFormalSave()
@@ -309,7 +342,22 @@ namespace CompanyWarRE.Presentation
         {
             var result = _saveSession?.SaveAudioSetting(layer, volume, muted);
             RememberSaveResult(result);
+            if (result != null && result.Succeeded)
+            {
+                _audioService?.Apply(result.Value.Settings);
+            }
             return result != null && result.Succeeded;
+        }
+
+        public void LoadProductionAssetAsync<T>(ProductionAssetKey key,
+            System.Action<ProductionAssetLoadResult<T>> completed) where T : UnityEngine.Object
+        {
+            _assetProvider.LoadAsync(this, key, completed);
+        }
+
+        public void LoadProductionSceneAsync(string sceneName, string bundleName = "")
+        {
+            _sceneLoader.LoadAsync(sceneName, bundleName, UnityEngine.SceneManagement.LoadSceneMode.Single, null);
         }
 
         public AudioLayerSaveSettings GetSavedAudioSetting(string layer)
@@ -354,6 +402,7 @@ namespace CompanyWarRE.Presentation
 
         private void ClearRuntimePresentation()
         {
+            ReleaseAllCombatantViews();
             foreach (var root in new[] { _runtimeGridRoot, _combatantRoot, _feedbackRoot })
             {
                 if (root == null)
@@ -370,8 +419,8 @@ namespace CompanyWarRE.Presentation
             _feedbackRoot = null;
             _feedbackLayer = null;
             _cellViews.Clear();
-            _combatantViews.Clear();
             DestroyGridBorderMaterials();
+            DestroyCellSharedMaterial();
         }
 
         private void DestroyGridBorderMaterials()
@@ -386,6 +435,15 @@ namespace CompanyWarRE.Presentation
             {
                 Destroy(_columnGroupBorderMaterial);
                 _columnGroupBorderMaterial = null;
+            }
+        }
+
+        private void DestroyCellSharedMaterial()
+        {
+            if (_cellSharedMaterial != null)
+            {
+                Destroy(_cellSharedMaterial);
+                _cellSharedMaterial = null;
             }
         }
 
@@ -605,6 +663,8 @@ namespace CompanyWarRE.Presentation
 
         private void BuildGrid()
         {
+            DestroyCellSharedMaterial();
+            _cellSharedMaterial = CreateGridBorderMaterial(Color.white);
             var root = new GameObject("RuntimeGrid").transform;
             root.SetParent(transform, false);
             _runtimeGridRoot = root;
@@ -629,7 +689,7 @@ namespace CompanyWarRE.Presentation
                         GetRowWorldZ(row));
                     cell.transform.localScale = new Vector3(CellVisualSize, 0.16f, CellVisualSize);
                     var view = cell.AddComponent<BattleSliceCellView>();
-                    view.Initialize(position);
+                    view.Initialize(position, _cellSharedMaterial);
                     _cellViews.Add(position, view);
                 }
             }
@@ -746,12 +806,18 @@ namespace CompanyWarRE.Presentation
             var activeActorIds = new HashSet<string>(System.StringComparer.Ordinal);
             foreach (var combatant in _snapshot.Combatants)
             {
+                if (!combatant.IsAlive)
+                {
+                    ReleaseCombatantView(combatant.ActorId);
+                    _previousHitPoints.Remove(combatant.ActorId);
+                    continue;
+                }
+
                 activeActorIds.Add(combatant.ActorId);
                 if (!_combatantViews.TryGetValue(combatant.ActorId, out var view))
                 {
-                    var actorObject = new GameObject("Combatant_" + combatant.ActorId);
-                    actorObject.transform.SetParent(_combatantRoot, false);
-                    view = actorObject.AddComponent<BattleSliceCombatantView>();
+                    view = _combatantViewPool.Rent(_combatantRoot);
+                    view.gameObject.name = "Combatant_" + combatant.ActorId;
                     view.Initialize(combatant.ActorId, visualCatalog);
                     _combatantViews.Add(combatant.ActorId, view);
                 }
@@ -785,13 +851,39 @@ namespace CompanyWarRE.Presentation
                 _previousHitPoints[combatant.ActorId] = combatant.HitPoints;
             }
 
-            foreach (var pair in _combatantViews)
+            var inactiveActorIds = _combatantViews.Keys
+                .Where(actorId => !activeActorIds.Contains(actorId))
+                .ToArray();
+            foreach (var actorId in inactiveActorIds)
             {
-                if (!activeActorIds.Contains(pair.Key))
-                {
-                    pair.Value.gameObject.SetActive(false);
-                }
+                ReleaseCombatantView(actorId);
             }
+
+            _performanceMonitor?.ReportWorld(
+                _cellViews.Count,
+                _combatantViewPool?.ActiveCount ?? _combatantViews.Count,
+                _combatantViewPool?.AvailableCount ?? 0);
+        }
+
+        private void ReleaseCombatantView(string actorId)
+        {
+            if (string.IsNullOrEmpty(actorId) || !_combatantViews.TryGetValue(actorId, out var view))
+            {
+                return;
+            }
+
+            _combatantViews.Remove(actorId);
+            _combatantViewPool?.Return(view);
+        }
+
+        private void ReleaseAllCombatantViews()
+        {
+            foreach (var view in _combatantViews.Values.ToArray())
+            {
+                _combatantViewPool?.Return(view);
+            }
+
+            _combatantViews.Clear();
         }
 
         private HashSet<string> ProcessNewCombatFeedback()
@@ -1274,6 +1366,13 @@ namespace CompanyWarRE.Presentation
 
         private void OnDestroy()
         {
+            _assetProvider?.Dispose();
+            _sceneLoader?.Dispose();
+            _combatantViewPool?.Dispose();
+            _assetProvider = null;
+            _sceneLoader = null;
+            _combatantViewPool = null;
+            DestroyCellSharedMaterial();
             DestroyGridBorderMaterials();
 
             if (UnityEngine.Application.isPlaying && _architecture != null)

@@ -142,6 +142,8 @@ namespace CompanyWarRE.Migration.Tests
                          "RestartFormalLevel",
                          "AcceptAuthorization",
                          "SaveAudioSetting",
+                         "LoadProductionAssetAsync",
+                         "LoadProductionSceneAsync",
                          "SelectDeploymentUnit",
                          "SetRuntimeHudVisible",
                          "SetRuntimeUiPointerBlocked"
@@ -158,6 +160,28 @@ namespace CompanyWarRE.Migration.Tests
             Assert.That(controllerType.GetProperty("SaveStatus"), Is.Not.Null);
             Assert.That(controllerType.GetProperty("SavePath"), Is.Not.Null);
             Assert.That(controllerType.GetProperty("IsSaveWritable"), Is.Not.Null);
+            Assert.That(controllerType.GetProperty("Performance"), Is.Not.Null);
+        }
+
+        [Test]
+        public void FormalBattle_UsesProductionLoadingPoolingAudioAndPerformanceBoundaries()
+        {
+            var controller = File.ReadAllText(
+                "Assets/CompanyWarRE/Presentation/BattleSliceController.cs");
+            var loading = File.ReadAllText(
+                "Assets/CompanyWarRE/Presentation/ProductionAssetLoading.cs");
+            var decision = File.ReadAllText(
+                "Migration/Specifications/ProductionInfrastructure-v1.md");
+
+            StringAssert.Contains("ProductionComponentPool<BattleSliceCombatantView>", controller);
+            StringAssert.Contains("MaterialPropertyBlock", File.ReadAllText(
+                "Assets/CompanyWarRE/Presentation/BattleSliceCellView.cs"));
+            StringAssert.Contains("ResKitWithResourcesFallbackProvider", loading);
+            StringAssert.Contains("SceneManager.LoadSceneAsync", loading);
+            StringAssert.Contains("FormalAudioService", controller);
+            StringAssert.Contains("BattleRuntimePerformanceMonitor", controller);
+            StringAssert.Contains("Addressables 暂不安装", decision);
+            StringAssert.Contains("禁止同一资源同时进入 Addressables 与 ResKit 清单", decision);
         }
 
         [Test]

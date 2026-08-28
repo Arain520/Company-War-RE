@@ -48,6 +48,15 @@ namespace CompanyWarRE.Presentation
         {
             ActorId = actorId;
             _visualCatalog = visualCatalog;
+            _previousHitPoints = double.NaN;
+            _healPulseRemaining = 0f;
+            _damagePulseRemaining = 0f;
+            _curseDamage = false;
+            if (_unitBody != null)
+            {
+                return;
+            }
+
             _bodyMaterial = CreateMaterial(Color.white);
 
             var unitBody = GameObject.CreatePrimitive(PrimitiveType.Capsule);
