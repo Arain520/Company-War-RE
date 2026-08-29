@@ -50,6 +50,67 @@ namespace CompanyWarRE.Domain.Tests
             Assert.That(progression.DeployList.Count, Is.EqualTo(AuthorizationProgression.MaximumDeployListSize));
         }
 
+        [Test]
+        public void Authorization_PlayerCanCancelAChoiceAndApplyAgainLater()
+        {
+            var progression = new AuthorizationProgression();
+            progression.Configure(
+                new[]
+                {
+                    new AuthorizationStageDefinition("Stage 1", 1, new[]
+                    {
+                        new AuthorizationItemDefinition("U02"),
+                        new AuthorizationItemDefinition("U03")
+                    })
+                },
+                1,
+                new[] { "U01" },
+                new FirstAvailableAuthorizationCandidateSelector());
+
+            Assert.That(progression.State, Is.EqualTo(AuthorizationState.Available));
+            Assert.That(progression.BeginChoice(), Is.True);
+            Assert.That(progression.CancelChoice(), Is.True);
+            Assert.That(progression.State, Is.EqualTo(AuthorizationState.Available));
+            Assert.That(progression.Candidates, Is.Empty);
+            Assert.That(progression.BeginChoice(), Is.True);
+            Assert.That(progression.Accept("U02"), Is.True);
+            Assert.That(progression.DeployList, Does.Contain("U02"));
+        }
+
+        [Test]
+        public void Authorization_ThirdEarlyApplicationGuaranteesU15LikeCow()
+        {
+            var progression = new AuthorizationProgression();
+            progression.Configure(
+                new[]
+                {
+                    new AuthorizationStageDefinition("Stage 1", 1, new[]
+                    {
+                        new AuthorizationItemDefinition("U02"),
+                        new AuthorizationItemDefinition("U03"),
+                        new AuthorizationItemDefinition("U04"),
+                        new AuthorizationItemDefinition("U05"),
+                        new AuthorizationItemDefinition("U06")
+                    }),
+                    new AuthorizationStageDefinition("Stage 3", 20, new[]
+                    {
+                        new AuthorizationItemDefinition("U15")
+                    })
+                },
+                1,
+                new[] { "U01" },
+                new FirstAvailableAuthorizationCandidateSelector());
+
+            Assert.That(progression.BeginChoice(), Is.True);
+            Assert.That(progression.Candidates, Does.Not.Contain("U15"));
+            Assert.That(progression.CancelChoice(), Is.True);
+            Assert.That(progression.BeginChoice(), Is.True);
+            Assert.That(progression.Candidates, Does.Not.Contain("U15"));
+            Assert.That(progression.CancelChoice(), Is.True);
+            Assert.That(progression.BeginChoice(), Is.True);
+            Assert.That(progression.Candidates, Does.Contain("U15"));
+        }
+
         [TestCase(1, 3)]
         [TestCase(2, 2)]
         public void Authorization_LaterStagesUseLegacyCandidateCaps(int targetStage, int expectedCandidates)

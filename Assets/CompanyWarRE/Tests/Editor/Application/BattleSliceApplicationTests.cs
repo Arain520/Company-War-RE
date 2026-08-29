@@ -103,6 +103,29 @@ namespace CompanyWarRE.Application.Tests
         }
 
         [Test]
+        public void Snapshot_ExposesUnitNamesCostsModesAndPerUnitCooldownForBattleUi()
+        {
+            _architecture.SendCommand(new ConfigureBattleSliceCommand(CreateMultiUnitConfiguration()));
+
+            var initial = _architecture.SendQuery(new GetBattleSliceSnapshotQuery());
+            Assert.That(initial.UnitOptions.Select(option => option.Id),
+                Is.EquivalentTo(new[] { "U01", "U17", "U33" }));
+            var medical = initial.UnitOptions.Single(option => option.Id == "U33");
+            Assert.That(medical.Name, Is.EqualTo("边境医护站"));
+            Assert.That(medical.ResourceCost, Is.EqualTo(4));
+            Assert.That(medical.DeploymentMode, Is.EqualTo(DeploymentMode.Building));
+
+            Assert.That(_architecture.SendCommand(new DeployBattleSliceUnitCommand(
+                new GridPosition(4, 1),
+                "ranged-ui-test",
+                "U17")).Succeeded, Is.True);
+            var afterDeployment = _architecture.SendQuery(new GetBattleSliceSnapshotQuery());
+            Assert.That(
+                afterDeployment.UnitOptions.Single(option => option.Id == "U17").RemainingCooldownSeconds,
+                Is.GreaterThan(0d));
+        }
+
+        [Test]
         public void PollutionCommand_ChangesExactlyOneThreeByThreeBlock()
         {
             var changed = _architecture.SendCommand(

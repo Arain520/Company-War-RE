@@ -133,7 +133,7 @@ namespace CompanyWar.UI
             var label = button != null ? button.GetComponentInChildren<TMP_Text>(true) : null;
             if (label != null)
             {
-                label.text = value;
+                CowUiTypography.SetText(label, value);
             }
         }
     }

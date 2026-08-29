@@ -138,11 +138,6 @@ namespace CompanyWarRE.Presentation
             }
 
             RefreshView();
-            if (canRunBattle && _snapshot.AuthorizationState == AuthorizationState.Available &&
-                _architecture.SendCommand(new BeginBattleAuthorizationChoiceCommand()))
-            {
-                RefreshView();
-            }
 
             if (useFormalLevelConfiguration &&
                 _snapshot.BattleState != BattleState.Running &&
@@ -335,6 +330,32 @@ namespace CompanyWarRE.Presentation
             RefreshView();
             _snapshot = _architecture.SendQuery(new GetBattleSliceSnapshotQuery());
             RememberSaveResult(_saveSession?.SaveBattleResult(_flowSnapshot, _snapshot));
+            return true;
+        }
+
+        public bool RequestAuthorization()
+        {
+            if (_snapshot == null ||
+                _snapshot.AuthorizationState != AuthorizationState.Available ||
+                !_architecture.SendCommand(new BeginBattleAuthorizationChoiceCommand()))
+            {
+                return false;
+            }
+
+            _lastAction = "Authorization requested";
+            RefreshView();
+            return true;
+        }
+
+        public bool CancelAuthorizationChoice()
+        {
+            if (!_architecture.SendCommand(new CancelBattleAuthorizationChoiceCommand()))
+            {
+                return false;
+            }
+
+            _lastAction = "Authorization choice cancelled";
+            RefreshView();
             return true;
         }
 
@@ -1121,6 +1142,11 @@ namespace CompanyWarRE.Presentation
             GUILayout.Label(
                 $"授权: {_snapshot.AuthorizationPoints}    下一需求: " +
                 $"{(_snapshot.NextAuthorizationRequirement == int.MaxValue ? "完成" : _snapshot.NextAuthorizationRequirement.ToString())}");
+            if (_snapshot.AuthorizationState == AuthorizationState.Available &&
+                GUILayout.Button("申请新单位授权", GUILayout.Width(180f)))
+            {
+                RequestAuthorization();
+            }
             GUILayout.BeginHorizontal();
             GUILayout.Label("部署列表:", GUILayout.Width(70f));
             foreach (var unitId in _snapshot.DeployList)
@@ -1296,7 +1322,7 @@ namespace CompanyWarRE.Presentation
         private void DrawAuthorizationChoice()
         {
             const float width = 480f;
-            var height = 150f + _snapshot.AuthorizationCandidates.Count * 44f;
+            var height = 190f + _snapshot.AuthorizationCandidates.Count * 44f;
             GUILayout.BeginArea(
                 new Rect((Screen.width - width) * 0.5f, (Screen.height - height) * 0.5f, width, height),
                 GUI.skin.window);
@@ -1310,10 +1336,21 @@ namespace CompanyWarRE.Presentation
             GUILayout.Label("选择一个新单位加入部署列表");
             foreach (var candidate in _snapshot.AuthorizationCandidates)
             {
-                if (GUILayout.Button(candidate, GUILayout.Height(36f)))
+                var option = _snapshot.UnitOptions.FirstOrDefault(item => string.Equals(
+                    item.Id,
+                    candidate,
+                    System.StringComparison.OrdinalIgnoreCase));
+                var label = option == null
+                    ? candidate
+                    : $"{candidate}  {option.Name}　费用 {option.ResourceCost}";
+                if (GUILayout.Button(label, GUILayout.Height(36f)))
                 {
                     AcceptAuthorization(candidate);
                 }
+            }
+            if (GUILayout.Button("暂不申请", GUILayout.Height(32f)))
+            {
+                CancelAuthorizationChoice();
             }
             GUILayout.EndArea();
         }

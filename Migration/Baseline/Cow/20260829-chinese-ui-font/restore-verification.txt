@@ -1,0 +1,11 @@
+verification: PASS
+source-project: D:\UNITY2\Cow
+source-mode: read-only
+asset-count: 2
+archive: cow-chinese-ui-font.zip
+archive-bytes: 11334912
+archive-sha256: cb564ed7ec361cd078df5f01419918a99d01c1e9ebf87880854d1c17ab2532c4
+target-hash-match: true
+original-meta-preserved: true
+font-family: Noto Sans SC
+target-path: Assets/CompanyWarRE/Resources/CowLegacy/Fonts/ChineseUIFont.ttf

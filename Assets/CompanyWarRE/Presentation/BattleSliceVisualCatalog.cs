@@ -84,9 +84,16 @@ namespace CompanyWarRE.Presentation
             string relativePath;
             if (char.ToUpperInvariant(templateId[0]) == 'U')
             {
-                if (number > 24)
+                if (number < 1 || number > 36)
                 {
                     return false;
+                }
+
+                if (number >= 25)
+                {
+                    var modelName = number == 31 ? "u31fbx" : $"u{number:00}";
+                    prefab = Resources.Load<GameObject>($"CowLegacy/_Game/Resources/{modelName}");
+                    return prefab != null;
                 }
 
                 var folder = (number >= 8 && number <= 11) || number == 21

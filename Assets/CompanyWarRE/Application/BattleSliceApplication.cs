@@ -83,6 +83,44 @@ namespace CompanyWarRE.Application
         public int FootprintEndRow { get; }
     }
 
+    public sealed class BattleSliceUnitOptionSnapshot
+    {
+        public BattleSliceUnitOptionSnapshot(
+            string id,
+            string name,
+            int resourceCost,
+            double deploymentCooldownSeconds,
+            double remainingCooldownSeconds,
+            DeploymentMode deploymentMode,
+            string effect,
+            bool isUnlocked,
+            bool isAuthorizationCandidate,
+            bool canDeploy)
+        {
+            Id = id ?? string.Empty;
+            Name = name ?? string.Empty;
+            ResourceCost = resourceCost;
+            DeploymentCooldownSeconds = deploymentCooldownSeconds;
+            RemainingCooldownSeconds = remainingCooldownSeconds;
+            DeploymentMode = deploymentMode;
+            Effect = effect ?? string.Empty;
+            IsUnlocked = isUnlocked;
+            IsAuthorizationCandidate = isAuthorizationCandidate;
+            CanDeploy = canDeploy;
+        }
+
+        public string Id { get; }
+        public string Name { get; }
+        public int ResourceCost { get; }
+        public double DeploymentCooldownSeconds { get; }
+        public double RemainingCooldownSeconds { get; }
+        public DeploymentMode DeploymentMode { get; }
+        public string Effect { get; }
+        public bool IsUnlocked { get; }
+        public bool IsAuthorizationCandidate { get; }
+        public bool CanDeploy { get; }
+    }
+
     public sealed class BattleSliceSnapshot
     {
         public BattleSliceSnapshot(
@@ -108,7 +146,8 @@ namespace CompanyWarRE.Application
             AuthorizationState authorizationState,
             int nextAuthorizationRequirement,
             IReadOnlyList<string> authorizationCandidates,
-            IReadOnlyList<string> deployList)
+            IReadOnlyList<string> deployList,
+            IReadOnlyList<BattleSliceUnitOptionSnapshot> unitOptions = null)
         {
             Columns = columns;
             Rows = rows;
@@ -133,6 +172,7 @@ namespace CompanyWarRE.Application
             NextAuthorizationRequirement = nextAuthorizationRequirement;
             AuthorizationCandidates = authorizationCandidates ?? Array.Empty<string>();
             DeployList = deployList ?? Array.Empty<string>();
+            UnitOptions = unitOptions ?? Array.Empty<BattleSliceUnitOptionSnapshot>();
         }
 
         public int Columns { get; }
@@ -158,6 +198,7 @@ namespace CompanyWarRE.Application
         public int NextAuthorizationRequirement { get; }
         public IReadOnlyList<string> AuthorizationCandidates { get; }
         public IReadOnlyList<string> DeployList { get; }
+        public IReadOnlyList<BattleSliceUnitOptionSnapshot> UnitOptions { get; }
     }
 
     public sealed class BattleSliceDeploymentResponse
@@ -509,6 +550,14 @@ namespace CompanyWarRE.Application
         }
     }
 
+    public sealed class CancelBattleAuthorizationChoiceCommand : AbstractCommand<bool>
+    {
+        protected override bool OnExecute()
+        {
+            return this.GetModel<BattleSliceModel>().CancelAuthorizationChoice();
+        }
+    }
+
     public sealed class BattleSliceModel : AbstractModel
     {
         private BattleSliceConfiguration _configuration;
@@ -560,7 +609,7 @@ namespace CompanyWarRE.Application
                 _configuration.AuthorizationStages,
                 _configuration.InitialAuthorizationPoints,
                 _configuration.InitialDeployments,
-                new FirstAvailableAuthorizationCandidateSelector());
+                new WeightedRandomAuthorizationCandidateSelector(31));
             _creditedAuthorizationPoints = _authorizationScore.Points;
             _economy.ConfigureProduction(
                 _configuration.FixedProductionIntervalSeconds,
@@ -808,6 +857,11 @@ namespace CompanyWarRE.Application
             return _authorizationProgression.Accept(unitId);
         }
 
+        public bool CancelAuthorizationChoice()
+        {
+            return _authorizationProgression.CancelChoice();
+        }
+
         public BattleSliceSnapshot CreateSnapshot()
         {
             EnsureConfigured();
@@ -825,6 +879,27 @@ namespace CompanyWarRE.Application
                         cell.OccupantCount));
                 }
             }
+
+            var unitOptions = _configuration.Units.Values
+                .OrderBy(unit => unit.Id, StringComparer.OrdinalIgnoreCase)
+                .Select(unit => new BattleSliceUnitOptionSnapshot(
+                    unit.Id,
+                    unit.Name,
+                    unit.ResourceCost,
+                    unit.DeploymentCooldownSeconds,
+                    _economy.GetRemainingCooldown(unit),
+                    unit.DeploymentMode,
+                    unit.Effect,
+                    _authorizationProgression.DeployList.Any(id => string.Equals(
+                        id,
+                        unit.Id,
+                        StringComparison.OrdinalIgnoreCase)),
+                    _authorizationProgression.Candidates.Any(id => string.Equals(
+                        id,
+                        unit.Id,
+                        StringComparison.OrdinalIgnoreCase)),
+                    _economy.CanDeploy(unit)))
+                .ToArray();
 
             return new BattleSliceSnapshot(
                 _configuration.Columns,
@@ -849,7 +924,8 @@ namespace CompanyWarRE.Application
                 _authorizationProgression.State,
                 _authorizationProgression.NextRequirement,
                 _authorizationProgression.Candidates.ToArray(),
-                _authorizationProgression.DeployList.ToArray());
+                _authorizationProgression.DeployList.ToArray(),
+                unitOptions);
         }
 
         private void ProcessEnemyDeathsAndOutcome()

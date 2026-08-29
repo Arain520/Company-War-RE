@@ -1,6 +1,8 @@
 using CompanyWarRE.Domain;
 using CompanyWarRE.Presentation;
+using TMPro;
 using UnityEngine;
+using UnityEngine.TextCore.LowLevel;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
@@ -62,6 +64,7 @@ namespace CompanyWar.UI
             _menuPanel = InstantiatePanel(menuPanelPrefab, canvasRoot.transform, false);
             _levelSelectPanel = InstantiatePanel(levelSelectPanelPrefab, canvasRoot.transform, true);
             _battlePanel = InstantiatePanel(battlePanelPrefab, canvasRoot.transform, true);
+            CowUiTypography.ApplyTo(canvasRoot);
             _controller.SetRuntimeHudVisible(!hideImmediateModeDebugHud);
             RefreshVisibility();
         }
@@ -153,6 +156,118 @@ namespace CompanyWar.UI
             if (target != null && target.activeSelf != value)
             {
                 target.SetActive(value);
+            }
+        }
+    }
+
+    internal static class CowUiTypography
+    {
+        private const string FontResourcePath = "CowLegacy/_Game/Art/Fonts/Default SDF";
+        private const string FallbackFontResourcePath = "CowLegacy/Fonts/ChineseUIFont";
+        private static TMP_FontAsset _font;
+        private static TMP_FontAsset _fallbackFont;
+
+        public static TMP_FontAsset Font
+        {
+            get
+            {
+                if (_font == null)
+                {
+                    _font = Resources.Load<TMP_FontAsset>(FontResourcePath);
+                    if (_font != null)
+                    {
+                        // Chinese unit names and status text can exceed a single 1024 atlas.
+                        _font.isMultiAtlasTexturesEnabled = true;
+                        var fallback = FallbackFont;
+                        if (fallback != null && !_font.fallbackFontAssetTable.Contains(fallback))
+                        {
+                            _font.fallbackFontAssetTable.Add(fallback);
+                        }
+                    }
+                }
+
+                return _font;
+            }
+        }
+
+        private static TMP_FontAsset FallbackFont
+        {
+            get
+            {
+                if (_fallbackFont != null)
+                {
+                    return _fallbackFont;
+                }
+
+                var source = Resources.Load<Font>(FallbackFontResourcePath);
+                if (source == null)
+                {
+                    return null;
+                }
+
+                _fallbackFont = TMP_FontAsset.CreateFontAsset(
+                    source,
+                    64,
+                    8,
+                    GlyphRenderMode.SDFAA,
+                    1024,
+                    1024,
+                    AtlasPopulationMode.Dynamic,
+                    true);
+                _fallbackFont.name = "CompanyWarRE Chinese UI Fallback";
+                _fallbackFont.isMultiAtlasTexturesEnabled = true;
+                return _fallbackFont;
+            }
+        }
+
+        public static void ApplyTo(GameObject root)
+        {
+            if (root == null || Font == null)
+            {
+                return;
+            }
+
+            foreach (var text in root.GetComponentsInChildren<TMP_Text>(true))
+            {
+                ApplyTo(text);
+            }
+        }
+
+        public static void ApplyTo(TMP_Text text)
+        {
+            if (text == null || Font == null)
+            {
+                return;
+            }
+
+            text.font = Font;
+            text.extraPadding = true;
+            EnsureCharacters(text.text);
+        }
+
+        public static void SetText(TMP_Text text, string value)
+        {
+            if (text == null)
+            {
+                return;
+            }
+
+            ApplyTo(text);
+            EnsureCharacters(value);
+            text.text = value ?? string.Empty;
+        }
+
+        private static void EnsureCharacters(string value)
+        {
+            if (Font == null || string.IsNullOrEmpty(value))
+            {
+                return;
+            }
+
+            Font.TryAddCharacters(value, out var missingCharacters);
+            if (!string.IsNullOrEmpty(missingCharacters) && FallbackFont != null)
+            {
+                FallbackFont.TryAddCharacters(missingCharacters, out _);
             }
         }
     }

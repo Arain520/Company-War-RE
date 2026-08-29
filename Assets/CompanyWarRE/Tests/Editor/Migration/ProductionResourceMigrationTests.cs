@@ -123,7 +123,9 @@ namespace CompanyWarRE.Migration.Tests
 
                 var tryResolve = catalogType.GetMethod("TryResolve", BindingFlags.Instance | BindingFlags.Public);
                 Assert.That(tryResolve, Is.Not.Null);
-                foreach (var templateId in new[] { "U01", "U02", "U24", "E01", "E06", "E07", "E15" })
+                var templateIds = Enumerable.Range(1, 36).Select(index => $"U{index:00}")
+                    .Concat(Enumerable.Range(1, 15).Select(index => $"E{index:00}"));
+                foreach (var templateId in templateIds)
                 {
                     var arguments = new object[] { templateId, null };
                     Assert.That((bool)tryResolve.Invoke(catalog, arguments), Is.True, templateId);
@@ -132,7 +134,7 @@ namespace CompanyWarRE.Migration.Tests
                     Assert.That(prefab, Is.Not.Null, templateId);
                 }
 
-                var missingArguments = new object[] { "U36", null };
+                var missingArguments = new object[] { "U37", null };
                 Assert.That((bool)tryResolve.Invoke(catalog, missingArguments), Is.False);
             }
             finally
@@ -228,7 +230,8 @@ namespace CompanyWarRE.Migration.Tests
             var visualMap = File.ReadAllLines(
                 "Migration/Inventory/ProductionResources/CombatVisualResourceMap.csv");
             Assert.That(visualMap.Count(line => line.Contains("\"ImportedBatch05\"")), Is.EqualTo(35));
-            Assert.That(visualMap.Count(line => line.Contains("\"PendingNoCowPrefab\"")), Is.EqualTo(12));
+            Assert.That(visualMap.Count(line => line.Contains("\"ImportedModelBinding\"")), Is.EqualTo(12));
+            Assert.That(visualMap.Any(line => line.Contains("\"PendingNoCowPrefab\"")), Is.False);
 
             var compatibilityScripts = new Dictionary<string, string>
             {
@@ -245,6 +248,70 @@ namespace CompanyWarRE.Migration.Tests
             {
                 Assert.That(AssetDatabase.GUIDToAssetPath(pair.Key), Is.EqualTo(pair.Value));
             }
+        }
+
+        [Test]
+        public void UnitModelBindings_U25ThroughU36PreserveCowGuidsAndHaveRestoreSnapshot()
+        {
+            var expected = new Dictionary<string, string>
+            {
+                ["u25.fbx"] = "71dd222b664f2dd4bad7db06bea49f6f",
+                ["u26.fbx"] = "0aa86820830c6c04aad6058c8461bcb6",
+                ["u27.fbx"] = "d77e9a4600cc9734e98e189c3056d183",
+                ["u28.fbx"] = "247ebbd6584a4ed40b134e8eba1264b2",
+                ["u29.fbx"] = "42db1090b6cdb9f44a4e1ebec7f774ad",
+                ["u30.fbx"] = "5b83fbb5e29fce641964061aa2dfe055",
+                ["u31fbx.fbx"] = "290d574d41075334f8592bc76741b01d",
+                ["u32.fbx"] = "f480bba0361852147914fb6ca5b79ec4",
+                ["u33.fbx"] = "6e32aa0a679432a48bc258313c546d72",
+                ["u34.fbx"] = "ade51b4967bb72644b3910464166f806",
+                ["u35.fbx"] = "4c26b9315913fb846a5d463b3a6efa87",
+                ["u36.fbx"] = "df92ac2564996814da348089a258201f"
+            };
+            const string targetRoot =
+                "Assets/CompanyWarRE/Resources/CowLegacy/_Game/Resources/";
+            foreach (var pair in expected)
+            {
+                var path = targetRoot + pair.Key;
+                Assert.That(AssetDatabase.LoadAssetAtPath<GameObject>(path), Is.Not.Null, path);
+                Assert.That(AssetDatabase.AssetPathToGUID(path), Is.EqualTo(pair.Value), path);
+            }
+
+            const string snapshotRoot =
+                "Migration/Baseline/Cow/20260829-unit-model-bindings";
+            var verification = File.ReadAllText(Path.Combine(snapshotRoot, "restore-verification.txt"));
+            StringAssert.Contains("verification: PASS", verification);
+            StringAssert.Contains("asset-count: 24", verification);
+            StringAssert.Contains("target-hash-match: true", verification);
+            Assert.That(
+                new FileInfo(Path.Combine(snapshotRoot, "cow-unit-models-u25-u36.zip")).Length,
+                Is.GreaterThan(0));
+        }
+
+        [Test]
+        public void CowUi_UsesCompleteChineseFallbackAndRaisedDeploymentBar()
+        {
+            const string fontPath =
+                "Assets/CompanyWarRE/Resources/CowLegacy/Fonts/ChineseUIFont.ttf";
+            Assert.That(AssetDatabase.LoadAssetAtPath<Font>(fontPath), Is.Not.Null);
+            Assert.That(
+                AssetDatabase.AssetPathToGUID(fontPath),
+                Is.EqualTo("eb4b4efc09625be47af580d907e9c787"));
+
+            var bootstrap = File.ReadAllText(
+                "Assets/CompanyWarRE/Compatibility/CowUI/FormalCowUiBootstrap.cs");
+            StringAssert.Contains("CowLegacy/Fonts/ChineseUIFont", bootstrap);
+            StringAssert.Contains("isMultiAtlasTexturesEnabled = true", bootstrap);
+
+            var battlePanel = File.ReadAllText(
+                "Assets/CompanyWarRE/Compatibility/CowUI/BattlePanel.cs");
+            StringAssert.Contains("new Vector2(0f, 84f)", battlePanel);
+
+            const string snapshotRoot =
+                "Migration/Baseline/Cow/20260829-chinese-ui-font";
+            var verification = File.ReadAllText(Path.Combine(snapshotRoot, "restore-verification.txt"));
+            StringAssert.Contains("verification: PASS", verification);
+            StringAssert.Contains("font-family: Noto Sans SC", verification);
         }
 
         private static void AssertPrefabDependencies(

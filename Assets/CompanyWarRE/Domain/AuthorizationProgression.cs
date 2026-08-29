@@ -74,6 +74,61 @@ namespace CompanyWarRE.Domain
         }
     }
 
+    public sealed class WeightedRandomAuthorizationCandidateSelector : IAuthorizationCandidateSelector
+    {
+        private readonly Random _random;
+
+        public WeightedRandomAuthorizationCandidateSelector(int seed = 31)
+        {
+            _random = new Random(seed);
+        }
+
+        public IReadOnlyList<string> Select(
+            IReadOnlyList<AuthorizationItemDefinition> availableItems,
+            int maximumCount)
+        {
+            if (availableItems == null || maximumCount <= 0)
+            {
+                return Array.Empty<string>();
+            }
+
+            var pool = availableItems.Where(item => item != null).ToList();
+            var result = new List<string>();
+            while (pool.Count > 0 && result.Count < maximumCount)
+            {
+                var totalWeight = pool.Sum(item => Math.Max(0, item.Weight));
+                AuthorizationItemDefinition selected;
+                if (totalWeight <= 0)
+                {
+                    selected = pool[0];
+                }
+                else
+                {
+                    var roll = _random.Next(totalWeight);
+                    var accumulated = 0;
+                    selected = pool[0];
+                    foreach (var item in pool)
+                    {
+                        accumulated += Math.Max(0, item.Weight);
+                        if (roll < accumulated)
+                        {
+                            selected = item;
+                            break;
+                        }
+                    }
+                }
+
+                result.Add(selected.Id);
+                pool.RemoveAll(item => string.Equals(
+                    item.Id,
+                    selected.Id,
+                    StringComparison.OrdinalIgnoreCase));
+            }
+
+            return result;
+        }
+    }
+
     public sealed class AuthorizationProgression
     {
         public const int MaximumDeployListSize = 12;
@@ -85,6 +140,11 @@ namespace CompanyWarRE.Domain
         private int _stageIndex;
         private int _currentStageRequestIndex;
         private int _nextRequirement = int.MaxValue;
+        private int _authorizationChoiceCount;
+        private bool _guaranteedUnitAppeared;
+
+        private const int GuaranteedChoiceDeadline = 3;
+        private const string GuaranteedUnitId = "U15";
 
         public int Points { get; private set; }
         public int StageIndex => _stageIndex;
@@ -109,6 +169,8 @@ namespace CompanyWarRE.Domain
             Points = Math.Max(0, initialPoints);
             _deployList.Clear();
             _candidates.Clear();
+            _authorizationChoiceCount = 0;
+            _guaranteedUnitAppeared = false;
 
             foreach (var id in initialDeployments ?? Enumerable.Empty<string>())
             {
@@ -156,6 +218,8 @@ namespace CompanyWarRE.Domain
                     _candidates.Add(id);
                 }
             }
+
+            ApplyEarlyGuaranteedCandidate();
 
             if (_candidates.Count == 0)
             {
@@ -260,6 +324,37 @@ namespace CompanyWarRE.Domain
         private static bool ContainsId(IEnumerable<string> ids, string id)
         {
             return ids.Any(existing => string.Equals(existing, id, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private void ApplyEarlyGuaranteedCandidate()
+        {
+            _authorizationChoiceCount++;
+            if (ContainsId(_candidates, GuaranteedUnitId))
+            {
+                _guaranteedUnitAppeared = true;
+            }
+
+            if (_authorizationChoiceCount != GuaranteedChoiceDeadline ||
+                _guaranteedUnitAppeared ||
+                ContainsId(_deployList, GuaranteedUnitId) ||
+                !_stages.Any(stage => stage.Items.Any(item => string.Equals(
+                    item.Id,
+                    GuaranteedUnitId,
+                    StringComparison.OrdinalIgnoreCase))))
+            {
+                return;
+            }
+
+            if (_candidates.Count == 0)
+            {
+                _candidates.Add(GuaranteedUnitId);
+            }
+            else
+            {
+                _candidates[_candidates.Count - 1] = GuaranteedUnitId;
+            }
+
+            _guaranteedUnitAppeared = true;
         }
 
         private static int GetCandidateCountForStage(int stageIndex)

@@ -1,0 +1,11 @@
+verification: PASS
+source-project: D:\UNITY2\Cow
+source-mode: read-only
+asset-count: 24
+model-count: 12
+archive: cow-unit-models-u25-u36.zip
+archive-bytes: 356688
+archive-sha256: df64c5e06480229a3bdf6915460059807bd5ae70198a5913a0773bc95a693148
+target-hash-match: true
+original-meta-preserved: true
+restore-note: Extract the archive and restore each FBX plus its .meta to Assets/_Game/Resources in a Cow-compatible checkout, or to the recorded target compatibility directory.

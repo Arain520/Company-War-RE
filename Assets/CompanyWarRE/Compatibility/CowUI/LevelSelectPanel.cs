@@ -36,7 +36,7 @@ namespace CompanyWar.UI
                 button.onClick.RemoveAllListeners();
                 button.onClick.AddListener(() => _controller?.StartFormalLevel(levelId));
                 var label = button.GetComponentInChildren<TMP_Text>(true);
-                if (label != null) label.text = levelId;
+                CowUiTypography.SetText(label, levelId);
             }
 
             if (BackButton != null)
@@ -71,7 +71,7 @@ namespace CompanyWar.UI
             var label = button != null ? button.GetComponentInChildren<TMP_Text>(true) : null;
             if (label != null)
             {
-                label.text = value;
+                CowUiTypography.SetText(label, value);
             }
         }
     }
