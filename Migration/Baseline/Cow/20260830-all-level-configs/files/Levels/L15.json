@@ -1,0 +1,63 @@
+{
+    "Id":  "L15",
+    "Columns":  8,
+    "Rows":  15,
+      "RequiredAssaultScore": 17,
+"Stages":  [
+                   "DLC1Stage1",
+                   "DLC1Stage2",
+                   "DLC1Stage4",
+                   "DLC1Stage5",
+                   "DLC1Stage6",
+                   "DLC1Stage7"
+               ],
+    "EnemyBuildings":  [
+                           {
+                               "Type":  "E12",
+                               "Col":  1,
+                               "Row":  14
+                           },
+                           {
+                               "Type":  "E12",
+                               "Col":  3,
+                               "Row":  12
+                           },
+                           {
+                               "Type":  "E12",
+                               "Col":  5,
+                               "Row":  15
+                           },
+                           {
+                               "Type":  "E12",
+                               "Col":  7,
+                               "Row":  11
+                           },
+                           {
+                               "Type":  "E13",
+                               "Col":  2,
+                               "Row":  10
+                           },
+                           {
+                               "Type":  "E13",
+                               "Col":  6,
+                               "Row":  13
+                           },
+                           {
+                               "Type":  "E14",
+                               "Col":  4,
+                               "Row":  9
+                           },
+                           {
+                               "Type":  "E14",
+                               "Col":  8,
+                               "Row":  12
+                           }
+                       ],
+    "LiquidationScore":  17,
+    "MedalScore":  20,
+    "PlannedEnemyBuildingTypes":  [
+
+                                  ],
+    "MissingBuildingCoordinates":  false,
+    "TodoNote":  ""
+}

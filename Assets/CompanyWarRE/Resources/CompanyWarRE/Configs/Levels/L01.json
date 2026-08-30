@@ -1,0 +1,19 @@
+{
+  "Id": "L01",
+  "Columns": 6,
+  "Rows": 10,
+    "RequiredAssaultScore": 8,
+"Stages": [
+    "Stage1",
+    "Stage2",
+    "Finale"
+  ],
+  "EnemyBuildings": [
+    { "Type": "E06", "Col": 1, "Row": 10 },
+    { "Type": "E06", "Col": 2, "Row": 10 },
+    { "Type": "E06", "Col": 5, "Row": 10 },
+    { "Type": "E06", "Col": 6, "Row": 10 },
+    { "Type": "E07", "Col": 3, "Row": 10 },
+    { "Type": "E07", "Col": 4, "Row": 8 }
+  ]
+}

@@ -541,5 +541,90 @@ namespace CompanyWarRE.Migration.Tests
             Assert.That(minimumPitch, Is.EqualTo(25f));
             Assert.That(maximumPitch, Is.EqualTo(75f));
         }
+
+        [Test]
+        public void CompleteCowLevelCatalogAndRecoverableSnapshot_ArePresent()
+        {
+            var levelIds = Enumerable.Range(0, 21)
+                .Select(index => $"L{index:00}")
+                .Concat(new[] { "L_ENDLESS" })
+                .ToArray();
+            foreach (var levelId in levelIds)
+            {
+                var path =
+                    "Assets/CompanyWarRE/Resources/CompanyWarRE/Configs/Levels/" +
+                    levelId + ".json";
+                Assert.That(AssetDatabase.LoadAssetAtPath<TextAsset>(path), Is.Not.Null, levelId);
+                Assert.That(AssetDatabase.AssetPathToGUID(path), Is.Not.Empty, levelId);
+            }
+
+            const string snapshotRoot =
+                "Migration/Baseline/Cow/20260830-all-level-configs";
+            Assert.That(File.Exists(snapshotRoot + "/cow-level-configs.zip"), Is.True);
+            Assert.That(new FileInfo(snapshotRoot + "/cow-level-configs.zip").Length, Is.GreaterThan(0));
+            var verification = File.ReadAllText(snapshotRoot + "/restore-verification.txt");
+            StringAssert.Contains("FileCount: 50", verification);
+            StringAssert.Contains("ArchiveRestoreVerified: true", verification);
+            StringAssert.Contains("verification: PASS", verification);
+
+            var controllerType = Type.GetType(
+                "CompanyWarRE.Presentation.BattleSliceController, CompanyWarRE.Presentation",
+                true);
+            var available = ((System.Collections.IEnumerable)controllerType
+                    .GetProperty("AvailableFormalLevelIds", BindingFlags.Public | BindingFlags.Static)
+                    ?.GetValue(null))
+                .Cast<object>()
+                .Select(value => value.ToString())
+                .ToArray();
+            Assert.That(available, Is.EqualTo(levelIds));
+        }
+
+        [Test]
+        public void FormalBattleBoard_IsAReusablePrefabWithoutMissingScripts()
+        {
+            const string prefabPath =
+                "Assets/CompanyWarRE/Resources/CompanyWarRE/Battle/PF_FormalBattleBoard.prefab";
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+            Assert.That(prefab, Is.Not.Null);
+            Assert.That(
+                prefab.GetComponentsInChildren<Component>(true).Any(component => component == null),
+                Is.False);
+            Assert.That(
+                prefab.GetComponents<MonoBehaviour>()
+                    .Any(component => component != null &&
+                                      component.GetType().FullName ==
+                                      "CompanyWarRE.Presentation.FormalBattleBoardView"),
+                Is.True);
+
+            var instance = PrefabUtility.InstantiatePrefab(prefab) as GameObject;
+            try
+            {
+                var board = instance.GetComponents<MonoBehaviour>()
+                    .Single(component => component != null &&
+                                         component.GetType().FullName ==
+                                         "CompanyWarRE.Presentation.FormalBattleBoardView");
+                board.GetType().GetMethod("Prepare", BindingFlags.Public | BindingFlags.Instance)
+                    ?.Invoke(board, new object[] { 24, 45 });
+                Assert.That(instance.name, Is.EqualTo("FormalBattleBoard_24x45"));
+                Assert.That(instance.transform.Find("RuntimeGrid"), Is.Not.Null);
+                Assert.That(instance.transform.Find("RuntimeCombatants"), Is.Not.Null);
+                Assert.That(instance.transform.Find("RuntimeFeedback"), Is.Not.Null);
+                Assert.That(
+                    (float)board.GetType().GetProperty("CellVisualFill")?.GetValue(board),
+                    Is.EqualTo(0.92f).Within(0.0001f),
+                    "Cow generates the board procedurally with a 0.92 visual fill ratio.");
+                Assert.That(
+                    (float)board.GetType().GetProperty("CellHeight")?.GetValue(board),
+                    Is.EqualTo(0.1f).Within(0.0001f),
+                    "Cow's 0.04 height is normalized from its 0.4 small-cell spacing to target spacing 1.0.");
+                Assert.That(
+                    (float)board.GetType().GetProperty("SurfaceOffsetY")?.GetValue(board),
+                    Is.EqualTo(-0.02f).Within(0.0001f));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(instance);
+            }
+        }
     }
 }

@@ -1,0 +1,81 @@
+{
+    "Id":  "L11",
+    "Columns":  8,
+    "Rows":  12,
+      "RequiredAssaultScore": 16,
+"Stages":  [
+                   "DLC1Stage1",
+                   "DLC1Stage2",
+                   "DLC1Stage3",
+                   "DLC1Stage5"
+               ],
+    "EnemyBuildings":  [
+                           {
+                               "Type":  "E06",
+                               "Col":  1,
+                               "Row":  9
+                           },
+                           {
+                               "Type":  "E06",
+                               "Col":  2,
+                               "Row":  8
+                           },
+                           {
+                               "Type":  "E06",
+                               "Col":  4,
+                               "Row":  9
+                           },
+                           {
+                               "Type":  "E06",
+                               "Col":  6,
+                               "Row":  10
+                           },
+                           {
+                               "Type":  "E07",
+                               "Col":  2,
+                               "Row":  10
+                           },
+                           {
+                               "Type":  "E07",
+                               "Col":  3,
+                               "Row":  7
+                           },
+                           {
+                               "Type":  "E07",
+                               "Col":  7,
+                               "Row":  7
+                           },
+                           {
+                               "Type":  "E07",
+                               "Col":  7,
+                               "Row":  8
+                           },
+                           {
+                               "Type":  "E12",
+                               "Col":  1,
+                               "Row":  7
+                           },
+                           {
+                               "Type":  "E12",
+                               "Col":  3,
+                               "Row":  10
+                           },
+                           {
+                               "Type":  "E12",
+                               "Col":  5,
+                               "Row":  9
+                           },
+                           {
+                               "Type":  "E12",
+                               "Col":  8,
+                               "Row":  8
+                           }
+                       ],
+    "LiquidationScore":  16,
+    "MedalScore":  20,
+    "PlannedEnemyBuildingTypes":  [
+
+                                  ],
+    "MissingBuildingCoordinates":  false,
+    "TodoNote":  ""
+}

@@ -25,6 +25,8 @@ namespace CompanyWarRE.Infrastructure.Levels
         public int Columns;
         [DataMember(Name = "Rows")]
         public int Rows;
+        [DataMember(Name = "RequiredAssaultScore")]
+        public int CowRequiredAssaultScore;
         [DataMember(Name = "InitialControlledRows")]
         public int InitialControlledRows;
         [DataMember(Name = "InitialResources")]
@@ -203,6 +205,7 @@ namespace CompanyWarRE.Infrastructure.Levels
     {
         public const int SupportedSchemaVersion = 1;
         public const string DestroyEnemyBuildingsObjective = "DestroyEnemyBuildings";
+        public const string EndlessSurvivalObjective = "EndlessSurvival";
 
         private readonly IConfigurationTextSource _source;
 
@@ -249,6 +252,7 @@ namespace CompanyWarRE.Infrastructure.Levels
                 return new FormalLevelLoadResult(null, null, issues);
             }
 
+            NormalizeCowLevelDocument(document);
             ValidateDocument(document, levelKey, issues);
             var metadata = issues.Count == 0 ? new FormalLevelRuntimeMetadata(document) : null;
             if (issues.Count > 0)
@@ -264,7 +268,7 @@ namespace CompanyWarRE.Infrastructure.Levels
             {
                 [unitsKey] = unitsJson,
                 [enemiesKey] = enemiesJson,
-                [schedulesKey] = schedulesJson,
+                [schedulesKey] = ExpandCowDlcStageAliases(schedulesJson, schedulesKey, issues),
                 [settingsKey] = Serialize(settings),
                 [legacyLevelKey] = Serialize(legacyLevel)
             };
@@ -279,6 +283,102 @@ namespace CompanyWarRE.Infrastructure.Levels
             return issues.Count == 0
                 ? new FormalLevelLoadResult(metadata, legacy.Configuration, issues)
                 : new FormalLevelLoadResult(metadata, null, issues);
+        }
+
+        private static void NormalizeCowLevelDocument(FormalLevelDocumentDto document)
+        {
+            if (document == null || document.SchemaVersion != 0 ||
+                !string.IsNullOrWhiteSpace(document.CoordinateSpace))
+            {
+                return;
+            }
+
+            var isEndless = string.Equals(document.Id, "L_ENDLESS", StringComparison.OrdinalIgnoreCase);
+            document.SchemaVersion = SupportedSchemaVersion;
+            document.CoordinateSpace = FormalLevelCoordinateConverter.MacroCoordinateSpace;
+            document.InitialControlledRows = 2;
+            document.InitialResources = 10;
+            document.FixedProductionIntervalSeconds = 5f;
+            document.TransmitterProductionIntervalSeconds = 3f;
+            document.TestUnitId = "U01";
+            document.TestEnemyId = "E01";
+            document.EnemyWaveRandomSeed = CowLevelSeed(document.Id);
+            document.Objective = new FormalLevelObjectiveDto
+            {
+                Mode = isEndless ? EndlessSurvivalObjective : DestroyEnemyBuildingsObjective,
+                RequiredAssaultScore = document.CowRequiredAssaultScore,
+                VictoryByEnemyBuildings = !isEndless
+            };
+            document.Environment = new FormalLevelEnvironmentDto
+            {
+                EnvironmentId = "Cow.DefaultIndustrial",
+                DecorRing = 5,
+                SkylineDensity = 0.65f,
+                Seed = 1001,
+                SceneProps = new List<FormalLevelScenePropDto>()
+            };
+            document.EnemyBuildings = document.EnemyBuildings ?? new List<LegacyBuildingPlacementDto>();
+        }
+
+        private static int CowLevelSeed(string levelId)
+        {
+            if (!string.IsNullOrWhiteSpace(levelId) && levelId.Length == 3 &&
+                int.TryParse(levelId.Substring(1), out var number))
+            {
+                return 17 + number;
+            }
+
+            return 37;
+        }
+
+        private static string ExpandCowDlcStageAliases(
+            string schedulesJson,
+            string path,
+            ICollection<ConfigurationIssue> issues)
+        {
+            var schedules = Deserialize<LegacySpawnSchedulesDto>(schedulesJson, path, issues);
+            if (schedules?.Stages == null)
+            {
+                return schedulesJson;
+            }
+
+            var stagesByName = schedules.Stages
+                .Where(stage => stage != null && !string.IsNullOrWhiteSpace(stage.Name))
+                .GroupBy(stage => stage.Name, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+            var aliases = new[]
+            {
+                (Alias: "DLC1Stage1", Source: "Stage1"),
+                (Alias: "DLC1Stage2", Source: "Stage2"),
+                (Alias: "DLC1Stage3", Source: "Stage3"),
+                (Alias: "DLC1Stage4", Source: "Stage4"),
+                (Alias: "DLC1Stage5", Source: "Finale"),
+                (Alias: "DLC1Stage6", Source: "Stage4"),
+                (Alias: "DLC1Stage7", Source: "Finale")
+            };
+            foreach (var alias in aliases)
+            {
+                if (stagesByName.ContainsKey(alias.Alias) ||
+                    !stagesByName.TryGetValue(alias.Source, out var source))
+                {
+                    continue;
+                }
+
+                schedules.Stages.Add(new LegacySpawnStageDto
+                {
+                    Name = alias.Alias,
+                    Period = source.Period,
+                    Rate = source.Rate,
+                    PerWave = source.PerWave,
+                    Types = source.Types?.Select(type => new LegacySpawnTypeWeightDto
+                    {
+                        Id = type.Id,
+                        Weight = type.Weight
+                    }).ToList()
+                });
+            }
+
+            return Serialize(schedules);
         }
 
         public FormalLevelBatchValidationReport ValidateBatch(
@@ -393,10 +493,15 @@ namespace CompanyWarRE.Infrastructure.Levels
             }
             else
             {
-                if (!string.Equals(
-                        document.Objective.Mode,
-                        DestroyEnemyBuildingsObjective,
-                        StringComparison.Ordinal))
+                var isBuildingObjective = string.Equals(
+                    document.Objective.Mode,
+                    DestroyEnemyBuildingsObjective,
+                    StringComparison.Ordinal);
+                var isEndlessObjective = string.Equals(
+                    document.Objective.Mode,
+                    EndlessSurvivalObjective,
+                    StringComparison.Ordinal);
+                if (!isBuildingObjective && !isEndlessObjective)
                 {
                     issues.Add(new ConfigurationIssue(
                         "CFG_ENUM",
@@ -404,7 +509,9 @@ namespace CompanyWarRE.Infrastructure.Levels
                         "Unsupported objective mode: " + document.Objective.Mode + "."));
                 }
 
-                if (!document.Objective.VictoryByEnemyBuildings || document.Objective.RequiredAssaultScore < 0)
+                if (document.Objective.RequiredAssaultScore < 0 ||
+                    (isBuildingObjective && !document.Objective.VictoryByEnemyBuildings) ||
+                    (isEndlessObjective && document.Objective.VictoryByEnemyBuildings))
                 {
                     issues.Add(new ConfigurationIssue(
                         "CFG_RANGE",
@@ -413,7 +520,11 @@ namespace CompanyWarRE.Infrastructure.Levels
                 }
             }
 
-            if (document.EnemyBuildings == null || document.EnemyBuildings.Count == 0)
+            if (string.Equals(
+                    document.Objective?.Mode,
+                    DestroyEnemyBuildingsObjective,
+                    StringComparison.Ordinal) &&
+                (document.EnemyBuildings == null || document.EnemyBuildings.Count == 0))
             {
                 issues.Add(new ConfigurationIssue(
                     "CFG_REQUIRED",

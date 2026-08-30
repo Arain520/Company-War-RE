@@ -1,0 +1,7 @@
+Cow source remained read-only.
+Files: 
+4
+ArchiveBytes: 
+11987
+RestoreVerification: 
+PASS

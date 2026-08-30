@@ -1,3 +1,4 @@
+using System.Linq;
 using CompanyWarRE.Presentation;
 using TMPro;
 using UnityEngine;
@@ -11,16 +12,19 @@ namespace CompanyWar.UI
         public Button BackButton;
         public string[] LevelIds = { "L00", "L01", "L02", "L03", "L04", "L05" };
 
-        private static readonly string[] FormalLevelIds = { "L02", "L03", "L04", "L05" };
+        private static readonly string[] FormalLevelIds =
+            BattleSliceController.AvailableFormalLevelIds.ToArray();
         private BattleSliceController _controller;
 
         private void Awake()
         {
             _controller = FindObjectOfType<BattleSliceController>();
-            if (BackButton == null && LevelButtons != null && LevelButtons.Length > FormalLevelIds.Length)
+            if (BackButton == null && LevelButtons != null && LevelButtons.Length > 4)
             {
-                BackButton = LevelButtons[FormalLevelIds.Length];
+                BackButton = LevelButtons[4];
             }
+
+            BuildCompleteLevelGrid();
 
             for (var index = 0; index < (LevelButtons?.Length ?? 0); index++)
             {
@@ -44,6 +48,61 @@ namespace CompanyWar.UI
                 BackButton.onClick.RemoveAllListeners();
                 BackButton.onClick.AddListener(() => _controller?.ReturnFormalMainMenu());
                 SetLabel(BackButton, "返回主菜单");
+            }
+        }
+
+        private void BuildCompleteLevelGrid()
+        {
+            var template = LevelButtons?.FirstOrDefault(button => button != null && button != BackButton);
+            if (template == null)
+            {
+                return;
+            }
+
+            foreach (var oldButton in LevelButtons)
+            {
+                if (oldButton != null && oldButton != template && oldButton != BackButton)
+                {
+                    oldButton.gameObject.SetActive(false);
+                }
+            }
+
+            var gridObject = new GameObject(
+                "CompleteLevelGrid",
+                typeof(RectTransform),
+                typeof(GridLayoutGroup));
+            var gridRect = (RectTransform)gridObject.transform;
+            gridRect.SetParent(transform, false);
+            gridRect.anchorMin = gridRect.anchorMax = new Vector2(0.5f, 0.5f);
+            gridRect.pivot = new Vector2(0.5f, 0.5f);
+            gridRect.anchoredPosition = new Vector2(0f, -10f);
+            gridRect.sizeDelta = new Vector2(1120f, 560f);
+            var layout = gridObject.GetComponent<GridLayoutGroup>();
+            layout.cellSize = new Vector2(170f, 58f);
+            layout.spacing = new Vector2(16f, 14f);
+            layout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            layout.constraintCount = 6;
+            layout.childAlignment = TextAnchor.MiddleCenter;
+
+            template.transform.SetParent(gridRect, false);
+            template.gameObject.SetActive(true);
+            var buttons = new Button[FormalLevelIds.Length];
+            buttons[0] = template;
+            for (var index = 1; index < buttons.Length; index++)
+            {
+                buttons[index] = Instantiate(template, gridRect, false);
+                buttons[index].gameObject.name = "LevelButton_" + FormalLevelIds[index];
+            }
+
+            LevelButtons = buttons;
+            LevelIds = FormalLevelIds.ToArray();
+            if (BackButton != null && BackButton.transform is RectTransform backRect)
+            {
+                BackButton.gameObject.SetActive(true);
+                backRect.SetAsLastSibling();
+                backRect.anchorMin = backRect.anchorMax = new Vector2(0.5f, 0f);
+                backRect.pivot = new Vector2(0.5f, 0f);
+                backRect.anchoredPosition = new Vector2(0f, 28f);
             }
         }
 

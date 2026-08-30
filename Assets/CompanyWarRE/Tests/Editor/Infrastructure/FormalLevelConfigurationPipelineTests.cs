@@ -1,6 +1,9 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.Serialization.Json;
+using System.Text;
 using CompanyWarRE.Application;
 using CompanyWarRE.Domain;
 using CompanyWarRE.Infrastructure.Configuration;
@@ -16,6 +19,8 @@ namespace CompanyWarRE.Infrastructure.Tests
         private const string UnitsPath = Root + "LegacyUnits.All.json";
         private const string EnemiesPath = Root + "LegacyEnemies.All.json";
         private const string SchedulesPath = Root + "LegacySpawnSchedules.json";
+        private const string CowLevelRoot =
+            "Assets/CompanyWarRE/Resources/CompanyWarRE/Configs/Levels/";
 
         [TestCase("L02", 6, 10, 18, 30, 8, 4, 11, 2, 23, 17, 29)]
         [TestCase("L03", 8, 12, 24, 36, 10, 4, 14, 2, 29, 23, 29)]
@@ -139,6 +144,50 @@ namespace CompanyWarRE.Infrastructure.Tests
         }
 
         [Test]
+        public void CompleteCowCampaign_L00ThroughL20AndEndlessLoadsWithoutDataLoss()
+        {
+            var levelIds = Enumerable.Range(0, 21)
+                .Select(index => $"L{index:00}")
+                .Concat(new[] { "L_ENDLESS" })
+                .ToArray();
+            var documents = CommonDocuments();
+            foreach (var levelId in levelIds)
+            {
+                var path = CowLevelRoot + levelId + ".json";
+                documents[levelId] = File.ReadAllText(path);
+            }
+
+            var pipeline = new FormalLevelConfigurationPipeline(
+                new DictionaryConfigurationTextSource(documents));
+            var report = pipeline.ValidateBatch("units", "enemies", "schedules", levelIds);
+
+            Assert.That(report.Succeeded, Is.True, JoinIssues(
+                report.Issues.Concat(report.Entries.SelectMany(entry => entry.Issues))));
+            Assert.That(report.Entries.Count, Is.EqualTo(22));
+            Assert.That(report.Entries.Select(entry => entry.LevelId), Is.EqualTo(levelIds));
+
+            foreach (var levelId in levelIds)
+            {
+                var source = DeserializeCowLevel(documents[levelId]);
+                var result = pipeline.Load("units", "enemies", "schedules", levelId);
+                Assert.That(result.Succeeded, Is.True, levelId + "\n" + JoinIssues(result.Issues));
+                Assert.That(result.Level.SourceColumns, Is.EqualTo(source.Columns), levelId);
+                Assert.That(result.Level.SourceRows, Is.EqualTo(source.Rows), levelId);
+                Assert.That(result.Configuration.Columns, Is.EqualTo(source.Columns * 3), levelId);
+                Assert.That(result.Configuration.Rows, Is.EqualTo(source.Rows * 3), levelId);
+                Assert.That(result.Configuration.EnemyBuildings.Count,
+                    Is.EqualTo(source.EnemyBuildings?.Count ?? 0), levelId);
+                Assert.That(result.Configuration.EnemyWaveStages.Count,
+                    Is.EqualTo(source.Stages?.Count ?? 0), levelId);
+                Assert.That(result.Configuration.RequiredAssaultScore,
+                    Is.EqualTo(source.RequiredAssaultScore), levelId);
+                Assert.That(result.Configuration.VictoryByEnemyBuildings,
+                    Is.EqualTo(!string.Equals(levelId, "L_ENDLESS", StringComparison.OrdinalIgnoreCase)),
+                    levelId);
+            }
+        }
+
+        [Test]
         public void FormalValidator_ReportsVersionCoordinateAndEnvironmentPaths()
         {
             var invalid = File.ReadAllText(Root + "FormalLevel.L02.json")
@@ -207,6 +256,15 @@ namespace CompanyWarRE.Infrastructure.Tests
         private static string JoinIssues(IEnumerable<ConfigurationIssue> issues)
         {
             return string.Join("\n", issues.Select(issue => issue.ToString()));
+        }
+
+        private static LegacyLevelDto DeserializeCowLevel(string json)
+        {
+            var serializer = new DataContractJsonSerializer(typeof(LegacyLevelDto));
+            using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(json)))
+            {
+                return (LegacyLevelDto)serializer.ReadObject(stream);
+            }
         }
     }
 }

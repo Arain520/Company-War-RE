@@ -1,0 +1,65 @@
+{
+    "Id":  "L08",
+    "Columns":  6,
+    "Rows":  10,
+      "RequiredAssaultScore": 9,
+"Stages":  [
+                   "DLC1Stage1",
+                   "DLC1Stage2",
+                   "DLC1Stage3"
+               ],
+    "EnemyBuildings":  [
+                           {
+                               "Type":  "E06",
+                               "Col":  1,
+                               "Row":  10
+                           },
+                           {
+                               "Type":  "E06",
+                               "Col":  3,
+                               "Row":  10
+                           },
+                           {
+                               "Type":  "E06",
+                               "Col":  5,
+                               "Row":  8
+                           },
+                           {
+                               "Type":  "E06",
+                               "Col":  5,
+                               "Row":  10
+                           },
+                           {
+                               "Type":  "E06",
+                               "Col":  6,
+                               "Row":  8
+                           },
+                           {
+                               "Type":  "E06",
+                               "Col":  6,
+                               "Row":  9
+                           },
+                           {
+                               "Type":  "E07",
+                               "Col":  2,
+                               "Row":  9
+                           },
+                           {
+                               "Type":  "E07",
+                               "Col":  4,
+                               "Row":  7
+                           },
+                           {
+                               "Type":  "E07",
+                               "Col":  4,
+                               "Row":  8
+                           }
+                       ],
+    "LiquidationScore":  9,
+    "MedalScore":  12,
+    "PlannedEnemyBuildingTypes":  [
+
+                                  ],
+    "MissingBuildingCoordinates":  false,
+    "TodoNote":  ""
+}

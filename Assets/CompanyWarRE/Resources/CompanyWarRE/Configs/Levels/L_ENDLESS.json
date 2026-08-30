@@ -1,0 +1,30 @@
+﻿{
+  "Id": "L_ENDLESS",
+  "Columns": 8,
+  "Rows": 10,
+  "RequiredAssaultScore": 0,
+  "Stages": [
+    "DLC1Stage1",
+    "DLC1Stage2",
+    "DLC1Stage3",
+    "DLC1Stage4",
+    "DLC1Stage5",
+    "DLC1Stage6",
+    "DLC1Stage7"
+  ],
+  "EnemyBuildings": [],
+  "LiquidationScore": 0,
+  "MedalScore": 0,
+  "Title": "人类边境 · 无尽模式",
+  "ShortTitle": "人类边境",
+  "ShortDescription": "敌方阶段会循环强化，每获得 8 点攻坚积分可触发一次 DLC2 授权选择。",
+  "ChapterName": "DLC2 人类边境",
+  "PhaseLabel": "高危 / 无尽挑战",
+  "RiskTags": ["DLC2", "高危", "无尽挑战"],
+  "EnemyAssetTags": ["幕墙循环", "空壳建筑", "异常增援"],
+  "IsHighRisk": true,
+  "RecommendedPower": 30000,
+  "Rewards": [
+    { "Label": "DLC2授权", "Value": "每8攻坚积分" }
+  ]
+}

@@ -12,15 +12,14 @@ namespace CompanyWarRE.EditorTools
     public static class FormalLevelBatchValidationTool
     {
         private const string Root = "Assets/CompanyWarRE/ConfigSamples/Compatibility/";
-        private static readonly string[] LevelPaths =
-        {
-            Root + "FormalLevel.L02.json",
-            Root + "FormalLevel.L03.json",
-            Root + "FormalLevel.L04.json",
-            Root + "FormalLevel.L05.json"
-        };
+        private const string LevelRoot =
+            "Assets/CompanyWarRE/Resources/CompanyWarRE/Configs/Levels/";
+        private static readonly string[] LevelPaths = Enumerable.Range(0, 21)
+            .Select(index => LevelRoot + $"L{index:00}.json")
+            .Concat(new[] { LevelRoot + "L_ENDLESS.json" })
+            .ToArray();
 
-        [MenuItem("Company War-RE/Migration/Validate Formal Levels L02-L05")]
+        [MenuItem("Company War-RE/Migration/Validate All Cow Formal Levels")]
         public static void ValidateFromMenu()
         {
             var report = ValidateAndWriteReport();

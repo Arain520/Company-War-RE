@@ -76,8 +76,9 @@ namespace CompanyWarRE.Application.Tests
             Assert.That(battleResult.Succeeded, Is.True);
             Assert.That(settingsResult.Succeeded, Is.True);
             Assert.That(session.Current.Campaign.FindLevel("L02").Stars, Is.EqualTo(3));
-            Assert.That(session.Current.Growth.AuthorizationPoints, Is.EqualTo(4));
-            Assert.That(session.Current.Growth.DeploymentUnitIds, Is.EqualTo(new[] { "U01", "U17" }));
+            Assert.That(session.Current.Growth.AuthorizationPoints, Is.Zero);
+            Assert.That(session.Current.Growth.DeploymentUnitIds, Is.Empty,
+                "Authorization applications are battle-local and must not enter the save.");
             Assert.That(session.Current.Economy.Resources, Is.EqualTo(23));
             Assert.That(session.Current.Economy.Score, Is.EqualTo(9));
             Assert.That(session.Current.Settings.FindAudioLayer("BGM").Volume, Is.EqualTo(0.35d));
@@ -86,7 +87,7 @@ namespace CompanyWarRE.Application.Tests
         }
 
         [Test]
-        public void LoadedGrowth_IsMergedWithLevelDefaultsWithoutRemovingRequiredDeployment()
+        public void LoadedGrowth_IsRemovedAndLevelDefaultsAreReloadedForEveryLevel()
         {
             var saved = new SaveGame(
                 CreateSave("L02", false).Campaign,
@@ -97,6 +98,7 @@ namespace CompanyWarRE.Application.Tests
             var codec = new MemoryCodec { DecodeResult = SaveOperationResult<SaveGame>.Success(saved) };
             var session = CreateSession(store, codec, new MissingLegacySource());
             session.Start(CreateFlow());
+            Assert.That(store.WriteCount, Is.EqualTo(1), "Stale transient growth is sanitized with an atomic backup.");
             var u01 = new UnitDefinition("U01", 1, 0d);
             var u17 = new UnitDefinition("U17", 1, 0d);
             var ally01 = new CombatantDefinition("U01", "Staff", 1, 1d, 1d, 1d, 1);
@@ -122,8 +124,10 @@ namespace CompanyWarRE.Application.Tests
 
             var applied = session.ApplyGrowth(configuration);
 
-            Assert.That(applied.InitialAuthorizationPoints, Is.EqualTo(4));
-            Assert.That(applied.InitialDeployments, Is.EqualTo(new[] { "U01", "U17" }));
+            Assert.That(session.Current.Growth.AuthorizationPoints, Is.Zero);
+            Assert.That(session.Current.Growth.DeploymentUnitIds, Is.Empty);
+            Assert.That(applied.InitialAuthorizationPoints, Is.EqualTo(1));
+            Assert.That(applied.InitialDeployments, Is.EqualTo(new[] { "U01" }));
             Assert.That(applied.InitialResources, Is.EqualTo(10), "Level resources are not mid-battle resume data.");
         }
 

@@ -447,6 +447,12 @@ namespace CompanyWarRE.Domain.Tests
                 simulation.Events.Count(item =>
                     item.Type == CombatEventType.Attack && item.TargetActorId == "target"),
                 Is.EqualTo(2));
+            Assert.That(
+                simulation.Events.Count(item =>
+                    item.Type == CombatEventType.Heal &&
+                    item.ActorId == "e14" &&
+                    item.TargetActorId == "e14"),
+                Is.EqualTo(2));
         }
 
         [Test]
@@ -712,6 +718,13 @@ namespace CompanyWarRE.Domain.Tests
             Assert.That(
                 simulation.CreateSnapshot().Single(actor => actor.ActorId == "target").HitPoints,
                 Is.EqualTo(6d));
+            Assert.That(
+                simulation.Events.Any(item =>
+                    item.Type == CombatEventType.Heal &&
+                    item.ActorId == "healer" &&
+                    item.TargetActorId == "target" &&
+                    item.Amount == 1d),
+                Is.True);
         }
 
         [Test]
@@ -734,6 +747,34 @@ namespace CompanyWarRE.Domain.Tests
         }
 
         [Test]
+        public void CombatSnapshot_ExposesPresentationTraitsWithoutUnityDependencies()
+        {
+            var simulation = new CombatSimulation(9, 9);
+            simulation.TryAddActor(
+                "stealth",
+                Team.Ally,
+                new CombatantDefinition("U30", "Building", 3, 1d, 0d, 1d, 3, effect: "Stealth"),
+                2,
+                2d);
+            simulation.TryAddActor(
+                "healer",
+                Team.Ally,
+                new CombatantDefinition("U33", "Building", 8, 0d, 0d, 2d, 3, effect: "HealLowest"),
+                5,
+                2d);
+
+            var snapshot = simulation.CreateSnapshot();
+            var stealth = snapshot.Single(actor => actor.ActorId == "stealth");
+            var healer = snapshot.Single(actor => actor.ActorId == "healer");
+
+            Assert.That(stealth.Effect, Is.EqualTo("Stealth"));
+            Assert.That(stealth.IsStealth, Is.True);
+            Assert.That(stealth.IsBuilding, Is.False);
+            Assert.That(healer.HasHealingAction, Is.True);
+            Assert.That(healer.IsBuilding, Is.True);
+        }
+
+        [Test]
         public void U27ZeroDamageAttack_PushesEnemyThreeBlocksAndAppliesTwoSecondLock()
         {
             var simulation = new CombatSimulation(3, 12);
@@ -748,8 +789,14 @@ namespace CompanyWarRE.Domain.Tests
             Assert.That(pushed.LanePosition, Is.EqualTo(12d));
             Assert.That(pushed.AttackProgress, Is.EqualTo(-2d));
             Assert.That(
-                simulation.Events.Single(item => item.ActorId == "pushback").Amount,
+                simulation.Events.Single(item =>
+                    item.Type == CombatEventType.Attack && item.ActorId == "pushback").Amount,
                 Is.EqualTo(0d));
+            var pushEvent = simulation.Events.Single(item => item.Type == CombatEventType.Pushback);
+            Assert.That(pushEvent.ActorId, Is.EqualTo("pushback"));
+            Assert.That(pushEvent.TargetActorId, Is.EqualTo("enemy"));
+            Assert.That(pushEvent.Amount, Is.EqualTo(3d));
+            Assert.That(pushEvent.Row, Is.EqualTo(12));
 
             simulation.Advance(1d);
             Assert.That(
@@ -782,6 +829,10 @@ namespace CompanyWarRE.Domain.Tests
             Assert.That(snapshot.Single(actor => actor.ActorId == "near-b").Team, Is.EqualTo(Team.Ally));
             Assert.That(snapshot.Single(actor => actor.ActorId == "middle").Team, Is.EqualTo(Team.Ally));
             Assert.That(snapshot.Single(actor => actor.ActorId == "far").Team, Is.EqualTo(Team.Enemy));
+            Assert.That(
+                simulation.Events.Where(item => item.Type == CombatEventType.Conversion)
+                    .Select(item => item.TargetActorId),
+                Is.EquivalentTo(new[] { "near-a", "near-b", "middle" }));
         }
 
         private static CombatSimulation CreateDuel(double allyLane, double enemyLane)

@@ -16,6 +16,10 @@ namespace CompanyWarRE.Presentation
         private static readonly Color CurseColor = new Color(0.72f, 0.16f, 0.92f);
         private static readonly Color HealColor = new Color(0.3f, 1f, 0.45f);
         private static readonly Color ExecutionColor = new Color(1f, 0.15f, 0.75f);
+        private static readonly Color StealthColor = new Color(0.38f, 0.48f, 1f);
+        private static readonly Color ConversionColor = new Color(0.15f, 1f, 0.85f);
+        private static readonly Color PushbackColor = new Color(1f, 0.55f, 0.12f);
+        private static readonly Color HeavyStrikeColor = new Color(1f, 0.82f, 0.15f);
         private static readonly Color DamageColor = new Color(1f, 0.8f, 0.25f);
         private static readonly Color HealthColor = new Color(0.25f, 0.95f, 0.35f);
         private static readonly Color HealthBackgroundColor = new Color(0.08f, 0.08f, 0.08f);
@@ -34,6 +38,10 @@ namespace CompanyWarRE.Presentation
         private MaterialPropertyBlock _importedPropertyBlock;
         private BattleSliceVisualCatalog _visualCatalog;
         private string _resolvedTemplateId;
+        private Quaternion _importedBaseRotation = Quaternion.identity;
+        private Vector3 _importedIntendedAnchor = Vector3.zero;
+        private Team _importedFacingTeam;
+        private bool _hasImportedFacingTeam;
         private float _importedVerticalGroundOffset;
         private float _importedVisualTop;
         private TextMesh _statusLabel;
@@ -135,6 +143,16 @@ namespace CompanyWarRE.Presentation
             }
 
             var hasImportedBody = EnsureImportedBody(snapshot.TemplateId, snapshot.IsBuilding);
+            if (hasImportedBody &&
+                (!_hasImportedFacingTeam || _importedFacingTeam != snapshot.Team))
+            {
+                _importedBody.localRotation = GetTeamFacingRotation(
+                    _importedBaseRotation,
+                    snapshot.Team);
+                AlignImportedBodyToAnchor(snapshot.IsBuilding);
+                _importedFacingTeam = snapshot.Team;
+                _hasImportedFacingTeam = true;
+            }
             var worldPosition = BattleSliceController.GetCombatantWorldPosition(snapshot);
             if (hasImportedBody && !snapshot.IsBuilding)
             {
@@ -179,10 +197,15 @@ namespace CompanyWarRE.Presentation
                 ? HealColor
                 : _damagePulseRemaining > 0f
                     ? (_curseDamage ? CurseColor : DamageColor)
-                    : baseColor;
+                    : snapshot.IsStealth
+                        ? Color.Lerp(
+                            baseColor,
+                            StealthColor,
+                            0.42f + Mathf.Sin(Time.unscaledTime * 2.4f) * 0.12f)
+                        : baseColor;
             _bodyMaterial.color = feedbackColor;
             RenderImportedFeedback(
-                _healPulseRemaining > 0f || _damagePulseRemaining > 0f,
+                snapshot.IsStealth || _healPulseRemaining > 0f || _damagePulseRemaining > 0f,
                 feedbackColor);
 
             RenderAbilityIndicator(snapshot);
@@ -203,6 +226,26 @@ namespace CompanyWarRE.Presentation
             else if (string.Equals(snapshot.TemplateId, "E15", StringComparison.OrdinalIgnoreCase))
             {
                 abilityColor = ExecutionColor;
+            }
+            else if (snapshot.IsStealth)
+            {
+                abilityColor = StealthColor;
+            }
+            else if (snapshot.HasHealingAction)
+            {
+                abilityColor = HealColor;
+            }
+            else if (snapshot.HasConversionAction)
+            {
+                abilityColor = ConversionColor;
+            }
+            else if (snapshot.HasAuthorityPushback)
+            {
+                abilityColor = PushbackColor;
+            }
+            else if (snapshot.HasHeavyStrike)
+            {
+                abilityColor = HeavyStrikeColor;
             }
 
             var hasAbilityIndicator = abilityColor.a > 0f;
@@ -233,6 +276,26 @@ namespace CompanyWarRE.Presentation
             {
                 var executeRemaining = Mathf.Max(0f, 12f - (float)snapshot.AttackProgress);
                 ability = $"  EXEC {executeRemaining:0.0}s";
+            }
+            else if (snapshot.IsStealth)
+            {
+                ability = "  STEALTH";
+            }
+            else if (snapshot.HasHealingAction)
+            {
+                ability = "  HEAL";
+            }
+            else if (snapshot.HasConversionAction)
+            {
+                ability = "  CONVERT";
+            }
+            else if (snapshot.HasAuthorityPushback)
+            {
+                ability = "  PUSH";
+            }
+            else if (snapshot.HasHeavyStrike)
+            {
+                ability = "  HEAVY";
             }
 
             _statusLabel.text =
@@ -299,6 +362,9 @@ namespace CompanyWarRE.Presentation
             }
 
             _importedBody = instance.transform;
+            _importedBaseRotation = resolved.LocalRotation;
+            _importedIntendedAnchor = resolved.LocalPosition;
+            _hasImportedFacingTeam = false;
             _importedRenderers = instance.GetComponentsInChildren<Renderer>(true);
             if (resolved.MaterialOverride != null)
             {
@@ -327,11 +393,16 @@ namespace CompanyWarRE.Presentation
                 return;
             }
 
-            var intendedAnchor = _importedBody.localPosition;
             var scale = CalculateFootprintScale(bounds.size, isBuilding);
             _importedBody.localScale *= scale;
 
-            if (!TryCalculateRendererBounds(_importedRenderers, out bounds))
+            AlignImportedBodyToAnchor(isBuilding);
+        }
+
+        private void AlignImportedBodyToAnchor(bool isBuilding)
+        {
+            if (_importedBody == null || _importedRenderers.Length == 0 ||
+                !TryCalculateRendererBounds(_importedRenderers, out var bounds))
             {
                 return;
             }
@@ -340,9 +411,10 @@ namespace CompanyWarRE.Presentation
                 ? new Vector3(bounds.center.x, bounds.min.y, bounds.center.z)
                 : bounds.center;
             var boundsAnchorInViewSpace = transform.InverseTransformPoint(anchorInWorldSpace);
-            var position = _importedBody.localPosition;
-            position += intendedAnchor - boundsAnchorInViewSpace;
-            _importedBody.localPosition = position;
+            _importedBody.localPosition = CalculateAnchoredPosition(
+                _importedBody.localPosition,
+                _importedIntendedAnchor,
+                boundsAnchorInViewSpace);
 
             if (!TryCalculateRendererBounds(_importedRenderers, out bounds))
             {
@@ -361,6 +433,14 @@ namespace CompanyWarRE.Presentation
             _importedVisualTop = topInViewSpace.y;
         }
 
+        public static Vector3 CalculateAnchoredPosition(
+            Vector3 currentLocalPosition,
+            Vector3 intendedAnchor,
+            Vector3 currentBoundsAnchorInViewSpace)
+        {
+            return currentLocalPosition + intendedAnchor - currentBoundsAnchorInViewSpace;
+        }
+
         public static float CalculateFootprintScale(Vector3 rendererBoundsSize, bool isBuilding)
         {
             var horizontalSize = Mathf.Max(
@@ -373,6 +453,11 @@ namespace CompanyWarRE.Presentation
 
             var targetSize = isBuilding ? BuildingVisualFootprint : MovingUnitVisualFootprint;
             return targetSize / horizontalSize;
+        }
+
+        public static Quaternion GetTeamFacingRotation(Quaternion baseRotation, Team team)
+        {
+            return baseRotation * Quaternion.Euler(0f, team == Team.Enemy ? 180f : 0f, 0f);
         }
 
         private static bool TryCalculateRendererBounds(Renderer[] renderers, out Bounds bounds)

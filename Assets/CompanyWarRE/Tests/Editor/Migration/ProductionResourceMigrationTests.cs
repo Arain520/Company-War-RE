@@ -183,6 +183,66 @@ namespace CompanyWarRE.Migration.Tests
         }
 
         [Test]
+        public void ImportedVisuals_FaceOppositeDirectionsForAlliesAndEnemies()
+        {
+            var viewType = Type.GetType(
+                "CompanyWarRE.Presentation.BattleSliceCombatantView, CompanyWarRE.Presentation",
+                true);
+            var facing = viewType.GetMethod(
+                "GetTeamFacingRotation",
+                BindingFlags.Public | BindingFlags.Static);
+            Assert.That(facing, Is.Not.Null);
+
+            var baseRotation = Quaternion.Euler(0f, 25f, 0f);
+            var teamType = facing.GetParameters()[1].ParameterType;
+            var allyTeam = Enum.Parse(teamType, "Ally");
+            var enemyTeam = Enum.Parse(teamType, "Enemy");
+            var ally = (Quaternion)facing.Invoke(null, new[] { (object)baseRotation, allyTeam });
+            var enemy = (Quaternion)facing.Invoke(null, new[] { (object)baseRotation, enemyTeam });
+
+            Assert.That(Quaternion.Angle(baseRotation, ally), Is.LessThan(0.01f));
+            Assert.That(Quaternion.Angle(ally, enemy), Is.EqualTo(180f).Within(0.01f));
+        }
+
+        [Test]
+        public void ImportedVisuals_RecenterAfterFacingRotationAroundRemoteFbxPivot()
+        {
+            var viewType = Type.GetType(
+                "CompanyWarRE.Presentation.BattleSliceCombatantView, CompanyWarRE.Presentation",
+                true);
+            var calculate = viewType.GetMethod(
+                "CalculateAnchoredPosition",
+                BindingFlags.Public | BindingFlags.Static);
+            Assert.That(calculate, Is.Not.Null);
+
+            var corrected = (Vector3)calculate.Invoke(
+                null,
+                new object[]
+                {
+                    new Vector3(-8f, 0f, 12f),
+                    Vector3.zero,
+                    new Vector3(11f, 0.5f, -7f)
+                });
+
+            Assert.That(corrected, Is.EqualTo(new Vector3(-19f, -0.5f, 19f)));
+        }
+
+        [Test]
+        public void FormalFeedback_ProvidesCappedAttackTracers()
+        {
+            var feedbackType = Type.GetType(
+                "CompanyWarRE.Presentation.BattleSliceFeedbackLayer, CompanyWarRE.Presentation",
+                true);
+            Assert.That(
+                feedbackType.GetMethod("ShowTracer", BindingFlags.Public | BindingFlags.Instance),
+                Is.Not.Null);
+            Assert.That(
+                feedbackType.GetField("MaxActiveFeedback", BindingFlags.Public | BindingFlags.Static)
+                    ?.GetRawConstantValue(),
+                Is.EqualTo(96));
+        }
+
+        [Test]
         public void Batch01SnapshotAndCompleteCatalogManifest_ArePresentAndVerified()
         {
             const string snapshotRoot =

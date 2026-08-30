@@ -1,0 +1,26 @@
+﻿{
+  "LevelId": "L_ENDLESS",
+  "Columns": 8,
+  "Rows": 10,
+  "InitialControlledRows": 2,
+  "InitialStageSequence": ["DLC1Stage1", "DLC1Stage2", "DLC1Stage3", "DLC1Stage4", "DLC1Stage5", "DLC1Stage6", "DLC1Stage7"],
+  "LoopStageSequence": ["DLC1Stage5", "DLC1Stage6", "DLC1Stage7"],
+  "DeadCurtainRows": [6, 7, 8, 9, 10],
+  "DeadCurtainSpawnEachStage": [
+    { "Id": "E12", "Count": 2, "RandomOne": false },
+    { "RandomOne": true, "RandomPool": ["E13", "E14", "E15"] }
+  ],
+  "ScalingRules": {
+    "EndlessScalingEnabled": true,
+    "TriggerAfterStage7EntryCount": 2,
+    "DefaultEnemyDamageBonusPerStage": 0.5,
+    "ApplyToExistingEnemies": false,
+    "SpecialEnemyDamageBonus": [ { "Id": "E10", "Bonus": 0.1 } ]
+  },
+  "Dlc2RewardRules": {
+    "AssaultScoreInterval": 8,
+    "CandidateCount": 6,
+    "SelectableCount": 1,
+    "UnitPool": ["U25", "U26", "U27", "U28", "U29", "U30", "U31", "U32", "U33", "U34", "U35", "U36"]
+  }
+}

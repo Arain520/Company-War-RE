@@ -43,7 +43,22 @@ namespace CompanyWarRE.Application
             var result = _useCases.LoadOrImport(_savePath, _backupDirectory);
             if (result.Succeeded)
             {
-                return Accept(result);
+                Accept(result);
+                if (!ContainsPerBattleGrowth(result.Value))
+                {
+                    return result;
+                }
+
+                // Cow treats authorization choices as level-local battle state. Older
+                // Company War-RE saves wrote that transient state into Growth; remove it
+                // once, while preserving campaign, economy and settings compatibility.
+                var sanitized = new SaveGame(
+                    result.Value.Campaign,
+                    GrowthSaveProgress.Default,
+                    result.Value.Economy,
+                    result.Value.Settings);
+                var sanitizedResult = _useCases.Save(_savePath, _backupDirectory, sanitized);
+                return sanitizedResult.Succeeded ? Accept(sanitizedResult) : Reject(sanitizedResult);
             }
 
             if (result.Error != SaveOperationError.NotFound &&
@@ -100,7 +115,7 @@ namespace CompanyWarRE.Application
             });
             var value = new SaveGame(
                 Current?.Campaign,
-                Current?.Growth ?? GrowthSaveProgress.Default,
+                GrowthSaveProgress.Default,
                 Current?.Economy ?? EconomySaveProgress.Default,
                 new GameSettingsSave(layers));
             return SaveCaptured(value);
@@ -113,49 +128,9 @@ namespace CompanyWarRE.Application
                 throw new ArgumentNullException(nameof(configuration));
             }
 
-            if (Current?.Growth == null)
-            {
-                return configuration;
-            }
-
-            var deployments = configuration.InitialDeployments
-                .Concat(Current.Growth.DeploymentUnitIds)
-                .Where(id => configuration.Units.ContainsKey(id))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-            var points = Math.Max(configuration.InitialAuthorizationPoints, Current.Growth.AuthorizationPoints);
-            if (points == configuration.InitialAuthorizationPoints &&
-                deployments.SequenceEqual(configuration.InitialDeployments, StringComparer.OrdinalIgnoreCase))
-            {
-                return configuration;
-            }
-
-            return new BattleSliceConfiguration(
-                configuration.Columns,
-                configuration.Rows,
-                configuration.ControlledRows,
-                configuration.InitialResources,
-                configuration.FixedProductionIntervalSeconds,
-                configuration.TransmitterProductionIntervalSeconds,
-                configuration.TransmitterPosition,
-                configuration.TransmitterAmount,
-                configuration.TestUnit,
-                configuration.AllyCombatant,
-                configuration.EnemyCombatant,
-                configuration.EnemySpawnPosition,
-                configuration.EnemyWaveStages,
-                configuration.EnemyCombatants.Values.ToArray(),
-                configuration.EnemySpawnColumns,
-                configuration.EnemyWaveRandomSeed,
-                configuration.EnemyBuildings,
-                configuration.RequiredAssaultScore,
-                configuration.VictoryByEnemyBuildings,
-                configuration.EnableBattleOutcomes,
-                configuration.Units.Values.ToArray(),
-                configuration.AllyCombatants.Values.ToArray(),
-                configuration.AuthorizationStages,
-                deployments,
-                points);
+            // Kept as an API compatibility seam. Authorization points and deployment
+            // choices must be recreated from the level document for every level start.
+            return configuration;
         }
 
         private SaveGame Capture(
@@ -176,9 +151,7 @@ namespace CompanyWarRE.Application
                 var stars = completed ? Math.Max(1, old?.Stars ?? 0) : old?.Stars ?? 0;
                 return new LevelSaveProgress(levelId, flow.IsUnlocked(levelId), completed, stars);
             });
-            var growth = battle == null
-                ? Current?.Growth ?? GrowthSaveProgress.Default
-                : new GrowthSaveProgress(battle.AuthorizationPoints, battle.DeployList);
+            var growth = GrowthSaveProgress.Default;
             var economy = battle == null
                 ? Current?.Economy ?? EconomySaveProgress.Default
                 : new EconomySaveProgress(battle.Resources, battle.AssaultScore);
@@ -187,6 +160,12 @@ namespace CompanyWarRE.Application
                 growth,
                 economy,
                 settings ?? GameSettingsSave.Default);
+        }
+
+        private static bool ContainsPerBattleGrowth(SaveGame save)
+        {
+            return save?.Growth != null &&
+                   (save.Growth.AuthorizationPoints != 0 || save.Growth.DeploymentUnitIds.Count != 0);
         }
 
         private SaveOperationResult<SaveGame> SaveCaptured(SaveGame value)

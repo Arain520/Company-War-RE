@@ -5,10 +5,16 @@ namespace CompanyWarRE.Presentation
 {
     public sealed class BattleSliceFeedbackLayer : MonoBehaviour
     {
+        public const int MaxActiveFeedback = 96;
+
         private sealed class FeedbackToken
         {
             public GameObject Root;
             public Material RingMaterial;
+            public Transform Tracer;
+            public Vector3 Start;
+            public Vector3 End;
+            public bool IsTracer;
             public float Remaining;
             public float Lifetime;
         }
@@ -17,6 +23,7 @@ namespace CompanyWarRE.Presentation
 
         public void Show(string text, Vector3 localPosition, Color color, float lifetime = 1f)
         {
+            EnsureCapacity();
             var root = new GameObject("Feedback_" + text);
             root.transform.SetParent(transform, false);
             root.transform.localPosition = localPosition;
@@ -56,6 +63,43 @@ namespace CompanyWarRE.Presentation
             });
         }
 
+        public void ShowTracer(
+            Vector3 localStart,
+            Vector3 localEnd,
+            Color color,
+            float lifetime = 0.28f)
+        {
+            EnsureCapacity();
+            var root = new GameObject("Feedback_AttackTracer");
+            root.transform.SetParent(transform, false);
+            root.transform.localPosition = localStart;
+
+            var tracerObject = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            tracerObject.name = "Tracer";
+            tracerObject.transform.SetParent(root.transform, false);
+            tracerObject.transform.localScale = Vector3.one * 0.18f;
+            var collider = tracerObject.GetComponent<Collider>();
+            if (collider != null)
+            {
+                collider.enabled = false;
+            }
+
+            var material = CreateMaterial(color);
+            tracerObject.GetComponent<Renderer>().sharedMaterial = material;
+            var safeLifetime = Mathf.Max(0.08f, lifetime);
+            _tokens.Add(new FeedbackToken
+            {
+                Root = root,
+                RingMaterial = material,
+                Tracer = tracerObject.transform,
+                Start = localStart,
+                End = localEnd,
+                IsTracer = true,
+                Remaining = safeLifetime,
+                Lifetime = safeLifetime
+            });
+        }
+
         public void Clear()
         {
             for (var index = _tokens.Count - 1; index >= 0; index--)
@@ -81,6 +125,20 @@ namespace CompanyWarRE.Presentation
                 }
 
                 var progress = 1f - token.Remaining / token.Lifetime;
+                if (token.IsTracer)
+                {
+                    token.Root.transform.localPosition = Vector3.Lerp(
+                        token.Start,
+                        token.End,
+                        Mathf.SmoothStep(0f, 1f, progress));
+                    if (token.Tracer != null)
+                    {
+                        var pulse = 1f + Mathf.Sin(progress * Mathf.PI) * 0.65f;
+                        token.Tracer.localScale = Vector3.one * (0.18f * pulse);
+                    }
+                    continue;
+                }
+
                 token.Root.transform.localPosition += Vector3.up * Time.unscaledDeltaTime * 0.55f;
                 var scale = 1f + progress * 0.75f;
                 var ring = token.Root.transform.Find("Ring");
@@ -94,6 +152,15 @@ namespace CompanyWarRE.Presentation
                 {
                     label.rotation = Quaternion.LookRotation(label.position - camera.transform.position);
                 }
+            }
+        }
+
+        private void EnsureCapacity()
+        {
+            while (_tokens.Count >= MaxActiveFeedback)
+            {
+                DestroyToken(_tokens[0]);
+                _tokens.RemoveAt(0);
             }
         }
 

@@ -87,6 +87,9 @@ namespace CompanyWarRE.Domain
         Attack,
         MeleeBattlefieldStarted,
         MeleeBattlefieldEnded,
+        Heal,
+        Conversion,
+        Pushback,
         Pollution,
         Death
     }
@@ -140,6 +143,12 @@ namespace CompanyWarRE.Domain
             AttackProgress = actor.AttackProgress;
             IsAlive = actor.IsAlive;
             IsBuilding = actor.Definition.IsBuilding;
+            Effect = actor.Definition.Effect;
+            IsStealth = actor.Definition.IsStealth;
+            HasHealingAction = actor.Definition.HasHealingAction;
+            HasConversionAction = actor.Definition.HasConversionAction;
+            HasAuthorityPushback = actor.Definition.HasAuthorityPushback;
+            HasHeavyStrike = actor.Definition.HasHeavyStrike;
             AssaultScoreReward = actor.Definition.AssaultScoreReward;
             FootprintColumns = actor.Definition.FootprintColumns;
             FootprintRows = actor.Definition.FootprintRows;
@@ -169,6 +178,12 @@ namespace CompanyWarRE.Domain
         public double AttackProgress { get; }
         public bool IsAlive { get; }
         public bool IsBuilding { get; }
+        public string Effect { get; }
+        public bool IsStealth { get; }
+        public bool HasHealingAction { get; }
+        public bool HasConversionAction { get; }
+        public bool HasAuthorityPushback { get; }
+        public bool HasHeavyStrike { get; }
         public int AssaultScoreReward { get; }
         public int FootprintColumns { get; }
         public int FootprintRows { get; }
@@ -844,7 +859,7 @@ namespace CompanyWarRE.Domain
                 });
                 if (actor.Definition.HasAuthorityPushback)
                 {
-                    ApplyAuthorityPushback(target, 3, 2d, false);
+                    ApplyAuthorityPushback(actor, target, 3, 2d, false);
                 }
                 for (var index = 0; index < attackCount; index++)
                 {
@@ -932,6 +947,12 @@ namespace CompanyWarRE.Domain
                 }
 
                 target.HitPoints += 1d;
+                _events.Add(new CombatEvent(
+                    _nextEventSequence++,
+                    CombatEventType.Heal,
+                    healer.ActorId,
+                    target.ActorId,
+                    1d));
             }
         }
 
@@ -961,6 +982,12 @@ namespace CompanyWarRE.Domain
                 foreach (var target in targets)
                 {
                     target.Team = Team.Ally;
+                    _events.Add(new CombatEvent(
+                        _nextEventSequence++,
+                        CombatEventType.Conversion,
+                        converter.ActorId,
+                        target.ActorId,
+                        1d));
                 }
             }
         }
@@ -989,6 +1016,7 @@ namespace CompanyWarRE.Domain
         }
 
         private void ApplyAuthorityPushback(
+            CombatActor source,
             CombatActor target,
             int controlBlocks,
             double lockSeconds,
@@ -1007,9 +1035,18 @@ namespace CompanyWarRE.Domain
                 ? GetControlBlockEndRow(targetBlockRow)
                 : GetControlBlockStartRow(targetBlockRow);
             target.AttackProgress = -Math.Max(0d, lockSeconds);
+            var targetPosition = ToDiscretePosition(target);
+            _events.Add(new CombatEvent(
+                _nextEventSequence++,
+                CombatEventType.Pushback,
+                source?.ActorId,
+                target.ActorId,
+                Math.Max(1, controlBlocks),
+                targetPosition.Column,
+                targetPosition.Row));
         }
 
-        private static void ApplyPendingDamage(CombatActor attacker, CombatActor target, double damage)
+        private void ApplyPendingDamage(CombatActor attacker, CombatActor target, double damage)
         {
             if (attacker == null || target == null || damage <= 0d)
             {
@@ -1028,6 +1065,12 @@ namespace CompanyWarRE.Domain
             if (attacker.Definition.HasKillHeal && targetWasAlive && !target.IsAlive)
             {
                 attacker.HitPoints += 1d;
+                _events.Add(new CombatEvent(
+                    _nextEventSequence++,
+                    CombatEventType.Heal,
+                    attacker.ActorId,
+                    attacker.ActorId,
+                    1d));
             }
         }
 

@@ -57,6 +57,12 @@ namespace CompanyWarRE.Application
             AttackProgress = actor.AttackProgress;
             IsAlive = actor.IsAlive;
             IsBuilding = actor.IsBuilding;
+            Effect = actor.Effect;
+            IsStealth = actor.IsStealth;
+            HasHealingAction = actor.HasHealingAction;
+            HasConversionAction = actor.HasConversionAction;
+            HasAuthorityPushback = actor.HasAuthorityPushback;
+            HasHeavyStrike = actor.HasHeavyStrike;
             FootprintColumns = actor.FootprintColumns;
             FootprintRows = actor.FootprintRows;
             FootprintStartColumn = actor.FootprintStartColumn;
@@ -75,6 +81,12 @@ namespace CompanyWarRE.Application
         public double AttackProgress { get; }
         public bool IsAlive { get; }
         public bool IsBuilding { get; }
+        public string Effect { get; }
+        public bool IsStealth { get; }
+        public bool HasHealingAction { get; }
+        public bool HasConversionAction { get; }
+        public bool HasAuthorityPushback { get; }
+        public bool HasHeavyStrike { get; }
         public int FootprintColumns { get; }
         public int FootprintRows { get; }
         public int FootprintStartColumn { get; }
