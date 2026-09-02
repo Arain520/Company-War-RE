@@ -37,23 +37,37 @@ namespace CompanyWarRE.Presentation
         private float _orbitDistance;
         private bool _isRotating;
         private BattleSliceController _battleSliceController;
+        private Transform _boardSpace;
+        private float _boardScale = 1f;
 
         public void Configure(int columns, int rows)
         {
+            Configure(columns, rows, null);
+        }
+
+        public void Configure(int columns, int rows, Transform boardSpace)
+        {
             _camera = GetComponent<Camera>();
             _battleSliceController = FindObjectOfType<BattleSliceController>();
+            _boardSpace = boardSpace;
+            _boardScale = boardSpace != null
+                ? Mathf.Max(0.0001f, Mathf.Abs(boardSpace.lossyScale.x))
+                : 1f;
             _camera.orthographic = true;
             _camera.nearClipPlane = 0.1f;
             _camera.farClipPlane = 250f;
 
-            var maximumX = BattleSliceController.GetColumnWorldX(columns);
-            var maximumZ = BattleSliceController.GetRowWorldZ(rows);
-            var width = maximumX + 1f;
-            var length = maximumZ + 1f;
-            _minimumFocus = Vector2.zero;
-            _maximumFocus = new Vector2(maximumX, maximumZ);
-            _homeFocus = new Vector3(maximumX * 0.5f, 0f, maximumZ * 0.5f);
-            _homeSize = CalculateOrthographicSize(width, length, Mathf.Max(0.5f, _camera.aspect));
+            var safeColumns = Mathf.Max(1, columns);
+            var safeRows = Mathf.Max(1, rows);
+            var halfX = (safeColumns - 1f) * 0.5f;
+            var halfZ = (safeRows - 1f) * 0.5f;
+            _minimumFocus = new Vector2(-halfX, -halfZ);
+            _maximumFocus = new Vector2(halfX, halfZ);
+            _homeFocus = Vector3.zero;
+            _homeSize = CalculateOrthographicSize(
+                safeColumns * _boardScale,
+                safeRows * _boardScale,
+                Mathf.Max(0.5f, _camera.aspect));
             _orbitDistance = Mathf.Max(12f, _homeSize * 1.75f);
             Refit();
         }
@@ -248,9 +262,8 @@ namespace CompanyWarRE.Presentation
                 return;
             }
 
-            var planarForward = Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized;
-            var planarRight = Vector3.ProjectOnPlane(transform.right, Vector3.up).normalized;
-            var movement = planarRight * horizontal + planarForward * vertical;
+            var movement = Quaternion.Euler(0f, _currentYaw, 0f) *
+                           new Vector3(horizontal, 0f, vertical);
             if (movement.sqrMagnitude > 1f)
             {
                 movement.Normalize();
@@ -262,16 +275,21 @@ namespace CompanyWarRE.Presentation
                 speed *= fastMoveMultiplier;
             }
 
-            _targetFocus += movement * (speed * Time.unscaledDeltaTime);
+            _targetFocus += movement * (speed / _boardScale * Time.unscaledDeltaTime);
             _targetFocus.y = 0f;
         }
 
-        private static bool TryGetBattlePlaneHit(Ray ray, out Vector3 hitPoint)
+        private bool TryGetBattlePlaneHit(Ray ray, out Vector3 hitPoint)
         {
-            var plane = new Plane(Vector3.up, Vector3.zero);
+            var planeNormal = _boardSpace != null ? _boardSpace.up : Vector3.up;
+            var planePoint = _boardSpace != null ? _boardSpace.position : Vector3.zero;
+            var plane = new Plane(planeNormal, planePoint);
             if (plane.Raycast(ray, out var distance))
             {
-                hitPoint = ray.GetPoint(distance);
+                var worldPoint = ray.GetPoint(distance);
+                hitPoint = _boardSpace != null
+                    ? _boardSpace.InverseTransformPoint(worldPoint)
+                    : worldPoint;
                 hitPoint.y = 0f;
                 return true;
             }
@@ -282,9 +300,15 @@ namespace CompanyWarRE.Presentation
 
         private void ApplyPose()
         {
-            var rotation = Quaternion.Euler(_currentPitch, _currentYaw, 0f);
-            transform.rotation = rotation;
-            transform.position = _currentFocus - rotation * Vector3.forward * _orbitDistance;
+            var localRotation = Quaternion.Euler(_currentPitch, _currentYaw, 0f);
+            var worldRotation = _boardSpace != null
+                ? _boardSpace.rotation * localRotation
+                : localRotation;
+            var worldFocus = _boardSpace != null
+                ? _boardSpace.TransformPoint(_currentFocus)
+                : _currentFocus;
+            transform.rotation = worldRotation;
+            transform.position = worldFocus - worldRotation * Vector3.forward * _orbitDistance;
         }
     }
 }

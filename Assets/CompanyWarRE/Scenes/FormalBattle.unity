@@ -184,6 +184,8 @@ MonoBehaviour:
   - {fileID: 4900000, guid: 6e454618284e494ba8c3f873e7bd929e, type: 3}
   - {fileID: 4900000, guid: 349fe0d472a84404921021f564320009, type: 3}
   visualCatalog: {fileID: 1004}
+  battleBoardPrefab: {fileID: 0}
+  battleMapPrefab: {fileID: 828670146098602340, guid: 98022358ffbb99b41b054a1d315ab388, type: 3}
 --- !u!114 &1005
 MonoBehaviour:
   m_ObjectHideFlags: 0

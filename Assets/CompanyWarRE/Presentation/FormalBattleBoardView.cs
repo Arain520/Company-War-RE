@@ -41,6 +41,9 @@ namespace CompanyWarRE.Presentation
         public void Prepare(int columns, int rows)
         {
             gameObject.name = $"FormalBattleBoard_{columns}x{rows}";
+            var cowVisual = GetComponent<CowBoardVisualRenderer>() ??
+                            gameObject.AddComponent<CowBoardVisualRenderer>();
+            cowVisual.Build(columns, rows);
             GridRoot = FindOrCreate("RuntimeGrid");
             CombatantRoot = FindOrCreate("RuntimeCombatants");
             FeedbackRoot = FindOrCreate("RuntimeFeedback");

@@ -117,6 +117,17 @@ namespace CompanyWarRE.Presentation
 
         public void Render(BattleSliceCombatantSnapshot snapshot, bool curseDamage = false)
         {
+            Render(
+                snapshot,
+                BattleSliceController.GetCombatantWorldPosition(snapshot),
+                curseDamage);
+        }
+
+        public void Render(
+            BattleSliceCombatantSnapshot snapshot,
+            Vector3 localPosition,
+            bool curseDamage = false)
+        {
             if (snapshot == null || snapshot.ActorId != ActorId)
             {
                 return;
@@ -153,12 +164,11 @@ namespace CompanyWarRE.Presentation
                 _importedFacingTeam = snapshot.Team;
                 _hasImportedFacingTeam = true;
             }
-            var worldPosition = BattleSliceController.GetCombatantWorldPosition(snapshot);
             if (hasImportedBody && !snapshot.IsBuilding)
             {
-                worldPosition.y += _importedVerticalGroundOffset;
+                localPosition.y += _importedVerticalGroundOffset;
             }
-            transform.localPosition = worldPosition;
+            transform.localPosition = localPosition;
             _unitBody.gameObject.SetActive(!hasImportedBody && !snapshot.IsBuilding);
             _buildingBody.gameObject.SetActive(!hasImportedBody && snapshot.IsBuilding);
 

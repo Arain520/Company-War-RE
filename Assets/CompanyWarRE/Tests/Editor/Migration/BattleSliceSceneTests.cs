@@ -346,6 +346,15 @@ namespace CompanyWarRE.Migration.Tests
                     "CompanyWarRE.Presentation.BattleSliceController"));
                 Assert.That(componentNames, Does.Contain(
                     "CompanyWarRE.Presentation.BattleSliceEnvironmentView"));
+                var controller = roots[0].GetComponents<MonoBehaviour>()
+                    .Single(component => component != null &&
+                                         component.GetType().FullName ==
+                                         "CompanyWarRE.Presentation.BattleSliceController");
+                var serializedController = new SerializedObject(controller);
+                Assert.That(
+                    serializedController.FindProperty("battleMapPrefab")?.objectReferenceValue,
+                    Is.Not.Null,
+                    "FormalBattle must explicitly bind the shared editable map prefab.");
                 Assert.That(GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(roots[0]), Is.Zero);
             }
             finally
@@ -467,7 +476,7 @@ namespace CompanyWarRE.Migration.Tests
             var row4 = (float)getRowWorldZ.Invoke(null, new object[] { 4 });
             Assert.That(column4 - column3, Is.EqualTo(1f).Within(0.001f));
             Assert.That(row4 - row3, Is.EqualTo(1f).Within(0.001f));
-            Assert.That((float)cellVisualSize.GetRawConstantValue(), Is.EqualTo(0.98f).Within(0.001f));
+            Assert.That((float)cellVisualSize.GetRawConstantValue(), Is.EqualTo(0.92f).Within(0.001f));
             Assert.That(
                 (float)getBoundaryWorldCoordinate.Invoke(null, new object[] { 3 }),
                 Is.EqualTo(2.5f).Within(0.001f));
@@ -595,6 +604,17 @@ namespace CompanyWarRE.Migration.Tests
                                       component.GetType().FullName ==
                                       "CompanyWarRE.Presentation.FormalBattleBoardView"),
                 Is.True);
+            Assert.That(
+                prefab.GetComponents<MonoBehaviour>()
+                    .Any(component => component != null &&
+                                      component.GetType().FullName ==
+                                      "CompanyWarRE.Presentation.CowBoardVisualRenderer"),
+                Is.True);
+            Assert.That(
+                AssetDatabase.LoadAssetAtPath<ScriptableObject>(
+                    "Assets/CompanyWarRE/Resources/CompanyWarRE/Battle/" +
+                    "CowBoardVisualTheme_Default.asset"),
+                Is.Not.Null);
 
             var instance = PrefabUtility.InstantiatePrefab(prefab) as GameObject;
             try
@@ -609,22 +629,252 @@ namespace CompanyWarRE.Migration.Tests
                 Assert.That(instance.transform.Find("RuntimeGrid"), Is.Not.Null);
                 Assert.That(instance.transform.Find("RuntimeCombatants"), Is.Not.Null);
                 Assert.That(instance.transform.Find("RuntimeFeedback"), Is.Not.Null);
+                var decoration = instance.transform.Find("CowBoardDecoration");
+                Assert.That(decoration, Is.Not.Null);
+                Assert.That(decoration.GetComponentsInChildren<Collider>(true), Is.Empty,
+                    "Cow board decoration must never intercept board interaction rays.");
+                var decorationRenderers = decoration.GetComponentsInChildren<Renderer>(true);
+                Assert.That(decorationRenderers, Is.Not.Empty);
+                Assert.That(
+                    decorationRenderers.All(renderer =>
+                        renderer.sharedMaterial != null &&
+                        renderer.sharedMaterial.shader != null &&
+                        renderer.sharedMaterial.shader.name == "Universal Render Pipeline/Lit"),
+                    Is.True,
+                    "The migrated Cow board must use URP materials only.");
                 Assert.That(
                     (float)board.GetType().GetProperty("CellVisualFill")?.GetValue(board),
                     Is.EqualTo(0.92f).Within(0.0001f),
                     "Cow generates the board procedurally with a 0.92 visual fill ratio.");
                 Assert.That(
                     (float)board.GetType().GetProperty("CellHeight")?.GetValue(board),
-                    Is.EqualTo(0.1f).Within(0.0001f),
-                    "Cow's 0.04 height is normalized from its 0.4 small-cell spacing to target spacing 1.0.");
+                    Is.EqualTo(0.1125f).Within(0.0001f),
+                    "Cow's formal 0.045 height is normalized from its 0.4 small-cell pitch to target pitch 1.0.");
                 Assert.That(
                     (float)board.GetType().GetProperty("SurfaceOffsetY")?.GetValue(board),
                     Is.EqualTo(-0.02f).Within(0.0001f));
+                var themeType = Type.GetType(
+                    "CompanyWarRE.Presentation.CowBoardVisualTheme, CompanyWarRE.Presentation",
+                    true);
+                Assert.That(
+                    (float)themeType.GetField("SourceSmallCellPitch")?.GetRawConstantValue(),
+                    Is.EqualTo(0.4f).Within(0.0001f));
             }
             finally
             {
                 UnityEngine.Object.DestroyImmediate(instance);
             }
+        }
+
+        [Test]
+        public void SharedFormalMap_ProvidesCenteredRotatableAnchorAndNonCollidingEnvironment()
+        {
+            const string prefabPath =
+                "Assets/CompanyWarRE/Content/Maps/PF_BaseFormalBattleMap.prefab";
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+            Assert.That(prefab, Is.Not.Null);
+            Assert.That(
+                prefab.GetComponentsInChildren<Component>(true).Any(component => component == null),
+                Is.False);
+
+            var map = prefab.GetComponents<MonoBehaviour>()
+                .Single(component => component != null &&
+                                     component.GetType().FullName ==
+                                     "CompanyWarRE.Presentation.FormalBattleMapView");
+            var anchor = (Transform)map.GetType().GetProperty("BattleBoardAnchor")?.GetValue(map);
+            var environment = (Transform)map.GetType().GetProperty("EnvironmentRoot")?.GetValue(map);
+            Assert.That(anchor, Is.Not.Null);
+            Assert.That(anchor.name, Is.EqualTo("BattleBoardAnchor"));
+            Assert.That(anchor.localScale, Is.EqualTo(Vector3.one),
+                "The target presentation normalizes Cow's 0.4 pitch to one visual unit per cell.");
+            Assert.That(environment, Is.Not.Null);
+            Assert.That(environment.GetComponentsInChildren<Collider>(true), Is.Empty);
+            Assert.That(environment.GetComponentInChildren<Light>(true), Is.Not.Null,
+                "The shared map must expose editable lighting under EnvironmentRoot.");
+            var cowEnvironment = environment.GetComponentsInChildren<MonoBehaviour>(true)
+                .Single(component => component != null &&
+                                     component.GetType().FullName ==
+                                     "CompanyWarRE.Presentation.CowIndustrialEnvironmentView");
+            Assert.That(cowEnvironment, Is.Not.Null);
+            Assert.That((bool)cowEnvironment.GetType().GetProperty("IncludesRailings")?.GetValue(cowEnvironment), Is.True);
+            Assert.That((bool)cowEnvironment.GetType().GetProperty("IncludesPipes")?.GetValue(cowEnvironment), Is.True);
+            Assert.That((bool)cowEnvironment.GetType().GetProperty("IncludesStairs")?.GetValue(cowEnvironment), Is.True);
+            Assert.That((bool)cowEnvironment.GetType().GetProperty("IncludesSkyline")?.GetValue(cowEnvironment), Is.True);
+            Assert.That((bool)cowEnvironment.GetType().GetProperty("IncludesOptionalModels")?.GetValue(cowEnvironment), Is.True);
+            Assert.That((bool)cowEnvironment.GetType().GetProperty("HasUrpMaterialTemplate")?.GetValue(cowEnvironment), Is.True);
+            Assert.That((int)cowEnvironment.GetType().GetProperty("ConfiguredOptionalModelCount")?.GetValue(cowEnvironment), Is.EqualTo(7));
+            var ground = environment.Find("BaseGround");
+            Assert.That(ground, Is.Not.Null);
+            var groundMaterial = ground.GetComponent<Renderer>()?.sharedMaterial;
+            Assert.That(groundMaterial, Is.Not.Null);
+            Assert.That(groundMaterial.shader, Is.Not.Null);
+            Assert.That(groundMaterial.shader.name, Is.EqualTo("Universal Render Pipeline/Lit"),
+                "The base map must not use Unity's built-in default material in the URP project.");
+            Assert.That(
+                AssetDatabase.LoadAssetAtPath<MonoScript>(
+                    "Assets/CompanyWarRE/EditorTools/FormalBattleMapEditorWindow.cs"),
+                Is.Not.Null);
+            Assert.That(
+                (bool)map.GetType().GetMethod("HasUniformAnchorScale")
+                    ?.Invoke(map, new object[] { 0.0001f }),
+                Is.True);
+
+            var controllerType = Type.GetType(
+                "CompanyWarRE.Presentation.BattleSliceController, CompanyWarRE.Presentation",
+                true);
+            var centeredColumn = controllerType.GetMethod(
+                "GetCenteredColumnCoordinate",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            var centeredBoundary = controllerType.GetMethod(
+                "GetCenteredBoundaryCoordinate",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.That(centeredColumn, Is.Not.Null);
+            Assert.That(centeredBoundary, Is.Not.Null);
+            Assert.That(
+                (float)centeredColumn.Invoke(null, new object[] { 1, 18 }),
+                Is.EqualTo(-8.5f).Within(0.0001f));
+            Assert.That(
+                (float)centeredColumn.Invoke(null, new object[] { 18, 18 }),
+                Is.EqualTo(8.5f).Within(0.0001f));
+            Assert.That(
+                (float)centeredBoundary.Invoke(null, new object[] { 0, 18 }),
+                Is.EqualTo(-9f).Within(0.0001f));
+            Assert.That(
+                (float)centeredBoundary.Invoke(null, new object[] { 18, 18 }),
+                Is.EqualTo(9f).Within(0.0001f));
+        }
+
+        [Test]
+        public void CowIndustrialEnvironment_UsesMigratedModelsUrpAndNoActiveCollision()
+        {
+            var modelPaths = new[]
+            {
+                "货运单元2.fbx",
+                "货运单元1.fbx",
+                "栏杆左到右123.fbx",
+                "服务器终端.fbx",
+                "储装罐.fbx",
+                "信号基站（拆件.fbx",
+                "棋盘part (1).fbx"
+            };
+            foreach (var fileName in modelPaths)
+            {
+                Assert.That(
+                    AssetDatabase.LoadAssetAtPath<GameObject>(
+                        "Assets/CompanyWarRE/Content/Environment/Cow/Models/" + fileName),
+                    Is.Not.Null,
+                    fileName);
+            }
+
+            const string prefabPath =
+                "Assets/CompanyWarRE/Content/Maps/PF_BaseFormalBattleMap.prefab";
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+            var instance = PrefabUtility.InstantiatePrefab(prefab) as GameObject;
+            try
+            {
+                var baked = instance.transform.Find(
+                    "EnvironmentRoot/CowIndustrialEnvironment/BakedCowEnvironment");
+                Assert.That(baked, Is.Not.Null, "Environment must be baked into the map prefab.");
+                var map = instance.GetComponent<MonoBehaviour>();
+                map.GetType().GetMethod("PrepareForBattle")?.Invoke(map, new object[] { 18, 30 });
+                Assert.That(instance.transform.Find(
+                    "EnvironmentRoot/CowIndustrialEnvironment/GeneratedCowEnvironment"), Is.Null,
+                    "Formal battle must not generate environment geometry at runtime.");
+                var ground = instance.transform.Find("EnvironmentRoot/BaseGround");
+                Assert.That(ground, Is.Not.Null);
+                Assert.That(ground.localScale.x, Is.EqualTo(240f).Within(0.001f));
+                Assert.That(ground.localScale.z, Is.EqualTo(240f).Within(0.001f));
+                var groundMaterial = ground.GetComponent<Renderer>()?.sharedMaterial;
+                Assert.That(groundMaterial, Is.Not.Null);
+                Assert.That(groundMaterial.name, Does.StartWith("MAT_CowIndustrialGround_"));
+                Assert.That(groundMaterial.GetTexture("_BaseMap"), Is.Not.Null);
+                var groundTiling = groundMaterial.GetTextureScale("_BaseMap");
+                Assert.That(groundTiling.x, Is.EqualTo(7.5f).Within(0.001f));
+                Assert.That(groundTiling.y, Is.EqualTo(7.5f).Within(0.001f));
+                Assert.That(baked.Find("Skyline"), Is.Not.Null);
+                var skylineBlocks = baked.Find("Skyline").Cast<Transform>()
+                    .Where(child => child.name.StartsWith("Skyline_Block_"))
+                    .ToArray();
+                Assert.That(skylineBlocks.Length, Is.EqualTo(96));
+                Assert.That(
+                    skylineBlocks.All(block =>
+                        Mathf.Abs(block.localPosition.x) > 19f ||
+                        Mathf.Abs(block.localPosition.z) > 25f),
+                    Is.True,
+                    "Scattered buildings must leave the battle-board safety area clear.");
+                Assert.That(
+                    skylineBlocks.Any(block =>
+                        Mathf.Abs(block.localPosition.x) < 100f &&
+                        Mathf.Abs(block.localPosition.z) < 100f),
+                    Is.True,
+                    "Buildings must be scattered through the map instead of forming only an edge ring.");
+                Assert.That(baked.Find("SeededEnvironmentModelFill"), Is.Not.Null);
+                var importedMaterials = baked.Find("SeededEnvironmentModelFill")
+                    .GetComponentsInChildren<Renderer>(true)
+                    .SelectMany(renderer => renderer.sharedMaterials)
+                    .Where(material => material != null)
+                    .ToArray();
+                Assert.That(
+                    importedMaterials.Any(material =>
+                        material.name.StartsWith("MAT_CowImported_")),
+                    Is.True,
+                    "Imported Cow models must preserve their material slots as persistent URP materials.");
+                Assert.That(instance.transform.Find(
+                    "EnvironmentRoot/CowIndustrialEnvironment/EditableEnvironmentModelFill"),
+                    Is.Not.Null,
+                    "Manual environment additions must survive automatic rebakes.");
+                Assert.That(baked.Cast<Transform>().Any(child => child.name.StartsWith("Pipe_")), Is.True);
+                Assert.That(baked.Cast<Transform>().Any(child => child.name.StartsWith("Stairs_")), Is.True);
+                Assert.That(baked.Cast<Transform>().Any(child => child.name.StartsWith("ENV_Railing_")), Is.True);
+                Assert.That(
+                    baked.GetComponentsInChildren<Collider>(true).All(collider => !collider.enabled),
+                    Is.True);
+                Assert.That(
+                    baked.GetComponentsInChildren<Renderer>(true).All(renderer =>
+                        renderer.sharedMaterial != null &&
+                        renderer.sharedMaterial.shader != null &&
+                        renderer.sharedMaterial.shader.name == "Universal Render Pipeline/Lit" &&
+                        AssetDatabase.Contains(renderer.sharedMaterial)),
+                    Is.True);
+
+                var environment = instance.GetComponentsInChildren<MonoBehaviour>(true)
+                    .Single(component => component != null &&
+                                         component.GetType().FullName ==
+                                         "CompanyWarRE.Presentation.CowIndustrialEnvironmentView");
+                var editable = environment.transform.Find("EditableEnvironmentModelFill");
+                var manualCargo = new GameObject("ENV_CargoUnit02");
+                manualCargo.transform.SetParent(editable, false);
+                Assert.That(
+                    (bool)environment.GetType().GetMethod("ExcludeGeneratedObject")
+                        ?.Invoke(environment, new object[] { manualCargo.name }),
+                    Is.True);
+                environment.GetType().GetMethod("Build")
+                    ?.Invoke(environment, new object[] { 18, 30 });
+                var regenerated = environment.transform.Find("GeneratedCowEnvironment");
+                Assert.That(regenerated, Is.Not.Null);
+                Assert.That(
+                    regenerated.GetComponentsInChildren<Transform>(true)
+                        .Any(child => child.name == manualCargo.name),
+                    Is.False,
+                    "A converted manual object must be excluded from future generated output.");
+                Assert.That(editable.Find(manualCargo.name), Is.Not.Null,
+                    "Manual environment objects must survive a rebuild.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(instance);
+            }
+        }
+
+        [Test]
+        public void FormalBattle_RequiresExplicitBakedMapAndHasNoRuntimeMapFallback()
+        {
+            var source = File.ReadAllText(
+                "Assets/CompanyWarRE/Presentation/BattleSliceController.cs");
+            Assert.That(source, Does.Not.Contain("Resources.Load<FormalBattleMapView>"));
+            Assert.That(source, Does.Not.Contain("PF_BaseFormalBattleMap_Fallback"));
+            Assert.That(source, Does.Contain(
+                "Formal battle requires an explicitly assigned, editor-baked map prefab."));
         }
     }
 }

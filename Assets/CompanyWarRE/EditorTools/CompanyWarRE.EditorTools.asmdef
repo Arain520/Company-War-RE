@@ -2,7 +2,8 @@
   "name": "CompanyWarRE.EditorTools",
   "rootNamespace": "CompanyWarRE.EditorTools",
   "references": [
-    "CompanyWarRE.Infrastructure"
+    "CompanyWarRE.Infrastructure",
+    "CompanyWarRE.Presentation"
   ],
   "includePlatforms": [
     "Editor"

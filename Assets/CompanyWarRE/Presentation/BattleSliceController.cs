@@ -33,6 +33,7 @@ namespace CompanyWarRE.Presentation
         [SerializeField] private TextAsset[] formalLevelJsonDocuments;
         [SerializeField] private BattleSliceVisualCatalog visualCatalog;
         [SerializeField] private FormalBattleBoardView battleBoardPrefab;
+        [SerializeField] private FormalBattleMapView battleMapPrefab;
 
         private readonly Dictionary<GridPosition, BattleSliceCellView> _cellViews =
             new Dictionary<GridPosition, BattleSliceCellView>();
@@ -58,6 +59,8 @@ namespace CompanyWarRE.Presentation
         private Transform _runtimeGridRoot;
         private Transform _feedbackRoot;
         private Transform _runtimeBoardRoot;
+        private FormalBattleMapView _runtimeMap;
+        private Transform _boardAnchor;
         private FormalGameFlowSnapshot _flowSnapshot;
         private BattleState _reportedBattleState = BattleState.Running;
         private string _selectedUnitId;
@@ -111,6 +114,10 @@ namespace CompanyWarRE.Presentation
                 return;
             }
 
+            if (!EnsureBattleMap())
+            {
+                return;
+            }
             EnsureSceneInfrastructure(_snapshot.Columns, _snapshot.Rows);
             BuildGrid();
             ApplyFormalEnvironment();
@@ -259,6 +266,11 @@ namespace CompanyWarRE.Presentation
             }
 
             ClearRuntimePresentation();
+            if (!EnsureBattleMap())
+            {
+                _lastAction = "Formal battle map prefab is missing";
+                return false;
+            }
             EnsureSceneInfrastructure(_snapshot.Columns, _snapshot.Rows);
             BuildGrid();
             ApplyFormalEnvironment();
@@ -628,9 +640,45 @@ namespace CompanyWarRE.Presentation
                 return;
             }
 
-            var environment = GetComponent<BattleSliceEnvironmentView>() ??
-                              gameObject.AddComponent<BattleSliceEnvironmentView>();
-            environment.Build(_formalLevel);
+            if (_runtimeMap != null)
+            {
+                _runtimeMap.PrepareForBattle(_snapshot.Columns, _snapshot.Rows);
+                return;
+            }
+
+            Debug.LogError(
+                "Formal battle map prefab is missing. Runtime environment generation is disabled; " +
+                "create or bake the map through the Formal Battle Map editor.",
+                this);
+        }
+
+        private bool EnsureBattleMap()
+        {
+            if (!useFormalLevelConfiguration)
+            {
+                _boardAnchor = transform;
+                return true;
+            }
+
+            if (battleMapPrefab == null)
+            {
+                _runtimeMap = null;
+                _boardAnchor = null;
+                _configurationError =
+                    "Formal battle requires an explicitly assigned, editor-baked map prefab.";
+                Debug.LogError(_configurationError, this);
+                return false;
+            }
+
+            if (_runtimeMap == null)
+            {
+                _runtimeMap = Instantiate(battleMapPrefab, transform, false);
+                _runtimeMap.gameObject.name = battleMapPrefab.gameObject.name;
+            }
+
+            _runtimeMap.PrepareForBattle(_snapshot.Columns, _snapshot.Rows);
+            _boardAnchor = _runtimeMap.BattleBoardAnchor;
+            return true;
         }
 
         private void DeploySelected()
@@ -707,14 +755,18 @@ namespace CompanyWarRE.Presentation
                 ? battleBoardPrefab
                 : Resources.Load<FormalBattleBoardView>(
                     "CompanyWarRE/Battle/PF_FormalBattleBoard");
+            var parent = _boardAnchor != null ? _boardAnchor : transform;
             var board = configuredBoardPrefab != null
-                ? Instantiate(configuredBoardPrefab, transform, false)
+                ? Instantiate(configuredBoardPrefab, parent, false)
                 : new GameObject("FormalBattleBoardFallback")
                     .AddComponent<FormalBattleBoardView>();
             if (board.transform.parent == null)
             {
-                board.transform.SetParent(transform, false);
+                board.transform.SetParent(parent, false);
             }
+            board.transform.localPosition = Vector3.zero;
+            board.transform.localRotation = Quaternion.identity;
+            board.transform.localScale = Vector3.one;
             board.Prepare(_snapshot.Columns, _snapshot.Rows);
             _runtimeBoardRoot = board.transform;
             _runtimeGridRoot = board.GridRoot;
@@ -732,9 +784,9 @@ namespace CompanyWarRE.Presentation
                     cell.name = $"Cell_{column}_{row}";
                     cell.transform.SetParent(_runtimeGridRoot, false);
                     cell.transform.localPosition = new Vector3(
-                        GetColumnWorldX(column),
+                        GetCenteredColumnCoordinate(column, _snapshot.Columns),
                         board.SurfaceOffsetY,
-                        GetRowWorldZ(row));
+                        GetCenteredRowCoordinate(row, _snapshot.Rows));
                     cell.transform.localScale = new Vector3(
                         board.CellVisualFill,
                         board.CellHeight,
@@ -761,15 +813,13 @@ namespace CompanyWarRE.Presentation
             _columnGroupBorderMaterial = CreateGridBorderMaterial(
                 Color.Lerp(board.ControlBlockBorderColor, Color.white, 0.18f));
 
-            var centerX = (columns - 1) * 0.5f;
-            var centerZ = (rows - 1) * 0.5f;
             var borderY = board.SurfaceOffsetY + board.CellHeight * 0.9f;
             for (var boundary = 0; boundary <= columns; boundary += BattleGrid.ControlBlockSize)
             {
                 CreateGridBorder(
                     borderRoot,
                     $"ColumnGroupBorder_{boundary}",
-                    new Vector3(GetControlBlockBoundaryWorldCoordinate(boundary), borderY, centerZ),
+                    new Vector3(GetCenteredBoundaryCoordinate(boundary, columns), borderY, 0f),
                     new Vector3(board.ColumnGroupBorderWidth, board.CellHeight * 0.55f, rows),
                     _columnGroupBorderMaterial);
             }
@@ -779,7 +829,7 @@ namespace CompanyWarRE.Presentation
                 CreateGridBorder(
                     borderRoot,
                     "ColumnGroupBorder_End",
-                    new Vector3(columns - 0.5f, borderY, centerZ),
+                    new Vector3(columns * 0.5f, borderY, 0f),
                     new Vector3(board.ColumnGroupBorderWidth, board.CellHeight * 0.55f, rows),
                     _columnGroupBorderMaterial);
             }
@@ -789,7 +839,7 @@ namespace CompanyWarRE.Presentation
                 CreateGridBorder(
                     borderRoot,
                     $"ControlBlockRowBorder_{boundary}",
-                    new Vector3(centerX, borderY, GetControlBlockBoundaryWorldCoordinate(boundary)),
+                    new Vector3(0f, borderY, GetCenteredBoundaryCoordinate(boundary, rows)),
                     new Vector3(columns, board.CellHeight * 0.55f, board.ControlBlockBorderWidth),
                     _controlBlockBorderMaterial);
             }
@@ -799,7 +849,7 @@ namespace CompanyWarRE.Presentation
                 CreateGridBorder(
                     borderRoot,
                     "ControlBlockRowBorder_End",
-                    new Vector3(centerX, borderY, rows - 0.5f),
+                    new Vector3(0f, borderY, rows * 0.5f),
                     new Vector3(columns, board.CellHeight * 0.55f, board.ControlBlockBorderWidth),
                     _controlBlockBorderMaterial);
             }
@@ -886,13 +936,13 @@ namespace CompanyWarRE.Presentation
                                   combatant.Team == Team.Ally &&
                                   lostHitPoints &&
                                   !directAttackTargets.Contains(combatant.ActorId);
-                view.Render(combatant, curseDamage);
+                view.Render(combatant, GetRuntimeCombatantLocalPosition(combatant), curseDamage);
 
                 if (curseDamage)
                 {
                     _feedbackLayer?.Show(
                         "CURSE",
-                        GetCombatantWorldPosition(combatant),
+                        GetRuntimeCombatantLocalPosition(combatant),
                         new Color(0.85f, 0.25f, 1f));
                 }
 
@@ -962,7 +1012,7 @@ namespace CompanyWarRE.Presentation
 
             _feedbackLayer?.Show(
                 text,
-                new Vector3(GetColumnWorldX(position.Column), 0.25f, GetRowWorldZ(position.Row)),
+                GetRuntimeCellLocalPosition(position.Column, position.Row, 0.25f),
                 color,
                 1.35f);
         }
@@ -1018,15 +1068,15 @@ namespace CompanyWarRE.Presentation
                                 ? new Color(0.2f, 0.8f, 1f)
                                 : new Color(1f, 0.3f, 0.22f);
                         _feedbackLayer?.ShowTracer(
-                            GetCombatantWorldPosition(source) + Vector3.up * 0.55f,
-                            GetCombatantWorldPosition(target) + Vector3.up * 0.45f,
+                            GetRuntimeCombatantLocalPosition(source) + Vector3.up * 0.55f,
+                            GetRuntimeCombatantLocalPosition(target) + Vector3.up * 0.45f,
                             attackColor);
 
                         if (source.HasHeavyStrike)
                         {
                             _feedbackLayer?.Show(
                                 "HEAVY",
-                                GetCombatantWorldPosition(target),
+                                GetRuntimeCombatantLocalPosition(target),
                                 attackColor,
                                 0.65f);
                         }
@@ -1038,7 +1088,7 @@ namespace CompanyWarRE.Presentation
                         {
                             _feedbackLayer?.Show(
                                 "EXECUTE",
-                                GetCombatantWorldPosition(target),
+                                GetRuntimeCombatantLocalPosition(target),
                                 new Color(1f, 0.15f, 0.75f),
                                 1.4f);
                         }
@@ -1048,10 +1098,7 @@ namespace CompanyWarRE.Presentation
                 {
                     _feedbackLayer?.Show(
                         "POLLUTED",
-                        new Vector3(
-                            GetColumnWorldX(combatEvent.Column),
-                            0.25f,
-                            GetRowWorldZ(combatEvent.Row)),
+                        GetRuntimeCellLocalPosition(combatEvent.Column, combatEvent.Row, 0.25f),
                         new Color(0.75f, 0.2f, 0.9f));
                 }
                 else if (combatEvent.Type == CombatEventType.Heal &&
@@ -1059,7 +1106,7 @@ namespace CompanyWarRE.Presentation
                 {
                     _feedbackLayer?.Show(
                         $"+{combatEvent.Amount:0.#} HEAL",
-                        GetCombatantWorldPosition(healed),
+                        GetRuntimeCombatantLocalPosition(healed),
                         new Color(0.3f, 1f, 0.45f));
                 }
                 else if (combatEvent.Type == CombatEventType.Conversion &&
@@ -1067,7 +1114,7 @@ namespace CompanyWarRE.Presentation
                 {
                     _feedbackLayer?.Show(
                         "CONVERT",
-                        GetCombatantWorldPosition(converted),
+                        GetRuntimeCombatantLocalPosition(converted),
                         new Color(0.15f, 1f, 0.85f),
                         1.4f);
                 }
@@ -1076,7 +1123,7 @@ namespace CompanyWarRE.Presentation
                 {
                     _feedbackLayer?.Show(
                         $"PUSH {combatEvent.Amount:0}",
-                        GetCombatantWorldPosition(pushed),
+                        GetRuntimeCombatantLocalPosition(pushed),
                         new Color(1f, 0.55f, 0.12f));
                 }
                 else if (combatEvent.Type == CombatEventType.Death &&
@@ -1084,7 +1131,7 @@ namespace CompanyWarRE.Presentation
                 {
                     _feedbackLayer?.Show(
                         defeated.IsBuilding ? "BUILDING DOWN" : "DOWN",
-                        GetCombatantWorldPosition(defeated),
+                        GetRuntimeCombatantLocalPosition(defeated),
                         new Color(1f, 0.35f, 0.25f));
                 }
             }
@@ -1093,7 +1140,7 @@ namespace CompanyWarRE.Presentation
             return directAttackTargets;
         }
 
-        private static void EnsureSceneInfrastructure(int columns, int rows)
+        private void EnsureSceneInfrastructure(int columns, int rows)
         {
             Camera camera;
             if (Camera.main == null)
@@ -1103,7 +1150,7 @@ namespace CompanyWarRE.Presentation
                 camera = cameraObject.AddComponent<Camera>();
                 cameraObject.AddComponent<AudioListener>();
                 camera.clearFlags = CameraClearFlags.SolidColor;
-                camera.backgroundColor = new Color(0.07f, 0.09f, 0.13f);
+                camera.backgroundColor = new Color(0.52f, 0.61f, 0.65f);
             }
             else
             {
@@ -1112,7 +1159,7 @@ namespace CompanyWarRE.Presentation
 
             var cameraRig = camera.GetComponent<BattleSliceCameraRig>() ??
                             camera.gameObject.AddComponent<BattleSliceCameraRig>();
-            cameraRig.Configure(columns, rows);
+            cameraRig.Configure(columns, rows, _boardAnchor);
 
             if (FindObjectOfType<Light>() == null)
             {
@@ -1142,6 +1189,54 @@ namespace CompanyWarRE.Presentation
         internal static float GetControlBlockBoundaryWorldCoordinate(int completedCells)
         {
             return Mathf.Max(0, completedCells) - 0.5f;
+        }
+
+        internal static float GetCenteredColumnCoordinate(int column, int columns)
+        {
+            return Mathf.Max(1, column) - 1f - (Mathf.Max(1, columns) - 1f) * 0.5f;
+        }
+
+        internal static float GetCenteredRowCoordinate(int row, int rows)
+        {
+            return Mathf.Max(1, row) - 1f - (Mathf.Max(1, rows) - 1f) * 0.5f;
+        }
+
+        internal static float GetCenteredBoundaryCoordinate(int completedCells, int cellCount)
+        {
+            return Mathf.Clamp(completedCells, 0, Mathf.Max(1, cellCount)) -
+                   Mathf.Max(1, cellCount) * 0.5f;
+        }
+
+        private Vector3 GetRuntimeCellLocalPosition(int column, int row, float height)
+        {
+            return new Vector3(
+                GetCenteredColumnCoordinate(column, _snapshot.Columns),
+                height,
+                GetCenteredRowCoordinate(row, _snapshot.Rows));
+        }
+
+        private Vector3 GetRuntimeCombatantLocalPosition(BattleSliceCombatantSnapshot combatant)
+        {
+            var localX = GetCenteredColumnCoordinate(combatant.Column, _snapshot.Columns);
+            var localZ = (float)System.Math.Max(1d, combatant.LanePosition) - 1f -
+                         (_snapshot.Rows - 1f) * 0.5f;
+            if (combatant.IsBuilding)
+            {
+                localX = (GetCenteredColumnCoordinate(
+                              combatant.FootprintStartColumn,
+                              _snapshot.Columns) +
+                          GetCenteredColumnCoordinate(
+                              combatant.FootprintEndColumn,
+                              _snapshot.Columns)) * 0.5f;
+                localZ = (GetCenteredRowCoordinate(
+                              combatant.FootprintStartRow,
+                              _snapshot.Rows) +
+                          GetCenteredRowCoordinate(
+                              combatant.FootprintEndRow,
+                              _snapshot.Rows)) * 0.5f;
+            }
+
+            return new Vector3(localX, 0.12f, localZ);
         }
 
         internal static Vector3 GetCombatantWorldPosition(BattleSliceCombatantSnapshot combatant)
