@@ -52,6 +52,7 @@ namespace CompanyWarRE.Application
             Team = actor.Team;
             Column = actor.Column;
             LanePosition = actor.LanePosition;
+            MovementSpeed = actor.MovementSpeed;
             HitPoints = actor.HitPoints;
             MaximumHitPoints = actor.MaximumHitPoints;
             AttackProgress = actor.AttackProgress;
@@ -76,6 +77,7 @@ namespace CompanyWarRE.Application
         public Team Team { get; }
         public int Column { get; }
         public double LanePosition { get; }
+        public double MovementSpeed { get; }
         public double HitPoints { get; }
         public double MaximumHitPoints { get; }
         public double AttackProgress { get; }

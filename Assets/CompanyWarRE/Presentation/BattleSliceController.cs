@@ -59,6 +59,10 @@ namespace CompanyWarRE.Presentation
         private Transform _runtimeGridRoot;
         private Transform _feedbackRoot;
         private Transform _runtimeBoardRoot;
+        private BattleBoardCoordinateMapper _coordinateMapper;
+        private BattlePillarPresentationGenerator _pillarGenerator;
+        private float _flyingUnitVisualSpeedScale;
+        private float _globalVisualScale = 1f;
         private FormalBattleMapView _runtimeMap;
         private Transform _boardAnchor;
         private FormalGameFlowSnapshot _flowSnapshot;
@@ -118,8 +122,8 @@ namespace CompanyWarRE.Presentation
             {
                 return;
             }
-            EnsureSceneInfrastructure(_snapshot.Columns, _snapshot.Rows);
             BuildGrid();
+            EnsureSceneInfrastructure(_snapshot.Columns, _snapshot.Rows);
             ApplyFormalEnvironment();
             _isReady = true;
             RefreshView();
@@ -271,8 +275,8 @@ namespace CompanyWarRE.Presentation
                 _lastAction = "Formal battle map prefab is missing";
                 return false;
             }
-            EnsureSceneInfrastructure(_snapshot.Columns, _snapshot.Rows);
             BuildGrid();
+            EnsureSceneInfrastructure(_snapshot.Columns, _snapshot.Rows);
             ApplyFormalEnvironment();
             _selected = new GridPosition(1, 1);
             _selectedUnitId = _snapshot.DeployList.FirstOrDefault() ?? _snapshot.UnitId;
@@ -450,6 +454,10 @@ namespace CompanyWarRE.Presentation
             }
 
             _runtimeBoardRoot = null;
+            _coordinateMapper = null;
+            _pillarGenerator = null;
+            _flyingUnitVisualSpeedScale = 0f;
+            _globalVisualScale = 1f;
             _runtimeGridRoot = null;
             _combatantRoot = null;
             _feedbackRoot = null;
@@ -642,7 +650,20 @@ namespace CompanyWarRE.Presentation
 
             if (_runtimeMap != null)
             {
-                _runtimeMap.PrepareForBattle(_snapshot.Columns, _snapshot.Rows);
+                var cloudAbyss = _runtimeMap.PrepareForBattle(
+                    _snapshot.Columns,
+                    _snapshot.Rows,
+                    _coordinateMapper);
+                if (cloudAbyss != null && _pillarGenerator != null)
+                {
+                    _pillarGenerator.ConfigureCloudAbyss(
+                        cloudAbyss.MinimumPillarBottomY,
+                        cloudAbyss.GetWorldHeight(_boardAnchor, cloudAbyss.HeightFogTopY),
+                        cloudAbyss.GetWorldHeight(_boardAnchor, cloudAbyss.HeightFogBottomY),
+                        cloudAbyss.HeightFogColor,
+                        cloudAbyss.HeightFogStrength,
+                        cloudAbyss.HeightFogCurve);
+                }
                 return;
             }
 
@@ -720,13 +741,28 @@ namespace CompanyWarRE.Presentation
             }
 
             var cellView = hit.collider.GetComponentInParent<BattleSliceCellView>();
-            if (cellView == null)
+            if (cellView != null)
+            {
+                _selected = cellView.Position;
+                _lastAction = $"Selected {_selected}";
+                return;
+            }
+
+            var pillarView = hit.collider.GetComponentInParent<BattlePillarView>();
+            if (pillarView == null || _coordinateMapper == null || _runtimeBoardRoot == null)
             {
                 return;
             }
 
-            _selected = cellView.Position;
-            _lastAction = $"Selected {_selected}";
+            var localHit = _runtimeBoardRoot.InverseTransformPoint(hit.point);
+            if (_coordinateMapper.TryGetCellAtLocalPoint(
+                    localHit,
+                    pillarView.ControlBlockPosition,
+                    out var pillarCell))
+            {
+                _selected = pillarCell;
+                _lastAction = $"Selected {_selected} on pillar {pillarView.ControlBlockPosition}";
+            }
         }
 
         private void ProcessKeyboardInput()
@@ -769,6 +805,10 @@ namespace CompanyWarRE.Presentation
             board.transform.localScale = Vector3.one;
             board.Prepare(_snapshot.Columns, _snapshot.Rows);
             _runtimeBoardRoot = board.transform;
+            _coordinateMapper = board.CoordinateMapper;
+            _pillarGenerator = board.PillarGenerator;
+            _flyingUnitVisualSpeedScale = board.FlyingUnitVisualSpeedScale;
+            _globalVisualScale = board.GlobalVisualScale;
             _runtimeGridRoot = board.GridRoot;
             _combatantRoot = board.CombatantRoot;
             _feedbackRoot = board.FeedbackRoot;
@@ -783,22 +823,32 @@ namespace CompanyWarRE.Presentation
                     var cell = GameObject.CreatePrimitive(PrimitiveType.Cube);
                     cell.name = $"Cell_{column}_{row}";
                     cell.transform.SetParent(_runtimeGridRoot, false);
-                    cell.transform.localPosition = new Vector3(
-                        GetCenteredColumnCoordinate(column, _snapshot.Columns),
-                        board.SurfaceOffsetY,
-                        GetCenteredRowCoordinate(row, _snapshot.Rows));
+                    cell.transform.localPosition = _coordinateMapper != null
+                        ? _coordinateMapper.GetCellLocalPosition(
+                            position,
+                            board.SurfaceOffsetY * _globalVisualScale)
+                        : new Vector3(
+                            GetCenteredColumnCoordinate(column, _snapshot.Columns),
+                            board.SurfaceOffsetY,
+                            GetCenteredRowCoordinate(row, _snapshot.Rows));
+                    var cellPitch = _coordinateMapper != null ? _coordinateMapper.CellPitch : 1f;
                     cell.transform.localScale = new Vector3(
-                        board.CellVisualFill,
-                        board.CellHeight,
-                        board.CellVisualFill);
+                        board.CellVisualFill * cellPitch,
+                        board.CellHeight * (_coordinateMapper != null ? _globalVisualScale : 1f),
+                        board.CellVisualFill * cellPitch);
                     var view = cell.AddComponent<BattleSliceCellView>();
                     view.Initialize(position, _cellSharedMaterial);
                     view.ApplyCowBoardPalette(board);
+                    view.SetVisualVisible(
+                        _coordinateMapper == null || board.ShowLogicalCellOverlay);
                     _cellViews.Add(position, view);
                 }
             }
 
-            BuildGridBorders(board, _runtimeGridRoot, _snapshot.Columns, _snapshot.Rows);
+            if (_coordinateMapper == null)
+            {
+                BuildGridBorders(board, _runtimeGridRoot, _snapshot.Columns, _snapshot.Rows);
+            }
         }
 
         private void BuildGridBorders(
@@ -927,6 +977,14 @@ namespace CompanyWarRE.Presentation
                     view = _combatantViewPool.Rent(_combatantRoot);
                     view.gameObject.name = "Combatant_" + combatant.ActorId;
                     view.Initialize(combatant.ActorId, visualCatalog);
+                    view.ConfigureVisualScale(
+                        _coordinateMapper != null ? _globalVisualScale : 1f);
+                    view.ConfigureUniformMovement(
+                        _coordinateMapper != null
+                            ? (float)combatant.MovementSpeed *
+                              _coordinateMapper.CellPitch *
+                              _flyingUnitVisualSpeedScale
+                            : 0f);
                     _combatantViews.Add(combatant.ActorId, view);
                 }
 
@@ -1159,7 +1217,18 @@ namespace CompanyWarRE.Presentation
 
             var cameraRig = camera.GetComponent<BattleSliceCameraRig>() ??
                             camera.gameObject.AddComponent<BattleSliceCameraRig>();
-            cameraRig.Configure(columns, rows, _boardAnchor);
+            if (_coordinateMapper != null)
+            {
+                cameraRig.ConfigureVisualSize(
+                    _coordinateMapper.VisualWidth,
+                    _coordinateMapper.VisualLength,
+                    _coordinateMapper.AveragePillarTopY,
+                    _boardAnchor);
+            }
+            else
+            {
+                cameraRig.Configure(columns, rows, _boardAnchor);
+            }
 
             if (FindObjectOfType<Light>() == null)
             {
@@ -1209,6 +1278,13 @@ namespace CompanyWarRE.Presentation
 
         private Vector3 GetRuntimeCellLocalPosition(int column, int row, float height)
         {
+            if (_coordinateMapper != null)
+            {
+                return _coordinateMapper.GetCellLocalPosition(
+                    new GridPosition(column, row),
+                    height * _globalVisualScale);
+            }
+
             return new Vector3(
                 GetCenteredColumnCoordinate(column, _snapshot.Columns),
                 height,
@@ -1217,6 +1293,35 @@ namespace CompanyWarRE.Presentation
 
         private Vector3 GetRuntimeCombatantLocalPosition(BattleSliceCombatantSnapshot combatant)
         {
+            if (_coordinateMapper != null)
+            {
+                if (combatant.IsBuilding)
+                {
+                    var footprintCell = new GridPosition(
+                        combatant.FootprintStartColumn,
+                        combatant.FootprintStartRow);
+                    if (_pillarGenerator != null &&
+                        _runtimeBoardRoot != null &&
+                        _pillarGenerator.TryGetPillarForCell(
+                            footprintCell,
+                            _coordinateMapper,
+                            out var pillar))
+                    {
+                        return _runtimeBoardRoot.InverseTransformPoint(pillar.BuildAnchor.position) +
+                               Vector3.up * (0.12f * _globalVisualScale);
+                    }
+
+                    return _coordinateMapper.GetControlBlockTopCenterLocalPosition(
+                        _coordinateMapper.GetControlBlockForCell(footprintCell),
+                        0.12f * _globalVisualScale);
+                }
+
+                return _coordinateMapper.GetMovingUnitLocalPosition(
+                    combatant.Column,
+                    combatant.LanePosition,
+                    0.12f * _globalVisualScale);
+            }
+
             var localX = GetCenteredColumnCoordinate(combatant.Column, _snapshot.Columns);
             var localZ = (float)System.Math.Max(1d, combatant.LanePosition) - 1f -
                          (_snapshot.Rows - 1f) * 0.5f;

@@ -507,6 +507,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6964760127804172190}
+  - component: {fileID: 6152938112353187401}
   m_Layer: 2
   m_Name: EnvironmentRoot
   m_TagString: Untagged
@@ -532,6 +533,76 @@ Transform:
   - {fileID: 1142613268433020114}
   m_Father: {fileID: 3421249851108627533}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &6152938112353187401
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 317864851287619289}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 71f3f7969cd84f779a3bc64e7e19ca12, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  cloudSeaEnabled: 1
+  hideLegacyEnvironmentRenderers: 1
+  minimumCloudDiameter: 2400
+  coverageMultiplier: 8
+  edgeFade: 0.16
+  proceduralNoiseResolution: 128
+  proceduralNoiseSeed: 4219
+  cloudLayers:
+  - name: CloudLayer_High
+    height: -7
+    tiling: 8
+    uvOffset: {x: 0, y: 0}
+    scrollSpeed: {x: 0.01, y: 0.003}
+    alpha: 0.28
+    density: 0.46
+    softness: 0.18
+    lightColor: {r: 0.88, g: 0.92, b: 0.94, a: 1}
+    shadowColor: {r: 0.5, g: 0.61, b: 0.69, a: 1}
+  - name: CloudLayer_Main
+    height: -10
+    tiling: 3
+    uvOffset: {x: 0, y: 0}
+    scrollSpeed: {x: -0.004, y: 0.002}
+    alpha: 0.58
+    density: 0.62
+    softness: 0.17
+    lightColor: {r: 0.82, g: 0.88, b: 0.91, a: 1}
+    shadowColor: {r: 0.39, g: 0.5, b: 0.59, a: 1}
+  - name: CloudLayer_Low
+    height: -13
+    tiling: 1
+    uvOffset: {x: 0, y: 0}
+    scrollSpeed: {x: 0.001, y: -0.0015}
+    alpha: 0.78
+    density: 0.72
+    softness: 0.2
+    lightColor: {r: 0.68, g: 0.76, b: 0.81, a: 1}
+    shadowColor: {r: 0.25, g: 0.34, b: 0.43, a: 1}
+  heightFogTopY: 8
+  heightFogBottomY: -24
+  heightFogColor: {r: 0.56, g: 0.66, b: 0.72, a: 1}
+  heightFogStrength: 0.96
+  heightFogCurve: 1.35
+  minimumBottomDepthBelowCloud: 20
+  distanceFogEnabled: 1
+  distanceFogColor: {r: 0.48, g: 0.59, b: 0.66, a: 1}
+  distanceFogStart: 180
+  distanceFogEnd: 560
+  abyssBackgroundColor: {r: 0.32, g: 0.43, b: 0.52, a: 1}
+  localCloudParticlesEnabled: 1
+  particleCount: 20
+  particleSize: {x: 18, y: 34}
+  particleLifetime: {x: 24, y: 38}
+  particleDriftSpeed: 0.35
+  particleUpwardSpeed: 0.08
+  particleAlpha: 0.16
+  particleSpawnArea: {x: 220, y: 14, z: 280}
+  particleCenterY: -5
 --- !u!1 &323578737868621430
 GameObject:
   m_ObjectHideFlags: 0
@@ -20956,6 +21027,7 @@ MonoBehaviour:
   mapId: BaseFormalBattleMap
   environmentRoot: {fileID: 6964760127804172190}
   battleBoardAnchor: {fileID: 520756879356222026}
+  cloudAbyssEnvironment: {fileID: 6152938112353187401}
   previewColumns: 18
   previewRows: 30
   showBoardGizmos: 1

@@ -41,6 +41,14 @@ namespace CompanyWarRE.Presentation
             _selectedColor = board.SelectedColor;
         }
 
+        public void SetVisualVisible(bool visible)
+        {
+            if (_cellRenderer != null)
+            {
+                _cellRenderer.enabled = visible;
+            }
+        }
+
         public void Render(BattleSliceCellSnapshot snapshot, bool selected)
         {
             if (_cellRenderer == null || _propertyBlock == null || snapshot == null)

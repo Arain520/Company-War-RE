@@ -138,6 +138,7 @@ namespace CompanyWarRE.Domain
             Team = actor.Team;
             Column = actor.Column;
             LanePosition = actor.LanePosition;
+            MovementSpeed = actor.Definition.Speed;
             HitPoints = Math.Max(0d, actor.HitPoints);
             MaximumHitPoints = actor.Definition.Durability;
             AttackProgress = actor.AttackProgress;
@@ -173,6 +174,7 @@ namespace CompanyWarRE.Domain
         public Team Team { get; }
         public int Column { get; }
         public double LanePosition { get; }
+        public double MovementSpeed { get; }
         public double HitPoints { get; }
         public double MaximumHitPoints { get; }
         public double AttackProgress { get; }

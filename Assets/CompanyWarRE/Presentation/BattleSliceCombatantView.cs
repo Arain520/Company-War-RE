@@ -49,6 +49,11 @@ namespace CompanyWarRE.Presentation
         private float _healPulseRemaining;
         private float _damagePulseRemaining;
         private bool _curseDamage;
+        private Vector3 _targetLocalPosition;
+        private float _uniformMovementSpeed;
+        private bool _hasPresentationPosition;
+        private bool _isBuildingPresentation;
+        private float _visualScale = 1f;
 
         public string ActorId { get; private set; }
 
@@ -60,6 +65,11 @@ namespace CompanyWarRE.Presentation
             _healPulseRemaining = 0f;
             _damagePulseRemaining = 0f;
             _curseDamage = false;
+            _targetLocalPosition = Vector3.zero;
+            _uniformMovementSpeed = 0f;
+            _hasPresentationPosition = false;
+            _isBuildingPresentation = false;
+            _visualScale = 1f;
             if (_unitBody != null)
             {
                 return;
@@ -115,6 +125,17 @@ namespace CompanyWarRE.Presentation
             _statusLabel.color = Color.white;
         }
 
+        public void ConfigureUniformMovement(float worldUnitsPerSecond)
+        {
+            _uniformMovementSpeed = Mathf.Max(0f, worldUnitsPerSecond);
+        }
+
+        public void ConfigureVisualScale(float scale)
+        {
+            _visualScale = Mathf.Max(0.01f, scale);
+            transform.localScale = Vector3.one * _visualScale;
+        }
+
         public void Render(BattleSliceCombatantSnapshot snapshot, bool curseDamage = false)
         {
             Render(
@@ -168,7 +189,13 @@ namespace CompanyWarRE.Presentation
             {
                 localPosition.y += _importedVerticalGroundOffset;
             }
-            transform.localPosition = localPosition;
+            _isBuildingPresentation = snapshot.IsBuilding;
+            _targetLocalPosition = localPosition;
+            if (!_hasPresentationPosition || snapshot.IsBuilding || _uniformMovementSpeed <= 0f)
+            {
+                transform.localPosition = localPosition;
+                _hasPresentationPosition = true;
+            }
             _unitBody.gameObject.SetActive(!hasImportedBody && !snapshot.IsBuilding);
             _buildingBody.gameObject.SetActive(!hasImportedBody && snapshot.IsBuilding);
 
@@ -403,7 +430,7 @@ namespace CompanyWarRE.Presentation
                 return;
             }
 
-            var scale = CalculateFootprintScale(bounds.size, isBuilding);
+            var scale = CalculateFootprintScale(bounds.size, isBuilding) * _visualScale;
             _importedBody.localScale *= scale;
 
             AlignImportedBodyToAnchor(isBuilding);
@@ -544,12 +571,35 @@ namespace CompanyWarRE.Presentation
 
         private void LateUpdate()
         {
+            if (_hasPresentationPosition &&
+                !_isBuildingPresentation &&
+                _uniformMovementSpeed > 0f)
+            {
+                transform.localPosition = AdvanceUniformPosition(
+                    transform.localPosition,
+                    _targetLocalPosition,
+                    _uniformMovementSpeed,
+                    Time.deltaTime);
+            }
+
             var camera = Camera.main;
             if (_statusLabel != null && camera != null)
             {
                 _statusLabel.transform.rotation = Quaternion.LookRotation(
                     _statusLabel.transform.position - camera.transform.position);
             }
+        }
+
+        public static Vector3 AdvanceUniformPosition(
+            Vector3 current,
+            Vector3 target,
+            float worldUnitsPerSecond,
+            float deltaSeconds)
+        {
+            return Vector3.MoveTowards(
+                current,
+                target,
+                Mathf.Max(0f, worldUnitsPerSecond) * Mathf.Max(0f, deltaSeconds));
         }
 
         private void OnDestroy()

@@ -17,6 +17,7 @@ namespace CompanyWarRE.Presentation
         [SerializeField] private float minPitch = 25f;
         [SerializeField] private float maxPitch = 75f;
         [SerializeField] private float smoothTime = 0.12f;
+        [SerializeField, Range(1f, 2.5f)] private float initialFramingMultiplier = 1.35f;
 
         private Camera _camera;
         private Vector3 _homeFocus;
@@ -47,6 +48,20 @@ namespace CompanyWarRE.Presentation
 
         public void Configure(int columns, int rows, Transform boardSpace)
         {
+            ConfigureVisualSize(Mathf.Max(1, columns), Mathf.Max(1, rows), boardSpace);
+        }
+
+        public void ConfigureVisualSize(float width, float length, Transform boardSpace)
+        {
+            ConfigureVisualSize(width, length, 0f, boardSpace);
+        }
+
+        public void ConfigureVisualSize(
+            float width,
+            float length,
+            float focusHeight,
+            Transform boardSpace)
+        {
             _camera = GetComponent<Camera>();
             _battleSliceController = FindObjectOfType<BattleSliceController>();
             _boardSpace = boardSpace;
@@ -55,19 +70,22 @@ namespace CompanyWarRE.Presentation
                 : 1f;
             _camera.orthographic = true;
             _camera.nearClipPlane = 0.1f;
-            _camera.farClipPlane = 250f;
 
-            var safeColumns = Mathf.Max(1, columns);
-            var safeRows = Mathf.Max(1, rows);
-            var halfX = (safeColumns - 1f) * 0.5f;
-            var halfZ = (safeRows - 1f) * 0.5f;
+            var safeWidth = Mathf.Max(1f, width);
+            var safeLength = Mathf.Max(1f, length);
+            _camera.farClipPlane = Mathf.Max(
+                250f,
+                Mathf.Max(safeWidth, safeLength) * 4f);
+            var halfX = safeWidth * 0.5f;
+            var halfZ = safeLength * 0.5f;
             _minimumFocus = new Vector2(-halfX, -halfZ);
             _maximumFocus = new Vector2(halfX, halfZ);
-            _homeFocus = Vector3.zero;
+            _homeFocus = new Vector3(0f, focusHeight, 0f);
             _homeSize = CalculateOrthographicSize(
-                safeColumns * _boardScale,
-                safeRows * _boardScale,
-                Mathf.Max(0.5f, _camera.aspect));
+                safeWidth * _boardScale,
+                safeLength * _boardScale,
+                Mathf.Max(0.5f, _camera.aspect)) *
+                Mathf.Max(1f, initialFramingMultiplier);
             _orbitDistance = Mathf.Max(12f, _homeSize * 1.75f);
             Refit();
         }
@@ -155,6 +173,7 @@ namespace CompanyWarRE.Presentation
             UpdateZoom(pointerOverUi);
             UpdatePan(pointerOverUi);
             _targetFocus = ClampFocusToBounds(_targetFocus, _minimumFocus, _maximumFocus);
+            _targetFocus.y = _homeFocus.y;
         }
 
         private void LateUpdate()
@@ -276,13 +295,16 @@ namespace CompanyWarRE.Presentation
             }
 
             _targetFocus += movement * (speed / _boardScale * Time.unscaledDeltaTime);
-            _targetFocus.y = 0f;
+            _targetFocus.y = _homeFocus.y;
         }
 
         private bool TryGetBattlePlaneHit(Ray ray, out Vector3 hitPoint)
         {
             var planeNormal = _boardSpace != null ? _boardSpace.up : Vector3.up;
-            var planePoint = _boardSpace != null ? _boardSpace.position : Vector3.zero;
+            var localPlanePoint = new Vector3(0f, _homeFocus.y, 0f);
+            var planePoint = _boardSpace != null
+                ? _boardSpace.TransformPoint(localPlanePoint)
+                : localPlanePoint;
             var plane = new Plane(planeNormal, planePoint);
             if (plane.Raycast(ray, out var distance))
             {

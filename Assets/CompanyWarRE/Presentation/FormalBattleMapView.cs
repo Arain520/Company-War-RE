@@ -10,6 +10,7 @@ namespace CompanyWarRE.Presentation
         [SerializeField] private string mapId = "BASE";
         [SerializeField] private Transform environmentRoot;
         [SerializeField] private Transform battleBoardAnchor;
+        [SerializeField] private CloudAbyssEnvironmentView cloudAbyssEnvironment;
         [SerializeField, Min(1)] private int previewColumns = 18;
         [SerializeField, Min(1)] private int previewRows = 30;
         [SerializeField] private bool showBoardGizmos = true;
@@ -22,6 +23,7 @@ namespace CompanyWarRE.Presentation
         public Transform BattleBoardAnchor => battleBoardAnchor != null ? battleBoardAnchor : transform;
         public int PreviewColumns => previewColumns;
         public int PreviewRows => previewRows;
+        public CloudAbyssEnvironmentView CloudAbyssEnvironment => cloudAbyssEnvironment;
 
         public void Configure(
             string value,
@@ -64,7 +66,15 @@ namespace CompanyWarRE.Presentation
                 uniform / Mathf.Max(0.0001f, Mathf.Abs(parentScale.z)));
         }
 
-        public void PrepareForBattle(int columns, int rows)
+        public CloudAbyssEnvironmentView PrepareForBattle(int columns, int rows)
+        {
+            return PrepareForBattle(columns, rows, null);
+        }
+
+        public CloudAbyssEnvironmentView PrepareForBattle(
+            int columns,
+            int rows,
+            BattleBoardCoordinateMapper coordinateMapper)
         {
             SetPreviewSize(columns, rows);
             if (!HasUniformAnchorScale())
@@ -78,7 +88,7 @@ namespace CompanyWarRE.Presentation
 
             if (environmentRoot == null)
             {
-                return;
+                return null;
             }
 
             SetLayerRecursively(environmentRoot, EnvironmentLayer);
@@ -86,6 +96,28 @@ namespace CompanyWarRE.Presentation
             {
                 collider.enabled = false;
             }
+
+            cloudAbyssEnvironment = cloudAbyssEnvironment != null
+                ? cloudAbyssEnvironment
+                : environmentRoot.GetComponent<CloudAbyssEnvironmentView>();
+            if (cloudAbyssEnvironment == null)
+            {
+                cloudAbyssEnvironment =
+                    environmentRoot.gameObject.AddComponent<CloudAbyssEnvironmentView>();
+            }
+
+            var visualWidth = coordinateMapper != null
+                ? coordinateMapper.VisualWidth
+                : Mathf.Max(1, columns);
+            var visualLength = coordinateMapper != null
+                ? coordinateMapper.VisualLength
+                : Mathf.Max(1, rows);
+            cloudAbyssEnvironment.Build(
+                environmentRoot,
+                BattleBoardAnchor,
+                visualWidth,
+                visualLength);
+            return cloudAbyssEnvironment;
         }
 
         private static void SetLayerRecursively(Transform root, int layer)
