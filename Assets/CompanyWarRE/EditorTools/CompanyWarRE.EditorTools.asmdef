@@ -3,7 +3,8 @@
   "rootNamespace": "CompanyWarRE.EditorTools",
   "references": [
     "CompanyWarRE.Infrastructure",
-    "CompanyWarRE.Presentation"
+    "CompanyWarRE.Presentation",
+    "Unity.TextMeshPro"
   ],
   "includePlatforms": [
     "Editor"

@@ -8,7 +8,8 @@
     "QFramework",
     "QFramework.CoreKit",
     "ResKit",
-    "AudioKit"
+    "AudioKit",
+    "Unity.TextMeshPro"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],
