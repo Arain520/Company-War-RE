@@ -1,0 +1,21 @@
+{
+  "result": "PASS",
+  "mesh_count": 1,
+  "materials": [
+    "Pillar_Graphite",
+    "Pillar_Steel",
+    "Pillar_Recess",
+    "Pillar_Deck",
+    "Pillar_Armor",
+    "Pillar_Gold",
+    "Pillar_Light"
+  ],
+  "triangles": 20576,
+  "world_dimensions_m": [
+    4.039999961853027,
+    4.0400025844573975,
+    16.049999566160324
+  ],
+  "uv_layers": 1,
+  "bottom_center_pivot": true
+}

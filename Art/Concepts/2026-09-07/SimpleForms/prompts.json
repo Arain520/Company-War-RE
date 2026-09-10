@@ -1,0 +1,26 @@
+{
+  "mode": "built-in image_gen",
+  "direction": "用户修正：不要人形，简单飞行物或建筑，先生成几张。此前人形方案与批量清单已停用。",
+  "assets": [
+    {
+      "id": "U01",
+      "prompt": "Create a single game concept sheet for U01 攻坚者Ⅰ型, a SIMPLE NON-HUMANOID FLYING OBJECT for 阴山：公司战争. Reference city is style only. Absolutely no people, humanoids, heads, faces, arms, legs, hands, suits or robot anatomy. Design a small hovering wedge-shaped corporate assault drone, ONE compact chamfered ivory block with a blunt front ram, one recessed charcoal belt seam, small restrained gold indicator and a recessed hover disk underneath. At most 5 major simple parts, very low geometry complexity suitable for easy low-poly Unity modeling, readable at tiny top-down board-game scale. No wings necessary, no guns, no antennas, no exposed machinery, no ornamental greebles. Ivory warm-gray and muted gold minimalist industrial palette from city reference. Show large clean three-quarter floating view and smaller top and side views of EXACT SAME design. Warm light-gray background, soft contact shadow beneath floating object. Beautiful restrained stylized 3D concept render, crisp simple flat planes, no scratches or weathering. Only labels 'U01' and '攻坚者Ⅰ型'. Keep geometry exceedingly simple.",
+      "file": "U01.png"
+    },
+    {
+      "id": "U04",
+      "prompt": "One concept sheet U04 奔袭者Ⅰ型 for minimalist industrial strategy game. Reference is style guide only. STRICTLY NON-HUMANOID SIMPLE FLYING OBJECT. A small streamlined arrowhead hovercraft, two long tapered ivory side shells enclosing one narrow dark-gray central body, twin small gold exhaust slots at rear, sharp front tip, shallow V silhouette clearly different from blunt assault block. Maximum 5 broad low-poly parts, no greebles, no legs, arms, head, face, cockpit, visible pilot, gun or complex machinery. Matte ivory/warm gray, thin muted gold seam, soft warm city-like light. Easy Unity low-poly modeling, easily readable top-down silhouette. Large full three-quarter hero view left, smaller consistent top and side views right, neutral warm-gray studio background, hovering shadow. Crisp clean simple geometric stylized 3D render. Only text 'U04' and '奔袭者Ⅰ型'.",
+      "file": "U04.png"
+    },
+    {
+      "id": "U08",
+      "prompt": "Create one concept sheet U08 传讯基站 for minimalist corporate industrial strategy game. Reference city is style only. SIMPLE BUILDING no humanoid anatomy or people. Small one-grid stationary communications/supply station: squat ivory cuboid base, single offset vertical rectangular signal slab with a short gold slot, one overhanging sloped roof evoking home very subtly, charcoal inset front delivery drawer. Only 4-6 major primitive geometric parts, low-poly easy Unity modeling, broad untextured matte surfaces, gold edge accent sparingly, no intricate antennas or cables, no detailed rooms, no greebles. Match off-white warm gray gold architecture of reference. Large complete three-quarter view left, smaller consistent top and side views right, clean warm-gray studio backdrop and grounded contact shadow. Polished simple stylized 3D concept render. Only text 'U08' and '传讯基站'. Strong compact building silhouette recognizable from top down.",
+      "file": "U08.png"
+    },
+    {
+      "id": "E07",
+      "prompt": "One concept sheet E07 污秽巢穴, enemy BUILDING for minimalist corporate-industrial strategy game. Style reference city only. User wants SIMPLE BUILDINGS, absolutely no humanoid, creature face, limbs, flesh, tentacles, skulls or anatomy. Reinterpret a pulsing nest as simple grounded corrupted industrial incubator structure: low irregular truncated hexagonal charcoal-gray shell composed of 5 broad angular slabs, one off-center narrow vertical fissure emitting muted dirty amber light, squat dark square base, a few pale gray ceramic outer panels misaligned. Three big stepped planes suggest a closed cocoon but entirely architectural and very simple. Minimal complexity easy to model in low-poly Unity, no detailed cracks or greebles, no fine roots. Enemy contrast comes from dark gray and slight asymmetry; same restrained warm gray/gold world as reference. Large 3/4 hero view left, smaller consistent top and side views right, warm light gray studio background and grounded shadow. Clear silhouette at tiny top-down scale. Polished geometric 3D concept render. Only text 'E07' and '污秽巢穴'.",
+      "file": "E07.png"
+    }
+  ]
+}

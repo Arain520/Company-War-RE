@@ -1,0 +1,62 @@
+fileFormatVersion: 2
+guid: 862fbf2e6e2d5674a142e6de481d6eb0
+ModelImporter:
+  serializedVersion: 22200
+  internalIDToNameTable: []
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Pillar_Graphite
+    second: {fileID: 2100000, guid: 322f8ec50620576fbaaeee3a9261f32c, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Pillar_Armor
+    second: {fileID: 2100000, guid: a2e90bffb41f5c00b474cda1e2c6a114, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Pillar_Deck
+    second: {fileID: 2100000, guid: 2bd8800d8e785ccda7e8bc4a98e64d36, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Pillar_Steel
+    second: {fileID: 2100000, guid: 853bbd77591059a9ae15af5b189a1ae3, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Pillar_Gold
+    second: {fileID: 2100000, guid: c4e46ce7027f5f96bce7080e0ad04f79, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Pillar_Recess
+    second: {fileID: 2100000, guid: 7c74ba210ff05def9bdf339162f31de2, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Pillar_Light
+    second: {fileID: 2100000, guid: 7813a92bc65e54ef9660050bd72e4672, type: 2}
+  materials:
+    materialImportMode: 2
+    materialName: 0
+    materialSearch: 1
+    materialLocation: 1
+  meshes:
+    globalScale: 1
+    meshCompression: 0
+    addColliders: 0
+    useFileUnits: 1
+    generateSecondaryUV: 1
+    useFileScale: 1
+  tangentSpace:
+    normalImportMode: 0
+    tangentImportMode: 3
+  importAnimation: 0
+  animationType: 0
+  isReadable: 0
+  userData:
+  assetBundleName:
+  assetBundleVariant:

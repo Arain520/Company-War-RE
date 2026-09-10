@@ -1,0 +1,146 @@
+[
+  {
+    "name": "SM_SkyBridge_8m",
+    "result": "PASS",
+    "triangles": 4892,
+    "shell_count": 69,
+    "uv0": true,
+    "dimensions_m": [
+      8.170000076293945,
+      3.160000443458557,
+      2.0620006918907166
+    ]
+  },
+  {
+    "name": "SM_SkyCatwalk_8m",
+    "result": "PASS",
+    "triangles": 4228,
+    "shell_count": 51,
+    "uv0": true,
+    "dimensions_m": [
+      8.170000076293945,
+      1.410000205039978,
+      1.3470003604888916
+    ]
+  },
+  {
+    "name": "SM_SkyLanding_4m",
+    "result": "PASS",
+    "triangles": 3580,
+    "shell_count": 41,
+    "uv0": true,
+    "dimensions_m": [
+      4.0,
+      4.000000238418579,
+      1.4970006942749023
+    ]
+  },
+  {
+    "name": "SM_SkyStairs_1m",
+    "result": "PASS",
+    "triangles": 2872,
+    "shell_count": 34,
+    "uv0": true,
+    "dimensions_m": [
+      3.130000114440918,
+      2.530000329017639,
+      1.8452416372415286
+    ]
+  },
+  {
+    "name": "SM_SkyCommandRoom",
+    "result": "PASS",
+    "triangles": 4760,
+    "shell_count": 42,
+    "uv0": true,
+    "dimensions_m": [
+      3.25,
+      3.250000476837158,
+      2.642500665289333
+    ]
+  },
+  {
+    "name": "SM_SkyServiceRoom",
+    "result": "PASS",
+    "triangles": 2388,
+    "shell_count": 31,
+    "uv0": true,
+    "dimensions_m": [
+      2.9149999618530273,
+      2.600000262260437,
+      2.417000267109998
+    ]
+  },
+  {
+    "name": "SM_SkyAntenna",
+    "result": "PASS",
+    "triangles": 1772,
+    "shell_count": 25,
+    "uv0": true,
+    "dimensions_m": [
+      1.8154401183128357,
+      2.0556015968322754,
+      4.550000358184818
+    ]
+  },
+  {
+    "name": "SM_SkyMachinery",
+    "result": "PASS",
+    "triangles": 2900,
+    "shell_count": 27,
+    "uv0": true,
+    "dimensions_m": [
+      2.799999952316284,
+      2.400000214576721,
+      1.050000386239688
+    ]
+  },
+  {
+    "name": "SM_SkyTower_Slim24m",
+    "result": "PASS",
+    "triangles": 4032,
+    "shell_count": 36,
+    "uv0": true,
+    "dimensions_m": [
+      3.0950000286102295,
+      3.0950042009353638,
+      25.350000633589502
+    ]
+  },
+  {
+    "name": "SM_SkyTower_Monolith36m",
+    "result": "PASS",
+    "triangles": 4896,
+    "shell_count": 44,
+    "uv0": true,
+    "dimensions_m": [
+      6.080000400543213,
+      6.0800065994262695,
+      37.34999896940002
+    ]
+  },
+  {
+    "name": "SM_SkyTower_Split28m",
+    "result": "PASS",
+    "triangles": 4680,
+    "shell_count": 42,
+    "uv0": true,
+    "dimensions_m": [
+      3.995000123977661,
+      3.995004653930664,
+      28.09999879955518
+    ]
+  },
+  {
+    "name": "SM_SkyRing_Quarter_R7m",
+    "result": "PASS",
+    "triangles": 8952,
+    "shell_count": 160,
+    "uv0": true,
+    "dimensions_m": [
+      7.729999981820583,
+      7.73000031709671,
+      2.794382691383362
+    ]
+  }
+]

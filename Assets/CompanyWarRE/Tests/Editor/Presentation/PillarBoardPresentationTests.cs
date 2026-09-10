@@ -155,6 +155,20 @@ namespace CompanyWarRE.Presentation.Tests
         }
 
         [Test]
+        public void CameraViewDistance_NormalizesCloseAndFullBoardZoom()
+        {
+            Assert.That(
+                BattleSliceCameraRig.CalculateNormalizedViewDistance(5f, 5f, 100f),
+                Is.EqualTo(0f).Within(0.0001f));
+            Assert.That(
+                BattleSliceCameraRig.CalculateNormalizedViewDistance(52.5f, 5f, 100f),
+                Is.EqualTo(0.5f).Within(0.0001f));
+            Assert.That(
+                BattleSliceCameraRig.CalculateNormalizedViewDistance(180f, 5f, 100f),
+                Is.EqualTo(1f).Within(0.0001f));
+        }
+
+        [Test]
         public void PillarCloudAbyss_ExtendsBodyDownWithoutMovingBuildAnchor()
         {
             var board = _root.AddComponent<FormalBattleBoardView>();
@@ -173,6 +187,23 @@ namespace CompanyWarRE.Presentation.Tests
             Assert.That(pillar.BottomY, Is.EqualTo(-40f).Within(0.0001f));
             Assert.That(pillar.BuildAnchor.position, Is.EqualTo(originalAnchor));
             Assert.That(pillar.Height, Is.EqualTo(32f).Within(0.0001f));
+        }
+
+        [Test]
+        public void PillarTopSurface_DoesNotOverlapTheBodyTopFace()
+        {
+            var board = _root.AddComponent<FormalBattleBoardView>();
+            board.Prepare(3, 3, new UniformBattlePillarHeightProvider(8f));
+            board.PillarGenerator.TryGetPillar(new GridPosition(1, 1), out var pillar);
+            var body = pillar.transform.Find("Body");
+            var top = pillar.transform.Find("TopSurface");
+            var bodyTopY = body.localPosition.y + body.localScale.y * 0.5f;
+            var capBottomY = top.localPosition.y - top.localScale.y * 0.5f;
+            var capTopY = top.localPosition.y + top.localScale.y * 0.5f;
+
+            Assert.That(bodyTopY, Is.EqualTo(capBottomY).Within(0.0001f));
+            Assert.That(bodyTopY, Is.LessThan(pillar.Height));
+            Assert.That(capTopY, Is.EqualTo(pillar.Height).Within(0.0001f));
         }
 
         [Test]
@@ -199,6 +230,14 @@ namespace CompanyWarRE.Presentation.Tests
             Assert.That(
                 environment.transform.Find(
                     "CloudAbyssEnvironment/CloudSea/CloudLayer_Low"),
+                Is.Not.Null);
+            var cloudRing = environment.transform.Find(
+                "CloudAbyssEnvironment/AbyssEnvironment/HorizonCloudRing");
+            Assert.That(cloudRing, Is.Not.Null);
+            Assert.That(cloudRing.childCount, Is.EqualTo(16));
+            Assert.That(
+                environment.transform.Find(
+                    "CloudAbyssEnvironment/FogController/UnifiedColorGrading"),
                 Is.Not.Null);
             Assert.That(
                 cloudAbyss.MinimumPillarBottomY,

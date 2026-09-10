@@ -1,0 +1,3 @@
+PASS: generated and reloaded prefab; no baked playable board; no environment colliders; all environment materials persisted; static environment survives runtime preparation; Content models render; pillar deck/build anchors align after extension; deterministic real height variation; global random state preserved; runtime rebuild removes old pillars.
+Default runtime pillar count: 60
+Unity: 2022.3.62f3

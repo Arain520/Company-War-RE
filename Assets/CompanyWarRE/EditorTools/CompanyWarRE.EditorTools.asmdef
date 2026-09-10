@@ -3,8 +3,11 @@
   "rootNamespace": "CompanyWarRE.EditorTools",
   "references": [
     "CompanyWarRE.Infrastructure",
+    "CompanyWarRE.Domain",
     "CompanyWarRE.Presentation",
-    "Unity.TextMeshPro"
+    "Unity.TextMeshPro",
+    "Unity.RenderPipelines.Universal.Runtime",
+    "Unity.RenderPipelines.Core.Runtime"
   ],
   "includePlatforms": [
     "Editor"

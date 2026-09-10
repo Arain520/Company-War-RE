@@ -1,0 +1,12 @@
+{
+  "triangles": 20576,
+  "vertices": 10640,
+  "dimensions_m": [
+    4.039999961853027,
+    4.039999961853027,
+    16.049999237060547
+  ],
+  "material_slots": 7,
+  "pivot": "bottom center",
+  "uv": "UV0 smart projected; no texture dependency"
+}

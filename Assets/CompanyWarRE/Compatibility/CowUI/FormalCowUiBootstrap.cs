@@ -1,5 +1,6 @@
 using CompanyWarRE.Domain;
 using CompanyWarRE.Presentation;
+using CompanyWarRE.Presentation.UI;
 using TMPro;
 using UnityEngine;
 using UnityEngine.TextCore.LowLevel;
@@ -33,6 +34,14 @@ namespace CompanyWar.UI
             if (_controller == null)
             {
                 Debug.LogError("Formal Cow UI requires BattleSliceController.", this);
+                enabled = false;
+                return;
+            }
+
+            if (FindObjectOfType<FormalBattleHudController>(true) != null)
+            {
+                _controller.SetRuntimeHudVisible(false);
+                _controller.SetRuntimeUiPointerBlocked(false);
                 enabled = false;
                 return;
             }

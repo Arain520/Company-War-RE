@@ -9,6 +9,8 @@ namespace CompanyWarRE.Presentation
     public sealed class BattlePillarView : MonoBehaviour
     {
         private Transform _body;
+        private float _bodyTopY;
+        private Transform _authoredModel;
 
         public GridPosition ControlBlockPosition { get; private set; }
         public Transform TopAnchor { get; private set; }
@@ -22,16 +24,22 @@ namespace CompanyWarRE.Presentation
             float height,
             Material bodyMaterial,
             Material topMaterial,
-            float topThickness)
+            float topThickness,
+            GameObject pillarModel = null)
         {
             ControlBlockPosition = controlBlockPosition;
             Height = Mathf.Max(0.1f, height);
+            var safeTopThickness = Mathf.Clamp(
+                topThickness,
+                0.01f,
+                Mathf.Max(0.01f, Height - 0.01f));
+            _bodyTopY = Height - safeTopThickness;
 
             var body = GameObject.CreatePrimitive(PrimitiveType.Cube);
             body.name = "Body";
             body.transform.SetParent(transform, false);
-            body.transform.localPosition = new Vector3(0f, Height * 0.5f, 0f);
-            body.transform.localScale = new Vector3(width, Height, width);
+            body.transform.localPosition = new Vector3(0f, _bodyTopY * 0.5f, 0f);
+            body.transform.localScale = new Vector3(width, _bodyTopY, width);
             body.GetComponent<Renderer>().sharedMaterial = bodyMaterial;
             _body = body.transform;
             BottomY = transform.localPosition.y;
@@ -39,9 +47,8 @@ namespace CompanyWarRE.Presentation
             var top = GameObject.CreatePrimitive(PrimitiveType.Cube);
             top.name = "TopSurface";
             top.transform.SetParent(transform, false);
-            var safeTopThickness = Mathf.Max(0.01f, topThickness);
             // Keep the authored pillar height equal to the usable top elevation.
-            // The cap extends downward so TopAnchor and coordinate mapping stay exact.
+            // The body ends at the cap's lower face, leaving only one visible top face.
             top.transform.localPosition = new Vector3(0f, Height - safeTopThickness * 0.5f, 0f);
             top.transform.localScale = new Vector3(width, safeTopThickness, width);
             top.GetComponent<Renderer>().sharedMaterial = topMaterial;
@@ -58,6 +65,23 @@ namespace CompanyWarRE.Presentation
             BuildAnchor = new GameObject("BuildAnchor").transform;
             BuildAnchor.SetParent(TopAnchor, false);
             BuildAnchor.localPosition = Vector3.zero;
+
+            if (pillarModel != null)
+            {
+                // SkyPillar's installation plane is exactly Y=16; the trim reaches 16.05.
+                // Fit the deck plane, not the renderer bounds, to the gameplay elevation.
+                _authoredModel = new GameObject("SkyPillarModel").transform;
+                _authoredModel.SetParent(transform, false);
+                // Keep the FBX root's axis conversion (Blender Z-up to Unity Y-up).
+                Instantiate(pillarModel, _authoredModel, false);
+                _authoredModel.localPosition = Vector3.zero;
+                _authoredModel.localRotation = Quaternion.identity;
+                _authoredModel.localScale = new Vector3(width / 4f, Height / 16f, width / 4f);
+                foreach (var collider in _authoredModel.GetComponentsInChildren<Collider>(true))
+                    collider.enabled = false;
+                body.GetComponent<Renderer>().enabled = false;
+                top.GetComponent<Renderer>().enabled = false;
+            }
         }
 
         /// <summary>
@@ -71,16 +95,23 @@ namespace CompanyWarRE.Presentation
                 return;
             }
 
-            var topYInParentSpace = transform.localPosition.y + Height;
-            BottomY = Mathf.Min(bottomYInParentSpace, topYInParentSpace - 0.1f);
+            var bodyTopYInParentSpace = transform.localPosition.y + _bodyTopY;
+            BottomY = Mathf.Min(bottomYInParentSpace, bodyTopYInParentSpace - 0.1f);
             var bottomYInPillarSpace = BottomY - transform.localPosition.y;
-            var visualHeight = Height - bottomYInPillarSpace;
+            var visualHeight = _bodyTopY - bottomYInPillarSpace;
             var scale = _body.localScale;
             _body.localPosition = new Vector3(
                 0f,
-                (Height + bottomYInPillarSpace) * 0.5f,
+                (_bodyTopY + bottomYInPillarSpace) * 0.5f,
                 0f);
             _body.localScale = new Vector3(scale.x, visualHeight, scale.z);
+            if (_authoredModel != null)
+            {
+                var modelScale = _authoredModel.localScale;
+                _authoredModel.localPosition = new Vector3(0f, bottomYInPillarSpace, 0f);
+                _authoredModel.localScale = new Vector3(modelScale.x,
+                    (Height - bottomYInPillarSpace) / 16f, modelScale.z);
+            }
         }
     }
 }

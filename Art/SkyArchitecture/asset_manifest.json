@@ -1,0 +1,336 @@
+[
+  {
+    "name": "SM_SkyBridge_8m",
+    "description": "8 m main bridge, 3 m wide, gold rails and underdeck truss",
+    "pivot": "walkway center; ends X +/-4; deck Z=0",
+    "triangles": 4892,
+    "dimensions_m": [
+      8.17,
+      3.16,
+      2.062
+    ],
+    "bounds_min": [
+      -4.085000038146973,
+      -1.5800000429153442,
+      -1.1649999618530273
+    ],
+    "bounds_max": [
+      4.085000038146973,
+      1.5800000429153442,
+      0.897000253200531
+    ],
+    "materials": [
+      "Pillar_Graphite",
+      "Pillar_Deck",
+      "Pillar_Steel",
+      "Pillar_Gold"
+    ]
+  },
+  {
+    "name": "SM_SkyCatwalk_8m",
+    "description": "8 m narrow service catwalk",
+    "pivot": "walkway center; ends X +/-4; deck Z=0",
+    "triangles": 4228,
+    "dimensions_m": [
+      8.17,
+      1.41,
+      1.347
+    ],
+    "bounds_min": [
+      -4.085000038146973,
+      -0.7049999833106995,
+      -0.550000011920929
+    ],
+    "bounds_max": [
+      4.085000038146973,
+      0.7049999833106995,
+      0.7970001101493835
+    ],
+    "materials": [
+      "Pillar_Graphite",
+      "Pillar_Deck",
+      "Pillar_Steel",
+      "Pillar_Gold"
+    ]
+  },
+  {
+    "name": "SM_SkyLanding_4m",
+    "description": "4 m endpoint landing, open on X ends",
+    "pivot": "walkway center; deck Z=0",
+    "triangles": 3580,
+    "dimensions_m": [
+      4.0,
+      4.0,
+      1.497
+    ],
+    "bounds_min": [
+      -2.0,
+      -2.0,
+      -0.6000000238418579
+    ],
+    "bounds_max": [
+      2.0,
+      2.0,
+      0.8970000743865967
+    ],
+    "materials": [
+      "Pillar_Graphite",
+      "Pillar_Deck",
+      "Pillar_Gold",
+      "Pillar_Steel"
+    ]
+  },
+  {
+    "name": "SM_SkyStairs_1m",
+    "description": "6 steps, 1 m rise, 3 m run, 2.4 m width",
+    "pivot": "lower mounting plane; ascends in +X; top Z=1",
+    "triangles": 2872,
+    "dimensions_m": [
+      3.13,
+      2.53,
+      1.8452
+    ],
+    "bounds_min": [
+      -1.565000057220459,
+      -1.2649999856948853,
+      -3.725290298461914e-09
+    ],
+    "bounds_max": [
+      1.565000057220459,
+      1.2649999856948853,
+      1.8452411890029907
+    ],
+    "materials": [
+      "Pillar_Armor",
+      "Pillar_Deck",
+      "Pillar_Gold",
+      "Pillar_Steel"
+    ]
+  },
+  {
+    "name": "SM_SkyCommandRoom",
+    "description": "white observation / command room with illuminated inset windows",
+    "pivot": "roof mounting base Z=0; place at pillar height 16",
+    "triangles": 4760,
+    "dimensions_m": [
+      3.25,
+      3.25,
+      2.6425
+    ],
+    "bounds_min": [
+      -1.625,
+      -1.625,
+      0.0
+    ],
+    "bounds_max": [
+      1.625,
+      1.625,
+      2.642500162124634
+    ],
+    "materials": [
+      "Pillar_Steel",
+      "Pillar_Graphite",
+      "Pillar_Recess",
+      "Pillar_Light",
+      "Pillar_Deck",
+      "Pillar_Gold",
+      "Pillar_Armor"
+    ]
+  },
+  {
+    "name": "SM_SkyServiceRoom",
+    "description": "white service hut with ladder, vents and roof safety rail",
+    "pivot": "roof mounting base Z=0",
+    "triangles": 2388,
+    "dimensions_m": [
+      2.915,
+      2.6,
+      2.417
+    ],
+    "bounds_min": [
+      -1.4500000476837158,
+      -1.2999999523162842,
+      0.0
+    ],
+    "bounds_max": [
+      1.4649999141693115,
+      1.2999999523162842,
+      2.4169998168945312
+    ],
+    "materials": [
+      "Pillar_Steel",
+      "Pillar_Deck",
+      "Pillar_Graphite",
+      "Pillar_Gold",
+      "Pillar_Recess",
+      "Pillar_Armor"
+    ]
+  },
+  {
+    "name": "SM_SkyAntenna",
+    "description": "three-way antenna mast with two tiers of blades",
+    "pivot": "roof mounting base Z=0",
+    "triangles": 1772,
+    "dimensions_m": [
+      1.8154,
+      2.0556,
+      4.55
+    ],
+    "bounds_min": [
+      -0.675000011920929,
+      -1.027800440788269,
+      0.0
+    ],
+    "bounds_max": [
+      1.1404401063919067,
+      1.027800440788269,
+      4.550000190734863
+    ],
+    "materials": [
+      "Pillar_Steel",
+      "Pillar_Deck",
+      "Pillar_Graphite",
+      "Pillar_Gold",
+      "Pillar_Light"
+    ]
+  },
+  {
+    "name": "SM_SkyMachinery",
+    "description": "twin rooftop fan units, pipework and controls",
+    "pivot": "roof mounting base Z=0",
+    "triangles": 2900,
+    "dimensions_m": [
+      2.8,
+      2.4,
+      1.05
+    ],
+    "bounds_min": [
+      -1.399999976158142,
+      -1.2000000476837158,
+      0.0
+    ],
+    "bounds_max": [
+      1.399999976158142,
+      1.2000000476837158,
+      1.0499999523162842
+    ],
+    "materials": [
+      "Pillar_Steel",
+      "Pillar_Armor",
+      "Pillar_Recess",
+      "Pillar_Gold",
+      "Pillar_Deck"
+    ]
+  },
+  {
+    "name": "SM_SkyTower_Slim24m",
+    "description": "slender 24 m background tower",
+    "pivot": "bottom center Z=0",
+    "triangles": 4032,
+    "dimensions_m": [
+      3.095,
+      3.095,
+      25.35
+    ],
+    "bounds_min": [
+      -1.5475000143051147,
+      -1.5475000143051147,
+      0.0
+    ],
+    "bounds_max": [
+      1.5475000143051147,
+      1.5475000143051147,
+      25.350000381469727
+    ],
+    "materials": [
+      "Pillar_Graphite",
+      "Pillar_Armor",
+      "Pillar_Recess",
+      "Pillar_Gold",
+      "Pillar_Steel"
+    ]
+  },
+  {
+    "name": "SM_SkyTower_Monolith36m",
+    "description": "36 m broad background monolith with buttresses",
+    "pivot": "bottom center Z=0",
+    "triangles": 4896,
+    "dimensions_m": [
+      6.08,
+      6.08,
+      37.35
+    ],
+    "bounds_min": [
+      -3.0400002002716064,
+      -3.0400002002716064,
+      0.0
+    ],
+    "bounds_max": [
+      3.0400002002716064,
+      3.0400002002716064,
+      37.349998474121094
+    ],
+    "materials": [
+      "Pillar_Graphite",
+      "Pillar_Armor",
+      "Pillar_Recess",
+      "Pillar_Gold",
+      "Pillar_Steel"
+    ]
+  },
+  {
+    "name": "SM_SkyTower_Split28m",
+    "description": "stepped twin crown background tower",
+    "pivot": "bottom center Z=0",
+    "triangles": 4680,
+    "dimensions_m": [
+      3.995,
+      3.995,
+      28.1
+    ],
+    "bounds_min": [
+      -1.9975000619888306,
+      -1.9975000619888306,
+      0.0
+    ],
+    "bounds_max": [
+      1.9975000619888306,
+      1.9975000619888306,
+      28.099998474121094
+    ],
+    "materials": [
+      "Pillar_Graphite",
+      "Pillar_Armor",
+      "Pillar_Recess",
+      "Pillar_Gold",
+      "Pillar_Steel"
+    ]
+  },
+  {
+    "name": "SM_SkyRing_Quarter_R7m",
+    "description": "90 degree ring walkway, center radius 7 m, clear deck width 1.2 m",
+    "pivot": "ring center, walkway Z=0; rotate 0/90/180/270 degrees to complete ring",
+    "triangles": 8952,
+    "dimensions_m": [
+      7.73,
+      7.73,
+      2.7944
+    ],
+    "bounds_min": [
+      -0.08500000089406967,
+      -0.08500000089406967,
+      -2.0773813724517822
+    ],
+    "bounds_max": [
+      7.644999980926514,
+      7.644999980926514,
+      0.7170001268386841
+    ],
+    "materials": [
+      "Pillar_Deck",
+      "Pillar_Gold",
+      "Pillar_Steel",
+      "Pillar_Graphite"
+    ]
+  }
+]

@@ -187,58 +187,35 @@ namespace CompanyWarRE.Migration.Tests
         }
 
         [Test]
-        public void FormalBattleScene_WiresCowUguiPrefabsAndRuntimeBootstrap()
+        public void FormalBattleScene_UsesGeneratedHudWithoutLegacyCowBootstrap()
         {
-            const string menuPath =
-                "Assets/CompanyWarRE/Resources/CowLegacy/_Game/Scripts/UI/Menu.prefab";
-            const string levelSelectPath = "Assets/CompanyWarRE/LevelSelectPanel.prefab";
-            const string battlePath =
-                "Assets/CompanyWarRE/Resources/CowLegacy/_Game/Scripts/UI/BattlePanel.prefab";
             const string bootstrapPath =
                 "Assets/CompanyWarRE/Compatibility/CowUI/FormalCowUiBootstrap.cs";
+            const string hudPath =
+                "Assets/CompanyWarRE/Presentation/UI/FormalBattleHudController.cs";
             var yaml = File.ReadAllText(FormalScenePath);
 
-            foreach (var path in new[] { menuPath, levelSelectPath, battlePath })
-            {
-                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
-                Assert.That(prefab, Is.Not.Null, path);
-                var missingScriptCount = prefab
-                    .GetComponentsInChildren<Transform>(true)
-                    .Sum(transform =>
-                        GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(transform.gameObject));
-                Assert.That(missingScriptCount, Is.Zero, path);
-                StringAssert.Contains("guid: " + AssetDatabase.AssetPathToGUID(path), yaml, path);
-            }
-
             var bootstrapGuid = AssetDatabase.AssetPathToGUID(bootstrapPath);
+            var hudGuid = AssetDatabase.AssetPathToGUID(hudPath);
             Assert.That(bootstrapGuid, Is.Not.Empty);
-            StringAssert.Contains("guid: " + bootstrapGuid, yaml);
-            StringAssert.Contains("hideImmediateModeDebugHud: 1", yaml);
+            Assert.That(hudGuid, Is.Not.Empty);
+            StringAssert.DoesNotContain("guid: " + bootstrapGuid, yaml);
+            StringAssert.Contains("guid: " + hudGuid, yaml);
+            StringAssert.Contains("[Generated] FormalBattleHUD", yaml);
 
             var previousSetup = EditorSceneManager.GetSceneManagerSetup();
             try
             {
                 var scene = EditorSceneManager.OpenScene(FormalScenePath, OpenSceneMode.Single);
-                var bootstrap = scene.GetRootGameObjects()
+                var components = scene.GetRootGameObjects()
                     .SelectMany(root => root.GetComponentsInChildren<MonoBehaviour>(true))
-                    .FirstOrDefault(component =>
-                        component != null &&
-                        component.GetType().FullName == "CompanyWar.UI.FormalCowUiBootstrap");
-                Assert.That(bootstrap, Is.Not.Null);
-
-                var serializedBootstrap = new SerializedObject(bootstrap);
-                Assert.That(
-                    AssetDatabase.GetAssetPath(serializedBootstrap
-                        .FindProperty("menuPanelPrefab").objectReferenceValue),
-                    Is.EqualTo(menuPath));
-                Assert.That(
-                    AssetDatabase.GetAssetPath(serializedBootstrap
-                        .FindProperty("levelSelectPanelPrefab").objectReferenceValue),
-                    Is.EqualTo(levelSelectPath));
-                Assert.That(
-                    AssetDatabase.GetAssetPath(serializedBootstrap
-                        .FindProperty("battlePanelPrefab").objectReferenceValue),
-                    Is.EqualTo(battlePath));
+                    .Where(component => component != null)
+                    .ToArray();
+                Assert.That(components.Any(component =>
+                    component.GetType().FullName == "CompanyWar.UI.FormalCowUiBootstrap"), Is.False);
+                Assert.That(components.Any(component =>
+                    component.GetType().FullName ==
+                    "CompanyWarRE.Presentation.UI.FormalBattleHudController"), Is.True);
             }
             finally
             {

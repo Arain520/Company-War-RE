@@ -1,0 +1,258 @@
+{
+  "mode": "built-in image_gen",
+  "source": "D:/qq/阴山：公司战争 实现方案.docx",
+  "base": "Use case: stylized-concept. One polished concept sheet for strategy game 阴山：公司战争. Style references only, do not edit them. Match reference ivory and warm gray angular industrial architecture, fine subdued gold seams, minimalist corporate uncanny atmosphere; crisp large material planes with softly painterly rendering. No anime, no cartoon, no generic military space marine, no medieval fantasy. Plain warm light-gray studio background. Show one LARGE complete three-quarter hero view plus two smaller consistent supplementary views (front/rear for humanoids, alternate angle/top or cutaway for structures/devices). Objects fully visible, clean generous layout, strong readable game silhouette, subtle material swatches. Reference employee is faction style guide, NOT a requirement to make devices humanoid. ",
+  "first": "Use case: stylized-concept. Create one polished game unit concept sheet for 阴山：公司战争, U01 攻坚者Ⅰ型. Reference image is STYLE REFERENCE ONLY: match ivory/off-white and warm gray industrial geometry, restrained thin gold seams, softly lit architectural minimalism. Subject: mass-produced humanoid corporate employee resource, stamped light alloy skeleton, standardized office synthetic-fiber cladding resembling a plain bureaucratic suit integrated with angular machine panels, blank face with tiny standby indicator eyes, thin economical limbs, unsettling impersonal demeanor. NOT military space marine, not anime. Show one large full-body 3/4 view and smaller consistent rear and front views, separated clearly on warm light gray background, readable silhouette for top-down strategy game, subtle material swatches, professional 3D-modeling concept quality, restrained painterly edges and crisp hard-surface planes. No scenery, no cropped limbs, no gore. Only text: 'U01' and '攻坚者Ⅰ型'. Reference city is not an edit target.",
+  "assets": [
+    [
+      "U02",
+      "攻坚者Ⅱ型",
+      "Humanoid office automaton; broader shoulders, denser suit-shaped armor, two chest power cores; same family as U01."
+    ],
+    [
+      "U03",
+      "攻坚者Ⅲ型",
+      "Heavy humanoid office automaton, thick rectangular armor resembling old filing cabinets, wide shoulders, blank face, ponderous silhouette."
+    ],
+    [
+      "U04",
+      "奔袭者Ⅰ型",
+      "Office humanoid automaton with deliberately elongated limbs and lightweight joints, unsettlingly fluid running pose, slim synthetic office suit."
+    ],
+    [
+      "U05",
+      "奔袭者Ⅱ型",
+      "Advanced running office automaton, ultra-long articulated legs, visibly flexible outer panels, aerodynamic narrow torso, fast ceiling-scraping limb silhouette."
+    ],
+    [
+      "U06",
+      "歼灭模块",
+      "Unmanned straight-line penetration module: narrow angular high-speed industrial ram, no cockpit, no camera or communication aerial; dense front wedge and silent drive."
+    ],
+    [
+      "U07",
+      "轰炸模块",
+      "Disposable air-dropped office-industrial bomb capsule, compact angular printer-like shell, opening shockwave plates, small deployment inset suggesting 3x3 area shockwave and paper dust."
+    ],
+    [
+      "U08",
+      "传讯基站",
+      "Small communications building with an ambiguously home-like outline, angled canopy, industrial data terminal and antenna, supply drawers, slow glowing pulse."
+    ],
+    [
+      "U09",
+      "授权中心",
+      "Compact independent office building, glass curtain walls, empty interior with blinking authorization terminal, clean cuboid frame, no people."
+    ],
+    [
+      "U10",
+      "区域屏障Ⅰ型",
+      "Portable understated office isolation barrier, slightly over-thick base, solid partition with subtly unsettling inner fabric-like surface, ordinary industrial railing outline."
+    ],
+    [
+      "U11",
+      "区域屏障Ⅱ型",
+      "Reinforced office isolation barrier, thicker layered base, completely matte light-absorbing charcoal inner wall, ivory side supports, heavy defensive silhouette."
+    ],
+    [
+      "U12",
+      "凝固模块",
+      "Disposable time-freeze module, angular suspended clock-like industrial core and translucent frost plates, small inset of frozen dust and dense air; whole-field freeze suggested without characters."
+    ],
+    [
+      "U13",
+      "攻坚者协同Ⅰ型",
+      "Corporate humanoid office automaton derived from U02, synchronized twin deployment: primary unit plus one identical secondary figure shown in small deployment inset, uncanny single extra shadow."
+    ],
+    [
+      "U14",
+      "攻坚者协同Ⅱ型",
+      "Corporate humanoid office automaton derived from U02, central coordination spine; small deployment inset shows exactly one leader and three identical followers, synchronized silent movement."
+    ],
+    [
+      "U15",
+      "阵地构建模块",
+      "Disposable territory construction module, folding ground stamp with four mechanical anchors; small deployment inset shows one gray grid tile becoming corporate gold edged territory."
+    ],
+    [
+      "U16",
+      "亡命者",
+      "Corporate humanoid volunteer automaton, planted motionless feet, head turned back over shoulder, heavy single-use impact core in chest and blunt forearms; solemn no exposed explosives or gore."
+    ],
+    [
+      "U17",
+      "协防者Ⅰ型",
+      "Slow corporate office humanoid, arms slightly too long held straight forward, extended pointing fingers as precision ranged emitter, stiff wax-figure posture. No ordinary rifle."
+    ],
+    [
+      "U18",
+      "协防者Ⅱ型",
+      "Corporate office humanoid ranged defender, elongated neck with birdlike alert silhouette but eyes fixed level forward, longer rigid arm emitter, rigid patient stance."
+    ],
+    [
+      "U19",
+      "炮火前锋Ⅰ型",
+      "Slow solemn corporate office humanoid artillery employee, stable weighted shoes, one forearm raised toward distant target, integrated discreet emitter and heavy coat-like panels."
+    ],
+    [
+      "U20",
+      "炮火前锋Ⅱ型",
+      "Corporate humanoid artillery employee, stands still with both arms lowered, distant gaze projects invisible artillery force, no gun barrel; small effect inset distant geometry fracturing."
+    ],
+    [
+      "U21",
+      "感恩中心",
+      "Small corporate auditorium building, cutaway reveals folding chairs, lectern and blurred employee recognition portraits, warm restorative glow, empty but uncanny, ivory modular architecture."
+    ],
+    [
+      "U22",
+      "破坏者Ⅰ型",
+      "Corporate humanoid demolition automaton, shoulders leaning forward, heel-heavy stance, blunt hammer-like torso, broad impact fists, no handheld hammer required."
+    ],
+    [
+      "U23",
+      "破坏者Ⅱ型",
+      "Heavier corporate demolition humanoid, thick suit panels, large articulated fingers slightly opening and closing before impact, restrained brutal blocky silhouette."
+    ],
+    [
+      "U24",
+      "渗透者",
+      "Slim corporate humanoid infiltrator, quiet office suit panels, pivoting waist and asymmetrical turning pose, dark gray side panels; small inset path turns into adjacent lane."
+    ],
+    [
+      "U25",
+      "静默文书Ⅰ型",
+      "Design extrapolated from gameplay: disposable bureaucratic silence document device, one folded rigid ivory document and small gold seal housed in slim industrial cartridge, restrained concentric slowing waves."
+    ],
+    [
+      "U26",
+      "静默文书Ⅱ型",
+      "Design extrapolated: upgraded silence document device, layered folded ivory rigid contracts within reinforced charcoal-gold seal clamp, denser nested slowing wave motif, stronger than type I."
+    ],
+    [
+      "U27",
+      "督军",
+      "Design extrapolated: corporate humanoid marshal, upright authoritative office long-coat armor, featureless face, raised open palm issuing recoil command, restrained shoulder insignia; no firearms."
+    ],
+    [
+      "U28",
+      "诱导信标Ⅰ型",
+      "Design extrapolated: disposable compact three-legged lure beacon, single warm gold pulse emitter under geometric cage, small directional path convergence inset."
+    ],
+    [
+      "U29",
+      "诱导信标Ⅱ型",
+      "Design extrapolated: upgraded deployable lure beacon, wider five-part anchor crown, nested pulse rings, taller double emitter, same industrial family as basic beacon."
+    ],
+    [
+      "U30",
+      "环境劣化装置",
+      "Design extrapolated: concealed stationary ground-level environmental attrition device, flush floor vent disk with ivory square corner casing, tiny low mist outlets, almost hidden, not humanoid despite employee gameplay class."
+    ],
+    [
+      "U31",
+      "环境恶化装置",
+      "Design extrapolated: upgraded concealed stationary attrition device, flush floor-panel array of five vent slits and denser charcoal filtration channels, thin low drifting haze; not humanoid."
+    ],
+    [
+      "U32",
+      "公司宣言",
+      "Design extrapolated: corporate declaration building, upright monumental office charter slab enclosed in ivory geometric frame, subtle gold public-address grilles and three projection apertures, persuasive authority."
+    ],
+    [
+      "U33",
+      "感恩中心专业版",
+      "Design extrapolated upgraded corporate auditorium building, broader tiered roof, larger empty folding-chair hall and lectern visible in cutaway, nested warm healing light bands, recognizably upgraded U21."
+    ],
+    [
+      "U34",
+      "毁灭模块",
+      "Design extrapolated: heavy disposable destruction capsule, larger layered industrial shell than bombing module, five nested expansion plates and dense gold inner core, small 5x5 shockwave deployment inset."
+    ],
+    [
+      "U35",
+      "攻坚者Ⅳ型",
+      "Design extrapolated: elite fourth-generation corporate humanoid assault employee, dense but refined ivory filing-cabinet suit armor, four segmented chest plates, advanced joints and strong silhouette, blank indicator eyes."
+    ],
+    [
+      "U36",
+      "协防者Ⅲ型",
+      "Design extrapolated: third-generation office humanoid ranged defender, elongated neck and precision forearms with three nested emitter segments, improved mobile legs, forward level gaze, no rifle."
+    ],
+    [
+      "E01",
+      "炮灰",
+      "Short roughly desk-height uncanny humanoid in too-clean cheap workwear, hands held ahead with spread fingers, high-stepping knees, silent blank face, brittle plaster-like body; not zombie gore."
+    ],
+    [
+      "E02",
+      "叠甲",
+      "Uncanny humanoid enemy with exactly three layered shells: composite board exterior, compressed fibrous middle, dark sealed inner shell, inward folding armor seams, unknown face mostly hidden."
+    ],
+    [
+      "E03",
+      "铁盾",
+      "Heavy moving shield-like humanoid organism, huge closed shield torso, tiny recessed head, robust legs like runaway loaded trolley, warm vapor emerging from fine shell seam; no gore."
+    ],
+    [
+      "E04",
+      "清道夫",
+      "Uncanny lanky humanoid scavenger in faded office workwear, hunched spine, extremely long hanging arms, fingers nearly touching ground, forward running posture."
+    ],
+    [
+      "E05",
+      "豺狼",
+      "NOT AN ANIMAL: uncanny humanlike office creature running on all four limbs, whip-like flexed human spine, empty eyes, involuntary fixed upward mouth corners, no fur or wolf head."
+    ],
+    [
+      "E06",
+      "污秽之地",
+      "Stationary enemy structure: a slightly risen patch of floor covered in dark mycelium, like tea-soaked dried office carpet, low mound, nearby broken partition shows ghostlike repeated memorandum marks."
+    ],
+    [
+      "E07",
+      "污秽巢穴",
+      "Stationary enemy nest: irregular office-material cocoon with gently segmented pulsing surface, subtle damp front slit releasing flowing pale light, compressed wallboard and fibrous organic texture."
+    ],
+    [
+      "E08",
+      "塔山",
+      "Towering enemy humanoid, compressed rectangular slab body like walking office tower, perfect rectangular cast shadow, no obvious expression, small sturdy legs, dark mineral-gray planes."
+    ],
+    [
+      "E09",
+      "怖人",
+      "Ordinary employee-height uncanny humanoid, dry pale ochre skin with tiny contract-paper fold cracks, heavy broad hands suggesting area slam, subtly oppressive hunched pose, no giant size."
+    ],
+    [
+      "E10",
+      "恐爪",
+      "Very thin uncanny humanoid creature, narrow vibrating silhouette but clear readable main design, long flat translucent keratin claws shaped like clipped meeting passes, dynamic attack pose; no fur."
+    ],
+    [
+      "E11",
+      "亡诞精怪",
+      "Uncanny humanoid emerging from small office-building rubble base, upper body bent forward, arms unnaturally folded backward from shoulders in unfinished embrace, face of subtly shifting sealed planes and apertures; non-gory."
+    ],
+    [
+      "E12",
+      "虚伪皮层",
+      "Enemy stationary building mimicking standard corporate office, deliberately over-high windows and too-narrow doorway, gray entrance mat whose ridges become subtle organic bumps, outer ivory facade conceals dark living folds."
+    ],
+    [
+      "E13",
+      "恶魔",
+      "Stationary building-class whispering anomaly, NOT conventional winged horned demon: silent corporate monolith of layered contract-paper membranes and acoustic slit chambers, anchored base, dark voids and faint ochre signal glow."
+    ],
+    [
+      "E14",
+      "巨兽",
+      "Stationary building-scale devouring anomaly formed of several office rooms crushed into too-small irregular frame, massive architectural mouth-like entrance, wall surfaces contain sealed employee silhouette impressions behind translucent archive-like sheets, no gore."
+    ],
+    [
+      "E15",
+      "咒灭术师",
+      "Stationary building-class curse entity, immobile tall humanoid ritual-like administrative monument fused to grounded architectural pedestal, two deeply recessed eye marks, segmented counting halo or clock plates, silent deletion motif; not fantasy wizard."
+    ]
+  ]
+}

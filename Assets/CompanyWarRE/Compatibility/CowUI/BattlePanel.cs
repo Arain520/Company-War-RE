@@ -4,6 +4,7 @@ using System.Linq;
 using CompanyWarRE.Application;
 using CompanyWarRE.Domain;
 using CompanyWarRE.Presentation;
+using CompanyWarRE.Presentation.UI;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
@@ -35,13 +36,16 @@ namespace CompanyWar.UI
         private Button _nextLevelButton;
         private string _authorizationSignature = string.Empty;
         private string _deploymentSignature = string.Empty;
+        private bool _usingGeneratedHud;
         private readonly Dictionary<string, Button> _deploymentButtonMap =
             new Dictionary<string, Button>(StringComparer.OrdinalIgnoreCase);
 
         private void Awake()
         {
+            _usingGeneratedHud = FindObjectOfType<FormalBattleHudController>(true) != null;
             _controller = FindObjectOfType<BattleSliceController>();
-            if (MenuButton != null) MenuButton.onClick.AddListener(() => _controller?.ToggleFormalPause());
+            if (MenuButton != null && !_usingGeneratedHud)
+                MenuButton.onClick.AddListener(() => _controller?.ToggleFormalPause());
             var background = GetComponent<Image>();
             if (background != null)
             {
@@ -52,6 +56,22 @@ namespace CompanyWar.UI
             }
 
             BuildRuntimePanels();
+            if (_usingGeneratedHud)
+            {
+                for (var index = 0; index < transform.childCount; index++)
+                {
+                    var child = transform.GetChild(index);
+                    if (_resultPanel == null || child != _resultPanel.transform)
+                    {
+                        child.gameObject.SetActive(false);
+                    }
+                }
+                if (resourceText != null) resourceText.gameObject.SetActive(false);
+                if (scoreText != null) scoreText.gameObject.SetActive(false);
+                if (MenuButton != null) MenuButton.gameObject.SetActive(false);
+                if (Victory != null) Victory.SetActive(false);
+                if (Fail != null) Fail.SetActive(false);
+            }
         }
 
         private void LateUpdate()
@@ -59,6 +79,17 @@ namespace CompanyWar.UI
             var snapshot = _controller?.CurrentSnapshot;
             if (snapshot == null) return;
             var flow = _controller.CurrentFlow;
+            if (_usingGeneratedHud)
+            {
+                var showResult = flow != null && flow.Screen == FormalFlowScreen.Result;
+                _resultPanel.SetActive(showResult);
+                _authorizationPanel.SetActive(false);
+                _authorizationStatusPanel.SetActive(false);
+                _deploymentPanel.SetActive(false);
+                RefreshResult(snapshot, flow);
+                return;
+            }
+
             CowUiTypography.SetText(resourceText, "资源  " + snapshot.Resources);
             CowUiTypography.SetText(scoreText, "授权  " + snapshot.AuthorizationPoints);
             if (Victory != null) Victory.SetActive(snapshot.BattleState == BattleState.Victory);

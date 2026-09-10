@@ -40,6 +40,16 @@ namespace CompanyWarRE.Presentation
         private BattleSliceController _battleSliceController;
         private Transform _boardSpace;
         private float _boardScale = 1f;
+        private Vector2 _homeAngles = new Vector2(58f, 0f);
+
+        /// <summary>
+        /// 0 is the closest supported view and 1 is the normal full-board framing.
+        /// Additional zoom-out remains at 1 so atmosphere does not keep becoming opaque.
+        /// </summary>
+        public float NormalizedViewDistance => CalculateNormalizedViewDistance(
+            _camera != null ? _camera.orthographicSize : _targetSize,
+            MinimumZoom,
+            Mathf.Max(MinimumZoom, _homeSize));
 
         public void Configure(int columns, int rows)
         {
@@ -65,6 +75,8 @@ namespace CompanyWarRE.Presentation
             _camera = GetComponent<Camera>();
             _battleSliceController = FindObjectOfType<BattleSliceController>();
             _boardSpace = boardSpace;
+            var skySettings = boardSpace != null ? boardSpace.GetComponentInParent<SkyBattlefieldSettings>() : null;
+            _homeAngles = skySettings != null ? skySettings.CameraAngles : new Vector2(58f, 0f);
             _boardScale = boardSpace != null
                 ? Mathf.Max(0.0001f, Mathf.Abs(boardSpace.lossyScale.x))
                 : 1f;
@@ -99,10 +111,10 @@ namespace CompanyWarRE.Presentation
 
             _targetFocus = _homeFocus;
             _currentFocus = _homeFocus;
-            _targetYaw = 0f;
-            _currentYaw = 0f;
-            _targetPitch = 58f;
-            _currentPitch = 58f;
+            _targetYaw = _homeAngles.y;
+            _currentYaw = _homeAngles.y;
+            _targetPitch = _homeAngles.x;
+            _currentPitch = _homeAngles.x;
             _targetSize = Mathf.Max(MinimumZoom, _homeSize);
             _camera.orthographicSize = _targetSize;
             _focusVelocity = Vector3.zero;
@@ -131,6 +143,16 @@ namespace CompanyWarRE.Presentation
             var safeMaximum = Mathf.Max(safeMinimum, maximumSize);
             var ratio = Mathf.Clamp(ratioPerStep, 0.01f, 0.9f);
             return Mathf.Clamp(currentSize * (1f - wheelDelta * ratio), safeMinimum, safeMaximum);
+        }
+
+        public static float CalculateNormalizedViewDistance(
+            float currentSize,
+            float closestSize,
+            float fullBoardSize)
+        {
+            var closest = Mathf.Max(0.01f, closestSize);
+            var fullBoard = Mathf.Max(closest + 0.01f, fullBoardSize);
+            return Mathf.InverseLerp(closest, fullBoard, currentSize);
         }
 
         public static Vector3 ClampFocusToBounds(Vector3 focus, Vector2 minimum, Vector2 maximum)

@@ -24,6 +24,7 @@ namespace CompanyWarRE.Presentation
         [SerializeField] private Color controlBlockBorderColor = new Color(0.12f, 0.62f, 1f, 1f);
 
         [Header("Pillar Presentation")]
+        [SerializeField] private GameObject pillarModel;
         [SerializeField, Min(0.01f)] private float globalVisualScale = 4f;
         [SerializeField] private bool usePillarPresentation = true;
         [SerializeField] private bool showLegacyGroundVisual;
@@ -68,6 +69,23 @@ namespace CompanyWarRE.Presentation
         public float PresentationLength => CoordinateMapper != null
             ? CoordinateMapper.VisualLength
             : 0f;
+
+        public void ConfigureSkyPillars(GameObject model, float width, float gap,
+            float minimum, float maximum, int seed, float scale)
+        {
+            pillarModel = model;
+            pillarWidth = Mathf.Max(0.1f, width);
+            pillarGapRatio = Mathf.Max(0f, gap);
+            minimumRandomPillarHeight = Mathf.Max(0.1f, Mathf.Min(minimum, maximum));
+            maximumRandomPillarHeight = Mathf.Max(minimumRandomPillarHeight, Mathf.Max(minimum, maximum));
+            pillarHeightSeed = seed;
+            globalVisualScale = Mathf.Max(0.01f, scale);
+            pillarBaseY = 0f;
+            randomizePillarHeights = true;
+            usePillarPresentation = true;
+            showLegacyGroundVisual = false;
+            showLogicalCellOverlay = false;
+        }
 
         public void Prepare(
             int columns,
@@ -121,7 +139,8 @@ namespace CompanyWarRE.Presentation
                 CoordinateMapper,
                 pillarBodyColor,
                 pillarTopColor,
-                pillarTopThickness * GlobalVisualScale);
+                pillarTopThickness * GlobalVisualScale,
+                pillarModel);
         }
 
         private Transform FindOrCreate(string childName)

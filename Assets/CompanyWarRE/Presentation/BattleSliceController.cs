@@ -11,6 +11,7 @@ namespace CompanyWarRE.Presentation
 {
     public sealed class BattleSliceController : MonoBehaviour, IController
     {
+        private const string LastSelectedLevelKey = "CompanyWar.LastLevel";
         private static readonly string[] FormalLevelIds =
             Enumerable.Range(0, 21)
                 .Select(index => $"L{index:00}")
@@ -104,6 +105,7 @@ namespace CompanyWarRE.Presentation
                 _architecture.SendCommand(new InitializeFormalGameFlowCommand(FormalLevelIds));
                 _flowSnapshot = _architecture.SendQuery(new GetFormalGameFlowSnapshotQuery());
                 InitializeFormalSave();
+                StartSelectedLevelFromBoot();
             }
 
             _audioService.Apply(_saveSession?.Current?.Settings ?? GameSettingsSave.Default);
@@ -148,8 +150,7 @@ namespace CompanyWarRE.Presentation
 
             var canRunBattle = !useFormalLevelConfiguration ||
                                _flowSnapshot.Screen == FormalFlowScreen.Battle;
-            var choosingAuthorization = _snapshot.AuthorizationState == AuthorizationState.Choosing;
-            if (canRunBattle && !choosingAuthorization)
+            if (canRunBattle)
             {
                 _architecture.SendCommand(new AdvanceBattleSliceTimeCommand(Time.deltaTime));
                 ProcessPointerInput();
@@ -212,6 +213,21 @@ namespace CompanyWarRE.Presentation
             }
 
             _architecture.SendCommand(new RestoreFormalGameFlowCommand(result.Value, FormalLevelIds));
+            _flowSnapshot = _architecture.SendQuery(new GetFormalGameFlowSnapshotQuery());
+            formalLevelId = _flowSnapshot.ActiveLevelId;
+        }
+
+        private void StartSelectedLevelFromBoot()
+        {
+            var requestedLevel = PlayerPrefs.GetString(LastSelectedLevelKey, formalLevelId);
+            if (string.IsNullOrWhiteSpace(requestedLevel) ||
+                !FormalLevelIds.Contains(requestedLevel, System.StringComparer.OrdinalIgnoreCase) ||
+                !_architecture.SendCommand(new StartFormalLevelCommand(requestedLevel)))
+            {
+                requestedLevel = _flowSnapshot.ActiveLevelId;
+                _architecture.SendCommand(new StartFormalLevelCommand(requestedLevel));
+            }
+
             _flowSnapshot = _architecture.SendQuery(new GetFormalGameFlowSnapshotQuery());
             formalLevelId = _flowSnapshot.ActiveLevelId;
         }
@@ -442,6 +458,29 @@ namespace CompanyWarRE.Presentation
         public void SetRuntimeUiPointerBlocked(bool blocked)
         {
             _runtimeUiPointerBlocked = blocked;
+        }
+
+        public bool PreviewDeploymentAtScreenPoint(Vector2 screenPosition)
+        {
+            if (!TryGetGridPositionAtScreenPoint(screenPosition, out var position))
+            {
+                return false;
+            }
+
+            _selected = position;
+            _lastAction = $"Selected {_selected} for deployment";
+            return true;
+        }
+
+        public BattleSliceDeploymentResponse DeploySelectedAtScreenPoint(Vector2 screenPosition)
+        {
+            if (!TryGetGridPositionAtScreenPoint(screenPosition, out var position))
+            {
+                return new BattleSliceDeploymentResponse(false, DeploymentFailure.OutsideGrid);
+            }
+
+            _selected = position;
+            return DeploySelected();
         }
 
         private void ClearRuntimePresentation()
@@ -702,7 +741,7 @@ namespace CompanyWarRE.Presentation
             return true;
         }
 
-        private void DeploySelected()
+        private BattleSliceDeploymentResponse DeploySelected()
         {
             var actorId = $"test-unit-{_actorSequence:00}";
             var response = _architecture.SendCommand(
@@ -717,6 +756,8 @@ namespace CompanyWarRE.Presentation
             {
                 _lastAction = $"Rejected: {Describe(response.Failure)}";
             }
+
+            return response;
         }
 
         private void TogglePollution()
@@ -734,24 +775,35 @@ namespace CompanyWarRE.Presentation
                 return;
             }
 
-            var camera = Camera.main;
-            if (camera == null || !Physics.Raycast(camera.ScreenPointToRay(Input.mousePosition), out var hit))
+            if (!TryGetGridPositionAtScreenPoint(Input.mousePosition, out var position))
             {
                 return;
+            }
+
+            _selected = position;
+            _lastAction = $"Selected {_selected}";
+        }
+
+        private bool TryGetGridPositionAtScreenPoint(Vector2 screenPosition, out GridPosition position)
+        {
+            position = default;
+            var camera = Camera.main;
+            if (camera == null || !Physics.Raycast(camera.ScreenPointToRay(screenPosition), out var hit))
+            {
+                return false;
             }
 
             var cellView = hit.collider.GetComponentInParent<BattleSliceCellView>();
             if (cellView != null)
             {
-                _selected = cellView.Position;
-                _lastAction = $"Selected {_selected}";
-                return;
+                position = cellView.Position;
+                return true;
             }
 
             var pillarView = hit.collider.GetComponentInParent<BattlePillarView>();
             if (pillarView == null || _coordinateMapper == null || _runtimeBoardRoot == null)
             {
-                return;
+                return false;
             }
 
             var localHit = _runtimeBoardRoot.InverseTransformPoint(hit.point);
@@ -760,9 +812,11 @@ namespace CompanyWarRE.Presentation
                     pillarView.ControlBlockPosition,
                     out var pillarCell))
             {
-                _selected = pillarCell;
-                _lastAction = $"Selected {_selected} on pillar {pillarView.ControlBlockPosition}";
+                position = pillarCell;
+                return true;
             }
+
+            return false;
         }
 
         private void ProcessKeyboardInput()
@@ -803,6 +857,11 @@ namespace CompanyWarRE.Presentation
             board.transform.localPosition = Vector3.zero;
             board.transform.localRotation = Quaternion.identity;
             board.transform.localScale = Vector3.one;
+            if (_runtimeMap != null)
+            {
+                var skySettings = _runtimeMap.GetComponent<SkyBattlefieldSettings>();
+                if (skySettings != null) skySettings.ApplyTo(board);
+            }
             board.Prepare(_snapshot.Columns, _snapshot.Rows);
             _runtimeBoardRoot = board.transform;
             _coordinateMapper = board.CoordinateMapper;
@@ -1368,11 +1427,6 @@ namespace CompanyWarRE.Presentation
 
             if (useFormalLevelConfiguration && _flowSnapshot != null &&
                 _flowSnapshot.Screen != FormalFlowScreen.Battle)
-            {
-                return true;
-            }
-
-            if (_snapshot != null && _snapshot.AuthorizationState == AuthorizationState.Choosing)
             {
                 return true;
             }

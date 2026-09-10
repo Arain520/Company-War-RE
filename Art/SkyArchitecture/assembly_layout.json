@@ -1,0 +1,560 @@
+[
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      -14.0,
+      -14.0,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      -14.0,
+      -8.399999999999999,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      -14.0,
+      -2.8,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      -14.0,
+      2.8,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      -14.0,
+      8.399999999999999,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      -14.0,
+      14.0,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      -8.399999999999999,
+      -14.0,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      -8.399999999999999,
+      -8.399999999999999,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      -8.399999999999999,
+      -2.8,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      -8.399999999999999,
+      2.8,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      -8.399999999999999,
+      8.399999999999999,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      -8.399999999999999,
+      14.0,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      -2.8,
+      -14.0,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      -2.8,
+      -8.399999999999999,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      -2.8,
+      -2.8,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      -2.8,
+      2.8,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      -2.8,
+      8.399999999999999,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      -2.8,
+      14.0,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      2.8,
+      -14.0,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      2.8,
+      -8.399999999999999,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      2.8,
+      -2.8,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      2.8,
+      2.8,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      2.8,
+      8.399999999999999,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      2.8,
+      14.0,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      8.399999999999999,
+      -14.0,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      8.399999999999999,
+      -8.399999999999999,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      8.399999999999999,
+      -2.8,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      8.399999999999999,
+      2.8,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      8.399999999999999,
+      8.399999999999999,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      8.399999999999999,
+      14.0,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      14.0,
+      -14.0,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      14.0,
+      -8.399999999999999,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      14.0,
+      -2.8,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      14.0,
+      2.8,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      14.0,
+      8.399999999999999,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      14.0,
+      14.0,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyCommandRoom",
+    "position_blender": [
+      14,
+      14,
+      16
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyServiceRoom",
+    "position_blender": [
+      14,
+      -8.4,
+      16
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyMachinery",
+    "position_blender": [
+      -14,
+      8.4,
+      16
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyMachinery",
+    "position_blender": [
+      8.4,
+      14,
+      16
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyAntenna",
+    "position_blender": [
+      -8.4,
+      14,
+      16
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyAntenna",
+    "position_blender": [
+      14,
+      2.8,
+      16
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      -12,
+      -22,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyLanding_4m",
+    "position_blender": [
+      -12,
+      -22,
+      16.65
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      0,
+      -22,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyLanding_4m",
+    "position_blender": [
+      0,
+      -22,
+      16.65
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyPillar_A",
+    "position_blender": [
+      12,
+      -22,
+      0
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyLanding_4m",
+    "position_blender": [
+      12,
+      -22,
+      16.65
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyBridge_8m",
+    "position_blender": [
+      -6,
+      -22,
+      16.65
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyBridge_8m",
+    "position_blender": [
+      6,
+      -22,
+      16.65
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyCommandRoom",
+    "position_blender": [
+      -12,
+      -22,
+      16.65
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyTower_Monolith36m",
+    "position_blender": [
+      -31,
+      18,
+      -5
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyTower_Slim24m",
+    "position_blender": [
+      0,
+      39,
+      -5
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyTower_Monolith36m",
+    "position_blender": [
+      30,
+      30,
+      -5
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyTower_Split28m",
+    "position_blender": [
+      -27,
+      -8,
+      -5
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyTower_Slim24m",
+    "position_blender": [
+      29,
+      -10,
+      -5
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyTower_Split28m",
+    "position_blender": [
+      -19,
+      35,
+      -5
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyTower_Split28m",
+    "position_blender": [
+      40,
+      10,
+      -5
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyRing_Quarter_R7m",
+    "position_blender": [
+      -31,
+      18,
+      19
+    ],
+    "rotation_z_degrees": 0.0
+  },
+  {
+    "asset": "SM_SkyRing_Quarter_R7m",
+    "position_blender": [
+      -31,
+      18,
+      19
+    ],
+    "rotation_z_degrees": 90.0
+  },
+  {
+    "asset": "SM_SkyRing_Quarter_R7m",
+    "position_blender": [
+      -31,
+      18,
+      19
+    ],
+    "rotation_z_degrees": 180.0
+  },
+  {
+    "asset": "SM_SkyRing_Quarter_R7m",
+    "position_blender": [
+      -31,
+      18,
+      19
+    ],
+    "rotation_z_degrees": 270.0
+  }
+]

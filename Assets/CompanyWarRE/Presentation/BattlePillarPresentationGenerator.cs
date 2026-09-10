@@ -21,13 +21,21 @@ namespace CompanyWarRE.Presentation
             BattleBoardCoordinateMapper mapper,
             Color bodyColor,
             Color topColor,
-            float topThickness)
+            float topThickness,
+            GameObject pillarModel = null)
         {
             if (mapper == null)
             {
                 return;
             }
 
+            foreach (var pillar in _pillars.Values)
+            {
+                if (pillar == null) continue;
+                pillar.gameObject.SetActive(false);
+                if (UnityEngine.Application.isPlaying) Destroy(pillar.gameObject);
+                else DestroyImmediate(pillar.gameObject);
+            }
             ReleaseMaterials();
             _pillars.Clear();
             _bodyMaterial = CreateBodyMaterial(bodyColor);
@@ -49,7 +57,8 @@ namespace CompanyWarRE.Presentation
                         mapper.GetPillarHeight(blockPosition),
                         _bodyMaterial,
                         _topMaterial,
-                        topThickness);
+                        topThickness,
+                        pillarModel);
                     _pillars.Add(blockPosition, view);
                 }
             }

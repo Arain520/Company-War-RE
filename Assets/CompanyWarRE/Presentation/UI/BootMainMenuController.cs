@@ -82,13 +82,7 @@ namespace CompanyWarRE.Presentation.UI
                 return;
             }
 
-            if (!UnityEngine.Application.CanStreamedLevelBeLoaded(battleSceneName))
-            {
-                SetHint($"场景 {battleSceneName} 未加入 Build Settings");
-                return;
-            }
-
-            SceneManager.LoadSceneAsync(battleSceneName, LoadSceneMode.Single);
+            OpenLevelSelect();
         }
 
         public void ToggleMail()
