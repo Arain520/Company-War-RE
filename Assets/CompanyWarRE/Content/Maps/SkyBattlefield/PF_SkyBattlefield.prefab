@@ -468,6 +468,7 @@ GameObject:
   m_Component:
   - component: {fileID: 6452190185975797814}
   - component: {fileID: 5356681936090214648}
+  - component: {fileID: 8581312433235021073}
   m_Layer: 2
   m_Name: CoolSkyFill
   m_TagString: Untagged
@@ -552,6 +553,29 @@ Light:
   m_UseViewFrustumForShadowCasterCull: 1
   m_ShadowRadius: 0
   m_ShadowAngle: 0
+--- !u!114 &8581312433235021073
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 664035838479068158}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Version: 3
+  m_UsePipelineSettings: 1
+  m_AdditionalLightsShadowResolutionTier: 2
+  m_LightLayerMask: 1
+  m_RenderingLayers: 1
+  m_CustomShadowLayers: 0
+  m_ShadowLayerMask: 1
+  m_ShadowRenderingLayers: 1
+  m_LightCookieSize: {x: 1, y: 1}
+  m_LightCookieOffset: {x: 0, y: 0}
+  m_SoftShadowQuality: 0
 --- !u!1 &775310497977118827
 GameObject:
   m_ObjectHideFlags: 0
@@ -2361,6 +2385,7 @@ GameObject:
   m_Component:
   - component: {fileID: 7797161892245767980}
   - component: {fileID: 4119050955887858613}
+  - component: {fileID: 2388682148326002299}
   m_Layer: 2
   m_Name: WarmSun
   m_TagString: Untagged
@@ -2445,6 +2470,29 @@ Light:
   m_UseViewFrustumForShadowCasterCull: 1
   m_ShadowRadius: 0
   m_ShadowAngle: 0
+--- !u!114 &2388682148326002299
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2856029342485306302}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Version: 3
+  m_UsePipelineSettings: 1
+  m_AdditionalLightsShadowResolutionTier: 2
+  m_LightLayerMask: 1
+  m_RenderingLayers: 1
+  m_CustomShadowLayers: 0
+  m_ShadowLayerMask: 1
+  m_ShadowRenderingLayers: 1
+  m_LightCookieSize: {x: 1, y: 1}
+  m_LightCookieOffset: {x: 0, y: 0}
+  m_SoftShadowQuality: 0
 --- !u!1 &2863879259680618288
 GameObject:
   m_ObjectHideFlags: 0
@@ -5050,8 +5098,8 @@ MonoBehaviour:
     type: 3}
   pillarWidth: 3
   gapRatio: 0.5
-  minimumHeight: 29
-  maximumHeight: 35
+  minimumHeight: 31.5
+  maximumHeight: 32.5
   heightSeed: 1977
   visualScale: 4
   cameraAngles: {x: 48, y: -32}

@@ -22,17 +22,22 @@ namespace CompanyWarRE.Presentation.UI
 
         public void OnBeginDrag(PointerEventData eventData)
         {
+            if (eventData.button != PointerEventData.InputButton.Left) return;
             _owner?.BeginUnitDrag(_unitId, eventData.position);
         }
 
         public void OnDrag(PointerEventData eventData)
         {
+            if (eventData.button != PointerEventData.InputButton.Left) return;
             _owner?.ContinueUnitDrag(eventData.position);
         }
 
         public void OnEndDrag(PointerEventData eventData)
         {
+            if (eventData.button != PointerEventData.InputButton.Left) return;
             _owner?.EndUnitDrag(eventData.position);
         }
+
+        private void OnDisable() => _owner?.CancelUnitDrag();
     }
 }

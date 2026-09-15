@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d324571d12124137873b36a7abc2a73b, type: 3}
+  m_Name: BattleIntroPath
+  m_EditorClassIdentifier: 
+  useSequence: 0
+  shotDurations: {x: 3, y: 3, z: 2, w: 3.5}
+  flightFieldOfView: 65
+  cloudEntryOffset: {x: -0.62088495, y: -6, z: -2.5753217}
+  tunnelDepth: 0.3
+  tunnelGap: 0
+  enemyOverviewOffset: {x: 0, y: -0.058149684, z: 0.11620345}
+  enemyOverviewSize: 0.72
+  openingYaw: -32
+  openingHeight: 0.65
+  openingDistance: 1.15
+  startOffset: {x: 0, y: 0, z: 0}
+  firstControlOffset: {x: 0.18, y: 0, z: 0}
+  secondControlOffset: {x: -0.16, y: 0.08, z: 0}
+  lookAtOffset: {x: 0, y: 0, z: 0}
+  openingSize: 0.78
+  returnRotationStart: 0.66
+  motion:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4

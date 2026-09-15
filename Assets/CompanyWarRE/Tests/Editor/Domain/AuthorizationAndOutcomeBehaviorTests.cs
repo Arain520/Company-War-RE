@@ -33,6 +33,7 @@ namespace CompanyWarRE.Domain.Tests
             Assert.That(progression.Accept("U07"), Is.True);
             Assert.That(progression.NextRequirement, Is.EqualTo(14));
             Assert.That(progression.DeployList, Does.Contain("U07"));
+            Assert.That(progression.AcceptedAuthorizationCount, Is.EqualTo(1));
         }
 
         [Test]
@@ -72,6 +73,7 @@ namespace CompanyWarRE.Domain.Tests
             Assert.That(progression.CancelChoice(), Is.True);
             Assert.That(progression.State, Is.EqualTo(AuthorizationState.Available));
             Assert.That(progression.Candidates, Is.Empty);
+            Assert.That(progression.AcceptedAuthorizationCount, Is.Zero);
             Assert.That(progression.BeginChoice(), Is.True);
             Assert.That(progression.Accept("U02"), Is.True);
             Assert.That(progression.DeployList, Does.Contain("U02"));

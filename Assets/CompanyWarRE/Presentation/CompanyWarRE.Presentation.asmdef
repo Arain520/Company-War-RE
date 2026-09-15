@@ -2,6 +2,7 @@
   "name": "CompanyWarRE.Presentation",
   "rootNamespace": "CompanyWarRE.Presentation",
   "references": [
+    "Cinemachine",
     "CompanyWarRE.Application",
     "CompanyWarRE.Domain",
     "CompanyWarRE.Infrastructure",

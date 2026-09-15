@@ -154,5 +154,22 @@ namespace CompanyWarRE.Domain.Tests
             economy.Reset(resources);
             return new DeploymentService(grid, economy).TryDeploy(unit, "ally-1", position);
         }
+
+        [Test]
+        public void BuildingPreview_DoesNotReserveFootprintOrSpendResources()
+        {
+            var grid = new BattleGrid(3, 3);
+            foreach (var cell in grid.GetControlBlock(new GridPosition(1, 1)).Cells) grid.SetOwnership(cell.Position, true);
+            var economy = new ResourceEconomy();
+            economy.Reset(10);
+            var service = new DeploymentService(grid, economy);
+            var building = new UnitDefinition("U08", 4, 5d, DeploymentMode.Building, UnitFootprint.ControlBlock);
+            Assert.That(service.Validate(building, new GridPosition(2, 2)).Succeeded, Is.True);
+            Assert.That(economy.Resources, Is.EqualTo(10));
+            Assert.That(economy.GetRemainingCooldown(building), Is.Zero);
+            Assert.That(grid.GetControlBlock(new GridPosition(1, 1)).Cells.All(cell => !cell.IsBlockedByBuilding), Is.True);
+            grid.TryAddOccupant(new GridPosition(3, 3), "existing", 1);
+            Assert.That(service.Validate(building, new GridPosition(2, 2)).Failure, Is.EqualTo(DeploymentFailure.Occupied));
+        }
     }
 }

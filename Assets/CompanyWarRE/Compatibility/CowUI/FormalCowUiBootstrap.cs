@@ -95,7 +95,8 @@ namespace CompanyWar.UI
             if (_controller != null)
             {
                 _controller.SetRuntimeUiPointerBlocked(false);
-                _controller.SetRuntimeHudVisible(true);
+                _controller.SetRuntimeHudVisible(
+                    FindObjectOfType<FormalBattleHudController>(true) == null);
             }
         }
 

@@ -74,6 +74,10 @@ namespace CompanyWarRE.EditorTools
                 {
                     Generate(bootScene, background, putBootFirstInBuildSettings, true);
                 }
+                if (GUILayout.Button("仅刷新邮件面板（保留当前主界面）", GUILayout.Height(34f)))
+                {
+                    UpdateMailPanelOnly(bootScene, true);
+                }
             }
 
             EditorGUILayout.Space(6f);
@@ -88,6 +92,30 @@ namespace CompanyWarRE.EditorTools
             var scene = AssetDatabase.LoadAssetAtPath<SceneAsset>(DefaultBootScenePath);
             var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(DefaultBackgroundPath);
             Generate(scene, texture, true, false);
+        }
+
+        private static void UpdateMailPanelOnly(SceneAsset sceneAsset, bool askToSaveCurrentScenes)
+        {
+            if (sceneAsset == null) throw new ArgumentNullException(nameof(sceneAsset));
+            if (askToSaveCurrentScenes && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+
+            var font = LoadMainMenuFont();
+            var scene = EditorSceneManager.OpenScene(AssetDatabase.GetAssetPath(sceneAsset), OpenSceneMode.Single);
+            var root = FindSceneTransform(scene, "[Generated] MainMenuUI");
+            var controller = root == null ? null : root.GetComponent<BootMainMenuController>();
+            var backdrop = root == null ? null : FindChild(root, "Backdrop");
+            if (root == null || controller == null || backdrop == null)
+                throw new InvalidOperationException("Boot 场景缺少现有主界面、控制器或 Backdrop。");
+
+            var oldMail = FindChild(root, "MailPanel");
+            if (oldMail != null) Undo.DestroyObjectImmediate(oldMail.gameObject);
+            var mail = BuildSharedMailPanel(backdrop, font, out var closeButton);
+            controller.ConfigureMailPanel(mail, closeButton);
+            EditorUtility.SetDirty(controller);
+            EditorSceneManager.MarkSceneDirty(scene);
+            EditorSceneManager.SaveScene(scene);
+            Selection.activeGameObject = mail;
+            Debug.Log("Boot 邮件面板已刷新为可滚动版本；主界面其余内容未重建。", mail);
         }
 
         public static void Generate(
@@ -147,7 +175,7 @@ namespace CompanyWarRE.EditorTools
             BuildRightSlogan(backdrop.transform, font);
             var buttons = BuildWingButtons(backdrop.transform, font);
             var footer = BuildFooter(backdrop.transform, font);
-            var mail = BuildMailPanel(backdrop.transform, font, out var closeMailButton);
+            var mail = BuildSharedMailPanel(backdrop.transform, font, out var closeMailButton);
             var hint = CreateText(
                 "ContinueHint", backdrop.transform, string.Empty, font, 18f,
                 TextAlignmentOptions.Center, new Color(0.18f, 0.17f, 0.15f, 0.9f));
@@ -363,7 +391,7 @@ namespace CompanyWarRE.EditorTools
             return new FooterTexts { Clock = clock, Date = date };
         }
 
-        private static GameObject BuildMailPanel(
+        internal static GameObject BuildSharedMailPanel(
             Transform parent,
             TMP_FontAsset font,
             out Button closeButton)
@@ -375,21 +403,68 @@ namespace CompanyWarRE.EditorTools
             var outline = card.gameObject.AddComponent<Outline>();
             outline.effectColor = new Color(0.63f, 0.42f, 0.18f, 1f);
             outline.effectDistance = new Vector2(3f, -3f);
-            var title = CreateText("MailTitle", card.transform, "入职邮件 · 战略部", font, 36f,
+            var title = CreateText("MailTitle", card.transform, "入职邮件 · 战略部", font, 40f,
                 TextAlignmentOptions.Center, new Color(0.10f, 0.09f, 0.07f, 1f), FontStyles.Bold);
             SetRect(title.rectTransform, new Vector2(0.08f, 0.78f), new Vector2(0.92f, 0.94f));
+
+            var scrollRoot = CreateImage("MailScroll", card.transform, new Color(0.08f, 0.07f, 0.05f, 0.035f));
+            SetRect(scrollRoot.rectTransform, new Vector2(0.08f, 0.25f), new Vector2(0.92f, 0.76f));
+            var viewport = CreateImage("Viewport", scrollRoot.transform, Color.clear);
+            SetRect(viewport.rectTransform, new Vector2(0f, 0f), new Vector2(0.955f, 1f));
+            viewport.gameObject.AddComponent<RectMask2D>();
             var body = CreateText(
-                "MailBody", card.transform,
+                "MailBody", viewport.transform,
                 "欢迎加入公司战争项目。\n\n市场从不等待迟疑者。调配资本、部署员工，夺取关键工业节点，" +
                 "并在竞争对手建立优势前完成征服。\n\n—— 市场战略部",
-                font, 23f, TextAlignmentOptions.TopLeft,
+                font, 28f, TextAlignmentOptions.TopLeft,
                 new Color(0.19f, 0.17f, 0.14f, 1f));
-            body.lineSpacing = 12f;
-            SetRect(body.rectTransform, new Vector2(0.10f, 0.25f), new Vector2(0.90f, 0.76f));
+            body.lineSpacing = 16f;
+            body.enableWordWrapping = true;
+            body.overflowMode = TextOverflowModes.Overflow;
+            body.rectTransform.anchorMin = new Vector2(0f, 1f);
+            body.rectTransform.anchorMax = new Vector2(1f, 1f);
+            body.rectTransform.pivot = new Vector2(0.5f, 1f);
+            body.rectTransform.anchoredPosition = Vector2.zero;
+            body.rectTransform.sizeDelta = new Vector2(0f, 620f);
+
+            var scrollbarBack = CreateImage("Scrollbar", scrollRoot.transform,
+                new Color(0.12f, 0.10f, 0.07f, 0.20f));
+            SetRect(scrollbarBack.rectTransform, new Vector2(0.97f, 0.02f), new Vector2(0.995f, 0.98f));
+            var handle = CreateImage("Handle", scrollbarBack.transform,
+                new Color(0.63f, 0.42f, 0.18f, 0.95f));
+            Stretch(handle.rectTransform);
+            var scrollbar = scrollbarBack.gameObject.AddComponent<Scrollbar>();
+            scrollbar.handleRect = handle.rectTransform;
+            scrollbar.targetGraphic = handle;
+            scrollbar.direction = Scrollbar.Direction.BottomToTop;
+
+            var scrollRect = scrollRoot.gameObject.AddComponent<ScrollRect>();
+            scrollRect.content = body.rectTransform;
+            scrollRect.viewport = viewport.rectTransform;
+            scrollRect.horizontal = false;
+            scrollRect.vertical = true;
+            scrollRect.movementType = ScrollRect.MovementType.Clamped;
+            scrollRect.inertia = true;
+            scrollRect.scrollSensitivity = 45f;
+            scrollRect.verticalScrollbar = scrollbar;
+            scrollRect.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
+            scrollRect.verticalNormalizedPosition = 1f;
             closeButton = CreateRectButton("CloseMailButton", card.transform, "关闭", font,
                 new Vector2(0.40f, 0.07f), new Vector2(0.60f, 0.19f));
             blocker.gameObject.SetActive(false);
             return blocker.gameObject;
+        }
+
+        private static Transform FindChild(Transform root, string objectName)
+        {
+            if (root == null) return null;
+            if (root.name == objectName) return root;
+            for (var index = 0; index < root.childCount; index++)
+            {
+                var found = FindChild(root.GetChild(index), objectName);
+                if (found != null) return found;
+            }
+            return null;
         }
 
         private static Button CreateWingButton(
@@ -475,7 +550,7 @@ namespace CompanyWarRE.EditorTools
             SetRect(image.rectTransform, min, max);
             var button = image.gameObject.AddComponent<Button>();
             button.targetGraphic = image;
-            var text = CreateText("Label", image.transform, label, font, 23f,
+            var text = CreateText("Label", image.transform, label, font, 26f,
                 TextAlignmentOptions.Center, Color.white, FontStyles.Bold);
             Stretch(text.rectTransform, 8f, 4f);
             return button;

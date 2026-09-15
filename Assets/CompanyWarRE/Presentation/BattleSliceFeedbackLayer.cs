@@ -17,11 +17,17 @@ namespace CompanyWarRE.Presentation
             public bool IsTracer;
             public float Remaining;
             public float Lifetime;
+            public float RingScale;
         }
 
         private readonly List<FeedbackToken> _tokens = new List<FeedbackToken>();
 
-        public void Show(string text, Vector3 localPosition, Color color, float lifetime = 1f)
+        public void Show(
+            string text,
+            Vector3 localPosition,
+            Color color,
+            float lifetime = 1f,
+            float ringScale = 1.25f)
         {
             EnsureCapacity();
             var root = new GameObject("Feedback_" + text);
@@ -32,7 +38,8 @@ namespace CompanyWarRE.Presentation
             ring.name = "Ring";
             ring.transform.SetParent(root.transform, false);
             ring.transform.localPosition = new Vector3(0f, 0.18f, 0f);
-            ring.transform.localScale = new Vector3(1.25f, 0.025f, 1.25f);
+            var safeRingScale = Mathf.Max(0.2f, ringScale);
+            ring.transform.localScale = new Vector3(safeRingScale, 0.025f, safeRingScale);
             var collider = ring.GetComponent<Collider>();
             if (collider != null)
             {
@@ -59,7 +66,8 @@ namespace CompanyWarRE.Presentation
                 Root = root,
                 RingMaterial = ringMaterial,
                 Remaining = safeLifetime,
-                Lifetime = safeLifetime
+                Lifetime = safeLifetime,
+                RingScale = safeRingScale
             });
         }
 
@@ -144,7 +152,10 @@ namespace CompanyWarRE.Presentation
                 var ring = token.Root.transform.Find("Ring");
                 if (ring != null)
                 {
-                    ring.localScale = new Vector3(1.25f * scale, 0.025f, 1.25f * scale);
+                    ring.localScale = new Vector3(
+                        token.RingScale * scale,
+                        0.025f,
+                        token.RingScale * scale);
                 }
 
                 var label = token.Root.transform.Find("Label");

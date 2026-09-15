@@ -126,6 +126,22 @@ namespace CompanyWarRE.Domain.Tests
             return new Fixture(grid, economy, new CombatSimulation(columns, rows));
         }
 
+        [Test]
+        public void SupportPreview_DoesNotApplyDamageOrChangeTerrain()
+        {
+            var fixture = CreateFixture();
+            fixture.Combat.TryAddActor("enemy", Team.Enemy, MovingEnemy(), 2, 5d);
+            Assert.That(fixture.Service.Validate(Support("U07", "Bomb3x3"), new GridPosition(2, 5)).Succeeded, Is.True);
+            Assert.That(fixture.Combat.CreateSnapshot().Single().HitPoints, Is.EqualTo(10d));
+            Assert.That(fixture.Economy.Resources, Is.EqualTo(100));
+            OwnBlock(fixture.Grid, new GridPosition(2, 2));
+            var target = new GridPosition(2, 5);
+            var terrain = new UnitDefinition("U15", 1, 1d, DeploymentMode.TerrainBuild, effect: "TerrainBuild");
+            Assert.That(fixture.Service.Validate(terrain, target).Succeeded, Is.True);
+            Assert.That(fixture.Grid.GetCell(target).IsOwned, Is.False);
+            Assert.That(fixture.Economy.GetRemainingCooldown(terrain), Is.Zero);
+        }
+
         private static CombatantDefinition MovingEnemy()
         {
             return new CombatantDefinition("E01", "Staff", 10, 0d, 1d, 1d, 1);

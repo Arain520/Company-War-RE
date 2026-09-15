@@ -161,7 +161,8 @@ namespace CompanyWarRE.Application
             int nextAuthorizationRequirement,
             IReadOnlyList<string> authorizationCandidates,
             IReadOnlyList<string> deployList,
-            IReadOnlyList<BattleSliceUnitOptionSnapshot> unitOptions = null)
+            IReadOnlyList<BattleSliceUnitOptionSnapshot> unitOptions = null,
+            int acceptedAuthorizationCount = 0)
         {
             Columns = columns;
             Rows = rows;
@@ -187,6 +188,7 @@ namespace CompanyWarRE.Application
             AuthorizationCandidates = authorizationCandidates ?? Array.Empty<string>();
             DeployList = deployList ?? Array.Empty<string>();
             UnitOptions = unitOptions ?? Array.Empty<BattleSliceUnitOptionSnapshot>();
+            AcceptedAuthorizationCount = Math.Max(0, acceptedAuthorizationCount);
         }
 
         public int Columns { get; }
@@ -213,6 +215,7 @@ namespace CompanyWarRE.Application
         public IReadOnlyList<string> AuthorizationCandidates { get; }
         public IReadOnlyList<string> DeployList { get; }
         public IReadOnlyList<BattleSliceUnitOptionSnapshot> UnitOptions { get; }
+        public int AcceptedAuthorizationCount { get; }
     }
 
     public sealed class BattleSliceDeploymentResponse
@@ -225,6 +228,22 @@ namespace CompanyWarRE.Application
 
         public bool Succeeded { get; }
         public DeploymentFailure Failure { get; }
+    }
+
+    public sealed class BattleSliceEradicationResponse
+    {
+        public BattleSliceEradicationResponse(bool succeeded, string actorId, string templateId, int clearedCells)
+        {
+            Succeeded = succeeded;
+            ActorId = actorId ?? string.Empty;
+            TemplateId = templateId ?? string.Empty;
+            ClearedCells = clearedCells;
+        }
+
+        public bool Succeeded { get; }
+        public string ActorId { get; }
+        public string TemplateId { get; }
+        public int ClearedCells { get; }
     }
 
     public sealed class BattleSliceConfiguration
@@ -533,6 +552,38 @@ namespace CompanyWarRE.Application
         }
     }
 
+    public sealed class EradicateBattleSliceBuildingCommand : AbstractCommand<BattleSliceEradicationResponse>
+    {
+        private readonly GridPosition _position;
+
+        public EradicateBattleSliceBuildingCommand(GridPosition position)
+        {
+            _position = position;
+        }
+
+        protected override BattleSliceEradicationResponse OnExecute()
+        {
+            return this.GetModel<BattleSliceModel>().EradicateBuilding(_position);
+        }
+    }
+
+    public sealed class PreviewBattleSliceDeploymentQuery : AbstractQuery<DeploymentResult>
+    {
+        private readonly GridPosition _position;
+        private readonly string _actorId;
+        private readonly string _unitId;
+
+        public PreviewBattleSliceDeploymentQuery(GridPosition position, string actorId, string unitId)
+        {
+            _position = position;
+            _actorId = actorId;
+            _unitId = unitId;
+        }
+
+        protected override DeploymentResult OnDo()
+            => this.GetModel<BattleSliceModel>().ValidateDeployment(_position, _actorId, _unitId);
+    }
+
     public sealed class GetBattleSliceSnapshotQuery : AbstractQuery<BattleSliceSnapshot>
     {
         protected override BattleSliceSnapshot OnDo()
@@ -744,7 +795,7 @@ namespace CompanyWarRE.Application
             ProcessEnemyDeathsAndOutcome();
         }
 
-        public DeploymentResult Deploy(GridPosition position, string actorId, string unitId = null)
+        public DeploymentResult ValidateDeployment(GridPosition position, string actorId, string unitId = null)
         {
             if (_progression.State != BattleState.Running)
             {
@@ -775,8 +826,22 @@ namespace CompanyWarRE.Application
             if (unit.DeploymentMode == DeploymentMode.SupportEffect ||
                 unit.DeploymentMode == DeploymentMode.TerrainBuild)
             {
-                return _supportAbilities.TryExecute(unit, position);
+                return _supportAbilities.Validate(unit, position);
             }
+
+            if (string.IsNullOrWhiteSpace(actorId)) return DeploymentResult.Reject(DeploymentFailure.MissingActorId);
+            return _deployment.Validate(unit, position);
+        }
+
+        public DeploymentResult Deploy(GridPosition position, string actorId, string unitId = null)
+        {
+            var validation = ValidateDeployment(position, actorId, unitId);
+            if (!validation.Succeeded) return validation;
+            var selectedUnitId = string.IsNullOrWhiteSpace(unitId) ? _testUnit.Id : unitId;
+            var unit = _configuration.Units[selectedUnitId];
+            var combatant = _configuration.AllyCombatants[selectedUnitId];
+            if (unit.DeploymentMode == DeploymentMode.SupportEffect || unit.DeploymentMode == DeploymentMode.TerrainBuild)
+                return _supportAbilities.TryExecute(unit, position);
 
             var result = _deployment.TryDeploy(unit, actorId, position);
             if (!result.Succeeded)
@@ -861,6 +926,36 @@ namespace CompanyWarRE.Application
             return cell == null ? 0 : _grid.SetPollution(position, !cell.IsPolluted);
         }
 
+        public BattleSliceEradicationResponse EradicateBuilding(GridPosition position)
+        {
+            var building = _combat.CreateSnapshot().FirstOrDefault(actor =>
+                actor.IsAlive &&
+                actor.Team == Team.Ally &&
+                actor.IsBuilding &&
+                position.Column >= actor.FootprintStartColumn &&
+                position.Column <= actor.FootprintEndColumn &&
+                position.Row >= actor.FootprintStartRow &&
+                position.Row <= actor.FootprintEndRow);
+            if (building == null || !_combat.RemoveActor(building.ActorId))
+                return new BattleSliceEradicationResponse(false, string.Empty, string.Empty, 0);
+
+            var cleared = _grid.ClearBuildingFootprint(building.ActorId);
+            if (_deploymentPositions.TryGetValue(building.ActorId, out var deploymentPosition))
+            {
+                if (string.Equals(building.TemplateId, "U08", StringComparison.OrdinalIgnoreCase))
+                    _economy.UnregisterTransmitter(deploymentPosition);
+                else if (string.Equals(building.TemplateId, "U09", StringComparison.OrdinalIgnoreCase))
+                    _authorizationScore.UnregisterProducer(deploymentPosition);
+                _deploymentPositions.Remove(building.ActorId);
+            }
+
+            return new BattleSliceEradicationResponse(
+                cleared > 0,
+                building.ActorId,
+                building.TemplateId,
+                cleared);
+        }
+
         public bool BeginAuthorizationChoice()
         {
             return _authorizationProgression.BeginChoice();
@@ -939,7 +1034,8 @@ namespace CompanyWarRE.Application
                 _authorizationProgression.NextRequirement,
                 _authorizationProgression.Candidates.ToArray(),
                 _authorizationProgression.DeployList.ToArray(),
-                unitOptions);
+                unitOptions,
+                _authorizationProgression.AcceptedAuthorizationCount);
         }
 
         private void ProcessEnemyDeathsAndOutcome()

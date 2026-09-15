@@ -6,6 +6,7 @@ using CompanyWarRE.Infrastructure.Configuration;
 using CompanyWarRE.Infrastructure.Levels;
 using QFramework;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace CompanyWarRE.Presentation
 {
@@ -35,6 +36,10 @@ namespace CompanyWarRE.Presentation
         [SerializeField] private BattleSliceVisualCatalog visualCatalog;
         [SerializeField] private FormalBattleBoardView battleBoardPrefab;
         [SerializeField] private FormalBattleMapView battleMapPrefab;
+        [SerializeField] private bool playBattleIntro = true;
+        [SerializeField, Min(1f)] private float battleIntroDuration = 3f;
+        private BattleIntroDirector _battleIntro;
+        public bool IsBattleIntroPlaying => _battleIntro != null && _battleIntro.IsPlaying;
 
         private readonly Dictionary<GridPosition, BattleSliceCellView> _cellViews =
             new Dictionary<GridPosition, BattleSliceCellView>();
@@ -71,6 +76,22 @@ namespace CompanyWarRE.Presentation
         private string _selectedUnitId;
         private bool _runtimeHudVisible = true;
         private bool _runtimeUiPointerBlocked;
+        private bool _isEradicationMode;
+        private bool _authorizationUiPaused;
+        private int _suppressPauseToggleFrame = -1;
+        private BattleDeploymentGhostView _deploymentGhost;
+        public bool HasDeploymentPreviewTarget => _deploymentGhost != null && _deploymentGhost.gameObject.activeSelf;
+        public string DeploymentPreviewMessage { get; private set; }
+        public bool CanDragDeploy => _isReady && !IsBattleIntroPlaying && isActiveAndEnabled && _snapshot != null &&
+            _snapshot.BattleState == BattleState.Running &&
+            !_authorizationUiPaused &&
+            (!useFormalLevelConfiguration || _flowSnapshot?.Screen == FormalFlowScreen.Battle);
+        public bool IsEradicationMode => _isEradicationMode;
+        public bool HasErasableBuildings => _snapshot != null && _snapshot.Combatants.Any(actor =>
+            actor.IsAlive && actor.Team == Team.Ally && actor.IsBuilding);
+        public string EradicationMessage { get; private set; } = "";
+        public int EradicationRevision { get; private set; }
+        public bool IsAuthorizationUiPaused => _authorizationUiPaused;
         private FormalSaveSession _saveSession;
         private string _saveStatus = "Save not initialized";
         private FormalAudioService _audioService;
@@ -79,6 +100,7 @@ namespace CompanyWarRE.Presentation
         private ProductionComponentPool<BattleSliceCombatantView> _combatantViewPool;
         private Transform _poolRoot;
         private Material _cellSharedMaterial;
+        private Material _territoryOverlayMaterial;
         private BattleRuntimePerformanceMonitor _performanceMonitor;
 
         public BattleSliceSnapshot CurrentSnapshot => _snapshot;
@@ -106,6 +128,7 @@ namespace CompanyWarRE.Presentation
                 _flowSnapshot = _architecture.SendQuery(new GetFormalGameFlowSnapshotQuery());
                 InitializeFormalSave();
                 StartSelectedLevelFromBoot();
+                FormalAudio.PlayLevelMusic(formalLevelId);
             }
 
             _audioService.Apply(_saveSession?.Current?.Settings ?? GameSettingsSave.Default);
@@ -130,6 +153,43 @@ namespace CompanyWarRE.Presentation
             _isReady = true;
             RefreshView();
             _selectedUnitId = _snapshot.UnitId;
+            BeginBattleIntro();
+        }
+
+        private void BeginBattleIntro()
+        {
+            if (!playBattleIntro || !useFormalLevelConfiguration || Camera.main == null) return;
+            EndDeploymentPreview();
+            _battleIntro = GetComponent<BattleIntroDirector>() ?? gameObject.AddComponent<BattleIntroDirector>();
+            var center = new Vector3(0f, _coordinateMapper?.AveragePillarTopY ?? 0f, 0f);
+            if (_boardAnchor != null) center = _boardAnchor.TransformPoint(center);
+            BattleIntroSequence sequence = null;
+            if (_coordinateMapper != null)
+            {
+                var enemies = _snapshot.Combatants.Where(actor => actor.IsAlive && actor.Team == Team.Enemy).ToArray();
+                var focus = new Vector3(0f, _coordinateMapper.MaximumPillarTopY, _coordinateMapper.VisualLength * 0.3f);
+                if (enemies.Length > 0)
+                {
+                    focus = Vector3.zero;
+                    foreach (var enemy in enemies) focus += GetRuntimeCombatantLocalPosition(enemy);
+                    focus /= enemies.Length;
+                }
+                sequence = new BattleIntroSequence(_coordinateMapper,
+                    _boardAnchor != null ? _boardAnchor.localToWorldMatrix : Matrix4x4.identity,
+                    _boardAnchor != null ? _boardAnchor.rotation : Quaternion.identity, focus, _runtimeMap?.EnvironmentRoot);
+            }
+            _battleIntro.Play(Camera.main, center, battleIntroDuration, sequence);
+            foreach (var view in _combatantViews.Values) view.SetOverlayVisible(false);
+        }
+
+        public bool StartIntroPreview()
+        {
+            if (!UnityEngine.Application.isPlaying || !_isReady || !useFormalLevelConfiguration ||
+                _snapshot == null || _snapshot.BattleState != BattleState.Running) return false;
+            BeginBattleIntro();
+            if (!IsBattleIntroPlaying) return false;
+            _battleIntro.SeekPreview(0f);
+            return true;
         }
 
         private void Update()
@@ -139,17 +199,26 @@ namespace CompanyWarRE.Presentation
                 return;
             }
 
+            if (IsBattleIntroPlaying)
+            {
+                if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.Space))
+                    _battleIntro.Skip();
+                return;
+            }
+
             if (useFormalLevelConfiguration)
             {
                 _flowSnapshot = _architecture.SendQuery(new GetFormalGameFlowSnapshotQuery());
                 if (Input.GetKeyDown(KeyCode.Escape))
                 {
-                    ToggleFormalPause();
+                    if (_isEradicationMode) CancelEradication();
+                    else if (Time.frameCount != _suppressPauseToggleFrame) ToggleFormalPause();
                 }
             }
 
             var canRunBattle = !useFormalLevelConfiguration ||
                                _flowSnapshot.Screen == FormalFlowScreen.Battle;
+            canRunBattle &= !_authorizationUiPaused;
             if (canRunBattle)
             {
                 _architecture.SendCommand(new AdvanceBattleSliceTimeCommand(Time.deltaTime));
@@ -234,6 +303,7 @@ namespace CompanyWarRE.Presentation
 
         private void ResetSlice()
         {
+            _isEradicationMode = false;
             _architecture.SendCommand(new ResetBattleSliceCommand());
             _selected = new GridPosition(1, 1);
             _actorSequence = 1;
@@ -302,13 +372,16 @@ namespace CompanyWarRE.Presentation
             _previousHitPoints.Clear();
             _flowSnapshot = _architecture.SendQuery(new GetFormalGameFlowSnapshotQuery());
             _lastAction = "Started " + _activeLevelId;
+            FormalAudio.PlayLevelMusic(_activeLevelId);
             RememberSaveResult(_saveSession?.SaveCampaign(_flowSnapshot));
             RefreshView();
+            BeginBattleIntro();
             return true;
         }
 
         public void OpenFormalLevelSelect()
         {
+            _battleIntro?.Cancel();
             if (!useFormalLevelConfiguration)
             {
                 return;
@@ -320,6 +393,7 @@ namespace CompanyWarRE.Presentation
 
         public void ReturnFormalMainMenu()
         {
+            _battleIntro?.Cancel();
             if (!useFormalLevelConfiguration)
             {
                 return;
@@ -331,6 +405,7 @@ namespace CompanyWarRE.Presentation
 
         public void ToggleFormalPause()
         {
+            if (IsBattleIntroPlaying) return;
             if (!useFormalLevelConfiguration || _flowSnapshot == null)
             {
                 return;
@@ -348,6 +423,7 @@ namespace CompanyWarRE.Presentation
 
         public void RestartFormalLevel()
         {
+            _battleIntro?.Cancel();
             if (!useFormalLevelConfiguration)
             {
                 ResetSlice();
@@ -384,6 +460,21 @@ namespace CompanyWarRE.Presentation
             _lastAction = "Authorization requested";
             RefreshView();
             return true;
+        }
+
+        public void SetAuthorizationUiPaused(bool paused)
+        {
+            if (_authorizationUiPaused == paused) return;
+            _authorizationUiPaused = paused;
+            if (paused)
+            {
+                EndDeploymentPreview();
+                CancelEradication();
+            }
+            else
+            {
+                _suppressPauseToggleFrame = Time.frameCount;
+            }
         }
 
         public bool CancelAuthorizationChoice()
@@ -462,18 +553,68 @@ namespace CompanyWarRE.Presentation
 
         public bool PreviewDeploymentAtScreenPoint(Vector2 screenPosition)
         {
-            if (!TryGetGridPositionAtScreenPoint(screenPosition, out var position))
+            if (!CanDragDeploy || _deploymentGhost == null ||
+                !TryGetGridPositionAtScreenPoint(screenPosition, out var position))
             {
+                HideDeploymentPreview();
                 return false;
             }
 
             _selected = position;
-            _lastAction = $"Selected {_selected} for deployment";
+            var result = _architecture.SendQuery(new PreviewBattleSliceDeploymentQuery(
+                position, $"test-unit-{_actorSequence:00}", _selectedUnitId));
+            var option = _snapshot.UnitOptions.FirstOrDefault(unit => unit.Id == _selectedUnitId);
+            var blockFootprint = option != null && (option.DeploymentMode == DeploymentMode.Building ||
+                option.DeploymentMode == DeploymentMode.TerrainBuild);
+            var startColumn = blockFootprint ? (position.Column - 1) / 3 * 3 + 1 : position.Column;
+            var startRow = blockFootprint ? (position.Row - 1) / 3 * 3 + 1 : position.Row;
+            var endColumn = blockFootprint ? Mathf.Min(startColumn + 2, _snapshot.Columns) : startColumn;
+            var endRow = blockFootprint ? Mathf.Min(startRow + 2, _snapshot.Rows) : startRow;
+            var first = GetRuntimeCellLocalPosition(startColumn, startRow, 0.12f);
+            var last = GetRuntimeCellLocalPosition(endColumn, endRow, 0.12f);
+            var cellPitch = _coordinateMapper != null ? _coordinateMapper.CellPitch : 1f;
+            _deploymentGhost.Show((first + last) * 0.5f,
+                new Vector2((endColumn - startColumn + 1) * cellPitch, (endRow - startRow + 1) * cellPitch),
+                result.Succeeded);
+            DeploymentPreviewMessage = result.Succeeded ? "释放以部署" : Describe(result.Failure);
+            return result.Succeeded;
+        }
+
+        public bool BeginDeploymentPreview(string unitId)
+        {
+            EndDeploymentPreview();
+            if (!CanDragDeploy || !SelectDeploymentUnit(unitId) || _runtimeBoardRoot == null) return false;
+            var option = _snapshot.UnitOptions.FirstOrDefault(unit => unit.Id == unitId);
+            var root = new GameObject("DeploymentGhost");
+            root.transform.SetParent(_runtimeBoardRoot, false);
+            _deploymentGhost = root.AddComponent<BattleDeploymentGhostView>();
+            _deploymentGhost.Initialize(visualCatalog, unitId,
+                option != null && option.DeploymentMode == DeploymentMode.Building,
+                _coordinateMapper != null ? _globalVisualScale : 1f);
             return true;
+        }
+
+        public void HideDeploymentPreview()
+        {
+            _deploymentGhost?.Hide();
+            DeploymentPreviewMessage = string.Empty;
+        }
+
+        public void EndDeploymentPreview()
+        {
+            if (_deploymentGhost != null)
+            {
+                _deploymentGhost.Hide();
+                if (UnityEngine.Application.isPlaying) Destroy(_deploymentGhost.gameObject);
+                else DestroyImmediate(_deploymentGhost.gameObject);
+            }
+            _deploymentGhost = null;
+            DeploymentPreviewMessage = string.Empty;
         }
 
         public BattleSliceDeploymentResponse DeploySelectedAtScreenPoint(Vector2 screenPosition)
         {
+            if (!CanDragDeploy) return new BattleSliceDeploymentResponse(false, DeploymentFailure.BattleEnded);
             if (!TryGetGridPositionAtScreenPoint(screenPosition, out var position))
             {
                 return new BattleSliceDeploymentResponse(false, DeploymentFailure.OutsideGrid);
@@ -485,6 +626,8 @@ namespace CompanyWarRE.Presentation
 
         private void ClearRuntimePresentation()
         {
+            _battleIntro?.Cancel();
+            EndDeploymentPreview();
             ReleaseAllCombatantViews();
             if (_runtimeBoardRoot != null)
             {
@@ -527,6 +670,12 @@ namespace CompanyWarRE.Presentation
             {
                 Destroy(_cellSharedMaterial);
                 _cellSharedMaterial = null;
+            }
+
+            if (_territoryOverlayMaterial != null)
+            {
+                Destroy(_territoryOverlayMaterial);
+                _territoryOverlayMaterial = null;
             }
         }
 
@@ -760,17 +909,96 @@ namespace CompanyWarRE.Presentation
             return response;
         }
 
-        private void TogglePollution()
+        public bool ToggleEradicationMode()
         {
-            var changed = _architecture.SendCommand(new ToggleBattleSlicePollutionCommand(_selected));
-            _lastAction = changed > 0
-                ? $"Pollution toggled for {changed} cells"
-                : "Pollution unchanged";
+            if (!CanDragDeploy)
+            {
+                SetEradicationMessage("当前无法执行铲除");
+                return false;
+            }
+
+            if (_isEradicationMode)
+            {
+                CancelEradication();
+                return false;
+            }
+
+            if (!HasErasableBuildings)
+            {
+                SetEradicationMessage("战场上没有可铲除的己方建筑");
+                return false;
+            }
+
+            EndDeploymentPreview();
+            _isEradicationMode = true;
+            SetEradicationMessage("铲除模式：点击己方建筑，右键或 Esc 取消");
+            return true;
+        }
+
+        public void CancelEradication()
+        {
+            if (!_isEradicationMode) return;
+            _isEradicationMode = false;
+            SetEradicationMessage("已取消铲除");
+        }
+
+        private bool EradicateSelectedBuilding()
+        {
+            var building = FindErasableBuildingAt(_selected);
+            if (building == null)
+            {
+                SetEradicationMessage("此处没有可铲除的己方建筑");
+                return false;
+            }
+
+            var result = _architecture.SendCommand(new EradicateBattleSliceBuildingCommand(_selected));
+            if (!result.Succeeded)
+            {
+                SetEradicationMessage("建筑铲除失败，请重新选择");
+                return false;
+            }
+
+            _isEradicationMode = false;
+            _lastAction = $"Eradicated building {result.ActorId}";
+            SetEradicationMessage($"已铲除建筑：{result.TemplateId}");
+            var centerColumn = (building.FootprintStartColumn + building.FootprintEndColumn) / 2;
+            var centerRow = (building.FootprintStartRow + building.FootprintEndRow) / 2;
+            _feedbackLayer?.Show(
+                "DISMANTLED",
+                GetRuntimeCellLocalPosition(centerColumn, centerRow, 0.28f),
+                new Color(1f, 0.58f, 0.12f),
+                1.25f,
+                3.2f);
+            return true;
+        }
+
+        private BattleSliceCombatantSnapshot FindErasableBuildingAt(GridPosition position)
+        {
+            return _snapshot?.Combatants.FirstOrDefault(actor =>
+                actor.IsAlive &&
+                actor.Team == Team.Ally &&
+                actor.IsBuilding &&
+                position.Column >= actor.FootprintStartColumn &&
+                position.Column <= actor.FootprintEndColumn &&
+                position.Row >= actor.FootprintStartRow &&
+                position.Row <= actor.FootprintEndRow);
+        }
+
+        private void SetEradicationMessage(string message)
+        {
+            EradicationMessage = message ?? string.Empty;
+            EradicationRevision++;
         }
 
         private void ProcessPointerInput()
         {
-            if (_runtimeUiPointerBlocked || !Input.GetMouseButtonDown(0))
+            if (_isEradicationMode && Input.GetMouseButtonDown(1))
+            {
+                CancelEradication();
+                return;
+            }
+
+            if (_runtimeUiPointerBlocked)
             {
                 return;
             }
@@ -781,6 +1009,13 @@ namespace CompanyWarRE.Presentation
             }
 
             _selected = position;
+            if (_isEradicationMode)
+            {
+                if (Input.GetMouseButtonDown(0)) EradicateSelectedBuilding();
+                return;
+            }
+
+            if (!Input.GetMouseButtonDown(0)) return;
             _lastAction = $"Selected {_selected}";
         }
 
@@ -798,6 +1033,22 @@ namespace CompanyWarRE.Presentation
             {
                 position = cellView.Position;
                 return true;
+            }
+
+            var combatantView = hit.collider.GetComponentInParent<BattleSliceCombatantView>();
+            if (combatantView != null && _snapshot != null)
+            {
+                var combatant = _snapshot.Combatants.FirstOrDefault(actor =>
+                    string.Equals(actor.ActorId, combatantView.ActorId, System.StringComparison.Ordinal));
+                if (combatant != null)
+                {
+                    position = combatant.IsBuilding
+                        ? new GridPosition(
+                            (combatant.FootprintStartColumn + combatant.FootprintEndColumn) / 2,
+                            (combatant.FootprintStartRow + combatant.FootprintEndRow) / 2)
+                        : new GridPosition(combatant.Column, Mathf.RoundToInt((float)combatant.LanePosition));
+                    return true;
+                }
             }
 
             var pillarView = hit.collider.GetComponentInParent<BattlePillarView>();
@@ -821,6 +1072,7 @@ namespace CompanyWarRE.Presentation
 
         private void ProcessKeyboardInput()
         {
+            if (_deploymentGhost != null) return;
             if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.D))
             {
                 DeploySelected();
@@ -828,7 +1080,7 @@ namespace CompanyWarRE.Presentation
 
             if (Input.GetKeyDown(KeyCode.P))
             {
-                TogglePollution();
+                ToggleEradicationMode();
             }
 
             if (Input.GetKeyDown(KeyCode.R))
@@ -865,6 +1117,11 @@ namespace CompanyWarRE.Presentation
             board.Prepare(_snapshot.Columns, _snapshot.Rows);
             _runtimeBoardRoot = board.transform;
             _coordinateMapper = board.CoordinateMapper;
+            if (_coordinateMapper != null)
+            {
+                _territoryOverlayMaterial = CreateTerritoryOverlayMaterial(
+                    new Color(0.05f, 0.45f, 1f, 0.28f));
+            }
             _pillarGenerator = board.PillarGenerator;
             _flyingUnitVisualSpeedScale = board.FlyingUnitVisualSpeedScale;
             _globalVisualScale = board.GlobalVisualScale;
@@ -897,6 +1154,15 @@ namespace CompanyWarRE.Presentation
                         board.CellVisualFill * cellPitch);
                     var view = cell.AddComponent<BattleSliceCellView>();
                     view.Initialize(position, _cellSharedMaterial);
+                    if (_coordinateMapper != null)
+                    {
+                        var overlayLocalHeight =
+                            (-board.SurfaceOffsetY + 0.005f) /
+                            Mathf.Max(0.001f, board.CellHeight);
+                        view.ConfigureTerritoryOverlay(
+                            _territoryOverlayMaterial,
+                            overlayLocalHeight);
+                    }
                     view.ApplyCowBoardPalette(board);
                     view.SetVisualVisible(
                         _coordinateMapper == null || board.ShowLogicalCellOverlay);
@@ -996,6 +1262,34 @@ namespace CompanyWarRE.Presentation
             return new Material(shader) { color = color };
         }
 
+        private static Material CreateTerritoryOverlayMaterial(Color color)
+        {
+            var shader = Shader.Find("Universal Render Pipeline/Unlit") ??
+                         Shader.Find("Universal Render Pipeline/Lit") ??
+                         Shader.Find("Standard") ??
+                         Shader.Find("Sprites/Default");
+            var material = new Material(shader)
+            {
+                name = "MAT_AllyTerritoryOverlay",
+                color = color,
+                renderQueue = (int)RenderQueue.Transparent
+            };
+            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", color);
+            if (material.HasProperty("_Color")) material.SetColor("_Color", color);
+            if (material.HasProperty("_Surface")) material.SetFloat("_Surface", 1f);
+            if (material.HasProperty("_Blend")) material.SetFloat("_Blend", 0f);
+            if (material.HasProperty("_SrcBlend"))
+                material.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+            if (material.HasProperty("_DstBlend"))
+                material.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
+            if (material.HasProperty("_ZWrite")) material.SetFloat("_ZWrite", 0f);
+            if (material.HasProperty("_Cull")) material.SetFloat("_Cull", (float)CullMode.Off);
+            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            material.SetOverrideTag("RenderType", "Transparent");
+            material.SetShaderPassEnabled("ShadowCaster", false);
+            return material;
+        }
+
         private void RefreshView()
         {
             _snapshot = _architecture.SendQuery(new GetBattleSliceSnapshotQuery());
@@ -1016,7 +1310,11 @@ namespace CompanyWarRE.Presentation
             {
                 if (_cellViews.TryGetValue(cell.Position, out var view))
                 {
-                    view.Render(cell, cell.Position.Equals(_selected));
+                    var validEradicationTarget = _isEradicationMode && FindErasableBuildingAt(_selected) != null;
+                    var selected = _isEradicationMode
+                        ? IsInSameControlBlock(cell.Position, _selected)
+                        : cell.Position.Equals(_selected);
+                    view.Render(cell, selected, _isEradicationMode, validEradicationTarget);
                 }
             }
 
@@ -1054,6 +1352,7 @@ namespace CompanyWarRE.Presentation
                                   lostHitPoints &&
                                   !directAttackTargets.Contains(combatant.ActorId);
                 view.Render(combatant, GetRuntimeCombatantLocalPosition(combatant), curseDamage);
+                view.SetOverlayVisible(!IsBattleIntroPlaying);
 
                 if (curseDamage)
                 {
@@ -1132,6 +1431,14 @@ namespace CompanyWarRE.Presentation
                 GetRuntimeCellLocalPosition(position.Column, position.Row, 0.25f),
                 color,
                 1.35f);
+        }
+
+        private static bool IsInSameControlBlock(GridPosition left, GridPosition right)
+        {
+            return (left.Column - 1) / BattleGrid.ControlBlockSize ==
+                   (right.Column - 1) / BattleGrid.ControlBlockSize &&
+                   (left.Row - 1) / BattleGrid.ControlBlockSize ==
+                   (right.Row - 1) / BattleGrid.ControlBlockSize;
         }
 
         private void ReleaseCombatantView(string actorId)
@@ -1453,6 +1760,7 @@ namespace CompanyWarRE.Presentation
 
         private void OnGUI()
         {
+            if (IsBattleIntroPlaying) return;
             if (_snapshot == null)
             {
                 GUILayout.BeginArea(new Rect(16f, 16f, 520f, 180f), GUI.skin.box);
@@ -1806,8 +2114,15 @@ namespace CompanyWarRE.Presentation
             }
         }
 
+        private void OnDisable()
+        {
+            _battleIntro?.Cancel();
+            EndDeploymentPreview();
+        }
+
         private void OnDestroy()
         {
+            EndDeploymentPreview();
             _assetProvider?.Dispose();
             _sceneLoader?.Dispose();
             _combatantViewPool?.Dispose();

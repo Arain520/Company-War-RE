@@ -1,0 +1,1 @@
+Passed: FormalBattle intro hides all canvases, blocks deployment and freezes battle time; battle and HUD resume after completion.

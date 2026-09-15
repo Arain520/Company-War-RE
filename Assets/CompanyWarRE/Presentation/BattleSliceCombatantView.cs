@@ -57,6 +57,14 @@ namespace CompanyWarRE.Presentation
 
         public string ActorId { get; private set; }
 
+        public void SetOverlayVisible(bool visible)
+        {
+            if (_healthFill != null) _healthFill.GetComponent<Renderer>().enabled = visible;
+            if (_healthBackground != null) _healthBackground.GetComponent<Renderer>().enabled = visible;
+            if (_abilityIndicator != null) _abilityIndicator.GetComponent<Renderer>().enabled = visible;
+            if (_statusLabel != null) _statusLabel.GetComponent<Renderer>().enabled = visible;
+        }
+
         public void Initialize(string actorId, BattleSliceVisualCatalog visualCatalog = null)
         {
             ActorId = actorId;
@@ -187,7 +195,7 @@ namespace CompanyWarRE.Presentation
             }
             if (hasImportedBody && !snapshot.IsBuilding)
             {
-                localPosition.y += _importedVerticalGroundOffset;
+                localPosition.y += _importedVerticalGroundOffset * _visualScale;
             }
             _isBuildingPresentation = snapshot.IsBuilding;
             _targetLocalPosition = localPosition;

@@ -141,6 +141,7 @@ namespace CompanyWarRE.Domain
         private int _currentStageRequestIndex;
         private int _nextRequirement = int.MaxValue;
         private int _authorizationChoiceCount;
+        private int _acceptedAuthorizationCount;
         private bool _guaranteedUnitAppeared;
 
         private const int GuaranteedChoiceDeadline = 3;
@@ -151,6 +152,7 @@ namespace CompanyWarRE.Domain
         public int CurrentStageRequestIndex => _currentStageRequestIndex;
         public int NextRequirement => _nextRequirement;
         public AuthorizationState State { get; private set; } = AuthorizationState.None;
+        public int AcceptedAuthorizationCount => _acceptedAuthorizationCount;
         public IReadOnlyList<string> DeployList => _deployList;
         public IReadOnlyList<string> Candidates => _candidates;
 
@@ -170,6 +172,7 @@ namespace CompanyWarRE.Domain
             _deployList.Clear();
             _candidates.Clear();
             _authorizationChoiceCount = 0;
+            _acceptedAuthorizationCount = 0;
             _guaranteedUnitAppeared = false;
 
             foreach (var id in initialDeployments ?? Enumerable.Empty<string>())
@@ -241,6 +244,7 @@ namespace CompanyWarRE.Domain
             }
 
             _deployList.Add(id);
+            _acceptedAuthorizationCount++;
             _candidates.Clear();
             _currentStageRequestIndex++;
 

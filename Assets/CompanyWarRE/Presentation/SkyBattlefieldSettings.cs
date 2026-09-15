@@ -9,8 +9,8 @@ namespace CompanyWarRE.Presentation
         [SerializeField] private GameObject pillarModel;
         [SerializeField, Min(0.1f)] private float pillarWidth = 3f;
         [SerializeField, Min(0f)] private float gapRatio = 0.5f;
-        [SerializeField, Min(0.1f)] private float minimumHeight = 29f;
-        [SerializeField, Min(0.1f)] private float maximumHeight = 35f;
+        [SerializeField, Min(0.1f)] private float minimumHeight = 31.5f;
+        [SerializeField, Min(0.1f)] private float maximumHeight = 32.5f;
         [SerializeField] private int heightSeed = 1977;
         [SerializeField, Min(0.01f)] private float visualScale = 4f;
         [SerializeField] private Vector2 cameraAngles = new Vector2(48f, -32f);

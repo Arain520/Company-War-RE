@@ -296,6 +296,18 @@ namespace CompanyWarRE.Domain
                    _actors.Any(actor => string.Equals(actor.ActorId, actorId, StringComparison.Ordinal));
         }
 
+        public bool RemoveActor(string actorId)
+        {
+            if (string.IsNullOrWhiteSpace(actorId)) return false;
+            var removed = _actors.RemoveAll(actor =>
+                string.Equals(actor.ActorId, actorId, StringComparison.Ordinal)) > 0;
+            if (!removed) return false;
+            _meleeEngagements.RemoveAll(engagement =>
+                string.Equals(engagement.Ally?.ActorId, actorId, StringComparison.Ordinal) ||
+                string.Equals(engagement.Enemy?.ActorId, actorId, StringComparison.Ordinal));
+            return true;
+        }
+
         public bool TryAddActor(
             string actorId,
             Team team,

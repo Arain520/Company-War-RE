@@ -159,7 +159,10 @@ namespace CompanyWarRE.Presentation.UI
                 return;
             }
 
-            SceneManager.LoadSceneAsync(battleSceneName, LoadSceneMode.Single);
+            if (!SceneLoadingPanel.LoadScene(battleSceneName, LoadSceneMode.Single))
+            {
+                Set(sideSummary, $"无法载入场景 {battleSceneName}，请检查 Build Settings。");
+            }
         }
 
         public void ReturnToMainMenu()

@@ -21,6 +21,16 @@ namespace CompanyWarRE.Domain
 
         public DeploymentResult TryExecute(UnitDefinition unit, GridPosition target)
         {
+            var validation = Validate(unit, target);
+            if (!validation.Succeeded) return validation;
+            if (!_economy.TryDeploy(unit))
+                return DeploymentResult.Reject(DeploymentFailure.InsufficientResources);
+            Execute(unit.Effect, target);
+            return DeploymentResult.Success();
+        }
+
+        public DeploymentResult Validate(UnitDefinition unit, GridPosition target)
+        {
             if (unit == null)
             {
                 return DeploymentResult.Reject(DeploymentFailure.MissingUnit);
@@ -57,12 +67,6 @@ namespace CompanyWarRE.Domain
                 return DeploymentResult.Reject(DeploymentFailure.CooldownActive);
             }
 
-            if (!_economy.TryDeploy(unit))
-            {
-                return DeploymentResult.Reject(DeploymentFailure.InsufficientResources);
-            }
-
-            Execute(unit.Effect, target);
             return DeploymentResult.Success();
         }
 

@@ -80,6 +80,27 @@ namespace CompanyWarRE.Application.Tests
         }
 
         [Test]
+        public void DeploymentPreview_IsReadOnlyAndMatchesPlacementRejections()
+        {
+            var target = new GridPosition(4, 1);
+            var before = _architecture.SendQuery(new GetBattleSliceSnapshotQuery());
+            for (var index = 0; index < 20; index++)
+                Assert.That(_architecture.SendQuery(new PreviewBattleSliceDeploymentQuery(target, "preview", "U01")).Succeeded, Is.True);
+            var after = _architecture.SendQuery(new GetBattleSliceSnapshotQuery());
+            Assert.That(after.Resources, Is.EqualTo(before.Resources));
+            Assert.That(after.RemainingCooldown, Is.EqualTo(before.RemainingCooldown));
+            Assert.That(after.Combatants, Is.Empty);
+            Assert.That(after.Cells.Single(cell => cell.Position.Equals(target)).OccupantCount, Is.Zero);
+            Assert.That(_architecture.SendQuery(new PreviewBattleSliceDeploymentQuery(new GridPosition(4, 6), "preview", "U01")).Failure,
+                Is.EqualTo(DeploymentFailure.TerritoryNotOwned));
+            Assert.That(_architecture.SendCommand(new DeployBattleSliceUnitCommand(target, "actual", "U01")).Succeeded, Is.True);
+            Assert.That(_architecture.SendQuery(new PreviewBattleSliceDeploymentQuery(target, "preview", "U01")).Failure,
+                Is.EqualTo(DeploymentFailure.Occupied));
+            Assert.That(_architecture.SendQuery(new PreviewBattleSliceDeploymentQuery(new GridPosition(4, 2), "preview", "U01")).Failure,
+                Is.EqualTo(DeploymentFailure.CooldownActive));
+        }
+
+        [Test]
         public void UnitIdCommand_DeploysCatalogStaffAndNineCellBuildingThroughQFrameworkBoundary()
         {
             _architecture.SendCommand(new ConfigureBattleSliceCommand(CreateMultiUnitConfiguration()));
@@ -134,6 +155,26 @@ namespace CompanyWarRE.Application.Tests
 
             Assert.That(changed, Is.EqualTo(9));
             Assert.That(snapshot.Cells.Count(cell => cell.IsPolluted), Is.EqualTo(9));
+        }
+
+        [Test]
+        public void EradicateBuildingCommand_RemovesAlliedBuildingAndReleasesFootprint()
+        {
+            _architecture.SendCommand(new ConfigureBattleSliceCommand(CreateMultiUnitConfiguration()));
+            var target = new GridPosition(2, 2);
+            Assert.That(_architecture.SendCommand(new DeployBattleSliceUnitCommand(
+                target, "medical-to-remove", "U33")).Succeeded, Is.True);
+
+            var result = _architecture.SendCommand(new EradicateBattleSliceBuildingCommand(target));
+            var snapshot = _architecture.SendQuery(new GetBattleSliceSnapshotQuery());
+            var repeated = _architecture.SendCommand(new EradicateBattleSliceBuildingCommand(target));
+
+            Assert.That(result.Succeeded, Is.True);
+            Assert.That(result.ActorId, Is.EqualTo("medical-to-remove"));
+            Assert.That(result.ClearedCells, Is.EqualTo(9));
+            Assert.That(snapshot.Combatants.Any(actor => actor.ActorId == "medical-to-remove"), Is.False);
+            Assert.That(snapshot.Cells.Count(cell => cell.IsBlockedByBuilding), Is.Zero);
+            Assert.That(repeated.Succeeded, Is.False);
         }
 
         [Test]

@@ -1,0 +1,59 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2044b32570924f739e480b476b925446, type: 3}
+  m_Name: FormalAudioCatalog
+  m_EditorClassIdentifier: 
+  menuMusic: {fileID: 8300000, guid: f1626aff62e747644a66b13da9b78d48, type: 3}
+  levelMusic:
+  - levelId: L01
+    music: {fileID: 8300000, guid: 54ab71daadb5e5640bddd10f61c0d013, type: 3}
+  - levelId: L02
+    music: {fileID: 8300000, guid: 54ab71daadb5e5640bddd10f61c0d013, type: 3}
+  - levelId: L03
+    music: {fileID: 8300000, guid: 54ab71daadb5e5640bddd10f61c0d013, type: 3}
+  - levelId: L04
+    music: {fileID: 8300000, guid: 54ab71daadb5e5640bddd10f61c0d013, type: 3}
+  - levelId: L05
+    music: {fileID: 8300000, guid: 54ab71daadb5e5640bddd10f61c0d013, type: 3}
+  - levelId: L06
+    music: {fileID: 8300000, guid: 54ab71daadb5e5640bddd10f61c0d013, type: 3}
+  - levelId: L07
+    music: {fileID: 8300000, guid: 54ab71daadb5e5640bddd10f61c0d013, type: 3}
+  - levelId: L08
+    music: {fileID: 8300000, guid: 54ab71daadb5e5640bddd10f61c0d013, type: 3}
+  - levelId: L09
+    music: {fileID: 8300000, guid: 54ab71daadb5e5640bddd10f61c0d013, type: 3}
+  - levelId: L10
+    music: {fileID: 8300000, guid: 54ab71daadb5e5640bddd10f61c0d013, type: 3}
+  - levelId: L11
+    music: {fileID: 8300000, guid: 54ab71daadb5e5640bddd10f61c0d013, type: 3}
+  - levelId: L12
+    music: {fileID: 8300000, guid: 54ab71daadb5e5640bddd10f61c0d013, type: 3}
+  - levelId: L13
+    music: {fileID: 8300000, guid: 54ab71daadb5e5640bddd10f61c0d013, type: 3}
+  - levelId: L00
+    music: {fileID: 8300000, guid: 54ab71daadb5e5640bddd10f61c0d013, type: 3}
+  - levelId: L14
+    music: {fileID: 8300000, guid: 54ab71daadb5e5640bddd10f61c0d013, type: 3}
+  - levelId: L15
+    music: {fileID: 8300000, guid: 54ab71daadb5e5640bddd10f61c0d013, type: 3}
+  - levelId: L16
+    music: {fileID: 8300000, guid: 54ab71daadb5e5640bddd10f61c0d013, type: 3}
+  - levelId: L17
+    music: {fileID: 8300000, guid: 54ab71daadb5e5640bddd10f61c0d013, type: 3}
+  - levelId: L18
+    music: {fileID: 8300000, guid: 54ab71daadb5e5640bddd10f61c0d013, type: 3}
+  - levelId: L19
+    music: {fileID: 8300000, guid: 54ab71daadb5e5640bddd10f61c0d013, type: 3}
+  - levelId: L20
+    music: {fileID: 8300000, guid: 54ab71daadb5e5640bddd10f61c0d013, type: 3}
+  crossFadeSeconds: 0.5

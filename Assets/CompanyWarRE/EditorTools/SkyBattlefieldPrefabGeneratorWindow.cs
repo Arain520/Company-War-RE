@@ -29,8 +29,8 @@ namespace CompanyWarRE.EditorTools
             public float scale = 4f;
             public float pillarWidth = 3f;
             public float gap = 0.5f;
-            public float minimumHeight = 29f;
-            public float maximumHeight = 35f;
+            public float minimumHeight = 31.5f;
+            public float maximumHeight = 32.5f;
             public int distantTowers = 36;
             public float cloudHeight = 40f;
 

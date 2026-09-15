@@ -61,14 +61,30 @@ namespace CompanyWarRE.Domain
 
         public DeploymentResult TryDeploy(UnitDefinition unit, string actorId, GridPosition target)
         {
+            if (unit == null) return DeploymentResult.Reject(DeploymentFailure.MissingUnit);
+            if (string.IsNullOrWhiteSpace(actorId)) return DeploymentResult.Reject(DeploymentFailure.MissingActorId);
+            var validation = Validate(unit, target);
+            if (!validation.Succeeded) return validation;
+            if (!_resources.TryDeploy(unit))
+                return DeploymentResult.Reject(DeploymentFailure.InsufficientResources);
+
+            var occupied = unit.DeploymentMode == DeploymentMode.Building
+                ? _grid.TryOccupyBuildingControlBlock(target, actorId)
+                : _grid.TryAddOccupant(target, actorId, 1);
+            if (!occupied)
+            {
+                _resources.RefundDeployment(unit);
+                return DeploymentResult.Reject(DeploymentFailure.OccupancyRejected);
+            }
+            return DeploymentResult.Success();
+        }
+
+        /// <summary>Read-only validation shared by placement previews and deployment.</summary>
+        public DeploymentResult Validate(UnitDefinition unit, GridPosition target)
+        {
             if (unit == null)
             {
                 return DeploymentResult.Reject(DeploymentFailure.MissingUnit);
-            }
-
-            if (string.IsNullOrWhiteSpace(actorId))
-            {
-                return DeploymentResult.Reject(DeploymentFailure.MissingActorId);
             }
 
             if (unit.DeploymentMode != DeploymentMode.StandardUnit &&
@@ -104,7 +120,7 @@ namespace CompanyWarRE.Domain
                     return DeploymentResult.Reject(DeploymentFailure.Occupied);
                 }
             }
-            else if (cell.OccupantCount >= 1)
+            else if (cell.IsBlockedByBuilding || cell.OccupantCount >= 1)
             {
                 return DeploymentResult.Reject(DeploymentFailure.Occupied);
             }
@@ -117,20 +133,6 @@ namespace CompanyWarRE.Domain
             if (_resources.GetRemainingCooldown(unit) > 0d)
             {
                 return DeploymentResult.Reject(DeploymentFailure.CooldownActive);
-            }
-
-            if (!_resources.TryDeploy(unit))
-            {
-                return DeploymentResult.Reject(DeploymentFailure.InsufficientResources);
-            }
-
-            var occupied = unit.DeploymentMode == DeploymentMode.Building
-                ? _grid.TryOccupyBuildingControlBlock(target, actorId)
-                : _grid.TryAddOccupant(target, actorId, 1);
-            if (!occupied)
-            {
-                _resources.RefundDeployment(unit);
-                return DeploymentResult.Reject(DeploymentFailure.OccupancyRejected);
             }
 
             return DeploymentResult.Success();

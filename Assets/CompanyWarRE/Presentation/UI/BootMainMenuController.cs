@@ -9,6 +9,8 @@ namespace CompanyWarRE.Presentation.UI
     public sealed class BootMainMenuController : MonoBehaviour
     {
         private const string LastLevelKey = "CompanyWar.LastLevel";
+        private const string BootRouteKey = "CompanyWar.BootRoute";
+        private const string LevelSelectRoute = "LevelSelect";
 
         [SerializeField] private GameObject mainMenuCanvas;
         [SerializeField] private GameObject levelSelectRoot;
@@ -45,14 +47,29 @@ namespace CompanyWarRE.Presentation.UI
             battleSceneName = string.IsNullOrWhiteSpace(battleScene) ? "FormalBattle" : battleScene;
         }
 
+        public void ConfigureMailPanel(GameObject panel, Button closeButton)
+        {
+            mailPanel = panel;
+            closeMailButton = closeButton;
+        }
+
         private void Awake()
         {
+            FormalAudio.PlayMenuMusic();
             Bind(startButton, OpenLevelSelect);
             Bind(continueButton, ContinueGame);
             Bind(mailButton, ToggleMail);
             Bind(quitButton, QuitGame);
             Bind(closeMailButton, ToggleMail);
             if (mailPanel != null) mailPanel.SetActive(false);
+        }
+
+        private void Start()
+        {
+            if (PlayerPrefs.GetString(BootRouteKey, string.Empty) != LevelSelectRoute) return;
+            PlayerPrefs.DeleteKey(BootRouteKey);
+            PlayerPrefs.Save();
+            OpenLevelSelect();
         }
 
         public void ShowMainMenu()
